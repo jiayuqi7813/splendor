@@ -125,7 +125,9 @@ io.on("connection", (socket) => {
       socket.join(result.room.roomId);
       cb({ playerId: result.playerId });
       emitRoom(result.room.roomId);
-      emitGame(result.room.roomId);
+      if (result.room.gameState?.phase !== "waiting") {
+        emitGame(result.room.roomId);
+      }
     }
   );
 
