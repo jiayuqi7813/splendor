@@ -10,8 +10,14 @@ interface GemBankProps {
 
 export function GemBank({ bank, selected = [], onToggle, compact = false }: GemBankProps) {
   return (
-    <div className="rounded-3xl border border-amber-300/20 bg-slate-950/70 p-4 shadow-2xl shadow-black/30">
-      <h3 className="mb-3 text-lg font-bold text-amber-100">宝石银行</h3>
+    <div className="gem-vault rounded-[1.6rem] p-4">
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <p className="text-[10px] uppercase tracking-[0.3em] text-[var(--muted-gold)]">Treasury</p>
+          <h3 className="font-serif text-xl font-black text-[var(--gold-hi)]">宝石金库</h3>
+        </div>
+        <span className="rounded-full border border-[rgba(247,211,122,.28)] bg-black/25 px-3 py-1 text-xs text-[var(--parchment)]">银行</span>
+      </div>
       <div className={compact ? "grid grid-cols-3 gap-2" : "space-y-3"}>
         {gemColors.map((color) => {
           const count = selected.filter((c) => c === color).length;
@@ -23,16 +29,20 @@ export function GemBank({ bank, selected = [], onToggle, compact = false }: GemB
               type="button"
               disabled={disabled}
               onClick={() => onToggle?.(color)}
-              className={`flex w-full items-center gap-3 rounded-2xl border px-3 py-2 text-left transition ${
-                isSelected ? "border-amber-300 bg-amber-300/15 shadow-[0_0_18px_rgba(255,215,0,0.45)]" : "border-white/10 bg-white/5 hover:bg-white/10"
+              className={`group flex w-full items-center gap-2 rounded-2xl border px-2.5 py-2 text-left transition ${
+                isSelected
+                  ? "token-selected border-[rgba(247,211,122,.75)] bg-[rgba(214,168,79,.16)]"
+                  : "border-[rgba(247,211,122,.16)] bg-black/20 hover:border-[rgba(247,211,122,.42)] hover:bg-[rgba(247,211,122,.08)]"
               } ${disabled ? "cursor-not-allowed opacity-70" : ""}`}
             >
-              <img className={`h-10 w-10 rounded-full border-2 ${colorRing[color]}`} src={TOKEN_IMAGE[color]} alt={COLOR_LABELS[color]} />
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-semibold text-slate-100">{COLOR_LABELS[color]}</div>
-                <div className="text-xs text-slate-400">{disabled ? "不可直接选取" : isSelected ? `已选 ${count}` : "点击选择"}</div>
+              <span className={`token-orb ${colorRing[color]} h-11 w-11 shrink-0`}>
+                <img className="h-full w-full rounded-full object-cover" src={TOKEN_IMAGE[color]} alt={COLOR_LABELS[color]} />
+              </span>
+              <div className="min-w-0 flex-1 leading-tight">
+                <div className="text-sm font-black text-[var(--parchment)]">{COLOR_LABELS[color]}</div>
+                <div className="text-[10px] text-[rgba(233,216,166,.55)]">{disabled ? "不可直接选取" : isSelected ? `已选 ${count}` : "金库库存"}</div>
               </div>
-              <span className="rounded-full bg-slate-900 px-3 py-1 text-lg font-black text-amber-100">{bank[color]}</span>
+              <span className="rounded-full border border-[rgba(247,211,122,.35)] bg-[rgba(8,10,18,.78)] px-2.5 py-1 text-base font-black text-[var(--gold-hi)] shadow-inner">{bank[color]}</span>
             </button>
           );
         })}

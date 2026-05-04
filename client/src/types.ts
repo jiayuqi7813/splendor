@@ -261,8 +261,8 @@ export const GEM_VISUALS: Record<GemColor, { label: string; short: string; gradi
   },
 };
 
-export const TIER_VISUALS: Record<1 | 2 | 3, { title: string; subtitle: string; accent: string; roman: string }> = {
-  1: { title: "一级发展卡", subtitle: "商路学徒", accent: "text-emerald-200", roman: "I" },
-  2: { title: "二级发展卡", subtitle: "工坊大师", accent: "text-amber-200", roman: "II" },
-  3: { title: "三级发展卡", subtitle: "宫廷巨匠", accent: "text-blue-200", roman: "III" },
+export const TIER_VISUALS: Record<1 | 2 | 3, { title: string; label: string; subtitle: string; accent: string; roman: string; gradient: string }> = {
+  1: { title: "一级发展卡", label: "一级", subtitle: "商路学徒", accent: "text-emerald-200", roman: "I", gradient: "from-emerald-500/30 via-emerald-900/20 to-slate-950" },
+  2: { title: "二级发展卡", label: "二级", subtitle: "工坊大师", accent: "text-amber-200", roman: "II", gradient: "from-amber-500/30 via-yellow-900/20 to-slate-950" },
+  3: { title: "三级发展卡", label: "三级", subtitle: "宫廷巨匠", accent: "text-blue-200", roman: "III", gradient: "from-blue-500/30 via-indigo-900/20 to-slate-950" },
 };
