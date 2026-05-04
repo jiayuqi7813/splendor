@@ -209,3 +209,60 @@ export const colorStyles: Record<GemColor, { border: string; text: string; dot: 
   brown: { border: "border-amber-800/60", text: "text-amber-700", dot: "#8b4513" },
   gold: { border: "border-yellow-300/60", text: "text-yellow-200", dot: "#ffd700" },
 };
+
+export const GEM_VISUALS: Record<GemColor, { label: string; short: string; gradient: string; glow: string; ring: string; ink: string }> = {
+  white: {
+    label: "钻石",
+    short: "白",
+    gradient: "from-slate-50 via-cyan-100 to-slate-300",
+    glow: "shadow-[0_0_26px_rgba(244,247,251,.45)]",
+    ring: "border-slate-100",
+    ink: "text-slate-50",
+  },
+  blue: {
+    label: "蓝宝石",
+    short: "蓝",
+    gradient: "from-blue-300 via-[#1a6fc4] to-blue-950",
+    glow: "shadow-[0_0_26px_rgba(26,111,196,.55)]",
+    ring: "border-blue-300",
+    ink: "text-blue-200",
+  },
+  green: {
+    label: "翡翠",
+    short: "绿",
+    gradient: "from-emerald-200 via-[#1a9c4a] to-emerald-950",
+    glow: "shadow-[0_0_26px_rgba(26,156,74,.55)]",
+    ring: "border-emerald-300",
+    ink: "text-emerald-200",
+  },
+  red: {
+    label: "红宝石",
+    short: "红",
+    gradient: "from-red-300 via-[#c41a1a] to-red-950",
+    glow: "shadow-[0_0_26px_rgba(196,26,26,.55)]",
+    ring: "border-red-300",
+    ink: "text-red-200",
+  },
+  brown: {
+    label: "玛瑙",
+    short: "棕",
+    gradient: "from-amber-500 via-[#8b4513] to-stone-950",
+    glow: "shadow-[0_0_26px_rgba(139,69,19,.55)]",
+    ring: "border-amber-700",
+    ink: "text-amber-300",
+  },
+  gold: {
+    label: "黄金",
+    short: "金",
+    gradient: "from-yellow-200 via-[#ffd700] to-amber-700",
+    glow: "shadow-[0_0_30px_rgba(255,215,0,.62)]",
+    ring: "border-yellow-200",
+    ink: "text-yellow-200",
+  },
+};
+
+export const TIER_VISUALS: Record<1 | 2 | 3, { title: string; subtitle: string; accent: string; roman: string }> = {
+  1: { title: "一级发展卡", subtitle: "商路学徒", accent: "text-emerald-200", roman: "I" },
+  2: { title: "二级发展卡", subtitle: "工坊大师", accent: "text-amber-200", roman: "II" },
+  3: { title: "三级发展卡", subtitle: "宫廷巨匠", accent: "text-blue-200", roman: "III" },
+};
