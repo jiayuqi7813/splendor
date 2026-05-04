@@ -120,7 +120,7 @@ export function GameBoard({ gameState, pendingDiscardExcess }: GameBoardProps) {
           </section>
 
           <aside className="space-y-4 xl:order-3">
-            <GemBank bank={gameState.bank} />
+            <GemBank bank={gameState.bank} compact />
             <ActionPanel
               gameState={gameState}
               me={myPlayer}
