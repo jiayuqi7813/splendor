@@ -1,11 +1,12 @@
 import type { BasicColor, Card, HiddenCard, PlayerState } from "../types";
-import { AVATARS, BASIC_COLORS, colorNames, colorStyles, isHiddenCard, tokenUrl } from "../types";
+import { AVATARS, AVATAR_BACKGROUNDS, BASIC_COLORS, colorNames, colorStyles, isHiddenCard, tokenUrl } from "../types";
 
 interface PlayerPanelProps {
   player: PlayerState;
   isCurrent: boolean;
   isMe: boolean;
   compact?: boolean;
+  detailed?: boolean;
 }
 
 const groupedCards = (cards: Card[]) =>
@@ -26,7 +27,7 @@ function ReservedCard({ card, isMe }: { card: Card | HiddenCard; isMe: boolean }
   return <img src={`https://raw.githubusercontent.com/hexanome-04/splendor/master/client/public/images/development-cards/${card.id}.jpg`} className="h-20 w-14 rounded-lg object-cover" alt="保留卡" />;
 }
 
-export default function PlayerPanel({ player, isCurrent, isMe, compact = false }: PlayerPanelProps) {
+export function PlayerPanel({ player, isCurrent, isMe, compact = false }: PlayerPanelProps) {
   const groups = groupedCards(player.purchasedCards);
   const totalTokens = Object.values(player.gems).reduce((sum, value) => sum + value, 0);
 
@@ -37,8 +38,8 @@ export default function PlayerPanel({ player, isCurrent, isMe, compact = false }
       }`}
     >
       <div className="flex items-center gap-3">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-full ${AVATARS[player.avatarId % AVATARS.length].bg} text-2xl`}>
-          {AVATARS[player.avatarId % AVATARS.length].emoji}
+        <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ${AVATAR_BACKGROUNDS[player.avatarId % AVATAR_BACKGROUNDS.length]} text-2xl`}>
+          {AVATARS[player.avatarId % AVATARS.length]}
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">

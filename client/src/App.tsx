@@ -111,7 +111,7 @@ export default function App() {
   if (screen === 'waiting' && roomState) {
     return (
       <WaitingRoom
-        room={roomState}
+        roomState={roomState}
         myPlayerId={playerId}
         onStart={startGame}
         error={error}
@@ -122,7 +122,7 @@ export default function App() {
   if (screen === 'game' && gameState && myPlayer) {
     return (
       <>
-        <GameBoard state={gameState} discardExcess={discardExcess} />
+        <GameBoard gameState={gameState} pendingDiscardExcess={discardExcess || null} />
         {gameOver ? <GameOverModal payload={gameOver} onClose={resetToLobby} /> : null}
       </>
     );

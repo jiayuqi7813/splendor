@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { BasicColor, Card, GameState, GemColor, Gems, PlayerState, TierState } from '../types';
-import { BASIC_COLORS, COLOR_CN, TOKEN_IMAGES, cardImageUrl, isHiddenCard } from '../types';
+import { BASIC_COLORS, COLOR_CN, TOKEN_IMAGES, cardImageUrl } from '../types';
 
 interface Props {
   gameState: GameState;
@@ -13,6 +13,8 @@ interface Props {
   onBuyCard: (cardId: string, goldSubstitutions: Partial<Record<BasicColor, number>>) => void;
   onDiscardTokens: (tokens: Partial<Gems>) => void;
   pendingDiscardExcess: number | null;
+  initialSelectedGems?: GemColor[];
+  onClearGemSelection?: () => void;
 }
 
 const emptyBasic = (): Record<BasicColor, number> => ({ white: 0, blue: 0, green: 0, red: 0, brown: 0 });

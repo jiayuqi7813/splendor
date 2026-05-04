@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { socket } from "../socket";
-import { Card, GameState } from "../types";
-import { ActionPanel } from "./ActionPanel";
+import { BasicColor, Card, GameState, GemColor, Gems } from "../types";
+import ActionPanel from "./ActionPanel";
 import { CardSlot } from "./CardSlot";
 import { GemBank } from "./GemBank";
 import { NobleRow } from "./NobleRow";
@@ -20,30 +20,28 @@ const tiers = [
 
 export function GameBoard({ gameState, pendingDiscardExcess }: GameBoardProps) {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
-  const [selectedGemCounts, setSelectedGemCounts] = useState<Record<string, number>>({});
   const myPlayer = gameState.players.find((player) => player.id === gameState.myPlayerId)!;
+  const currentPlayer = gameState.players.find((player) => player.id === gameState.currentPlayerId);
   const otherPlayers = gameState.players.filter((player) => player.id !== gameState.myPlayerId);
-
-  const selectedGemList = useMemo(
-    () => Object.entries(selectedGemCounts).flatMap(([color, count]) => Array.from({ length: count }, () => color)),
-    [selectedGemCounts]
-  );
-
-  const toggleGem = (color: string) => {
-    if (color === "gold" || gameState.currentPlayerId !== gameState.myPlayerId || pendingDiscardExcess) return;
-    setSelectedGemCounts((prev) => {
-      const current = prev[color] ?? 0;
-      const next = { ...prev };
-      if (current >= 2) delete next[color];
-      else next[color] = current + 1;
-      return next;
-    });
-  };
-
-  const clearGemSelection = () => setSelectedGemCounts({});
 
   const reserveFromDeck = (tier: 1 | 2 | 3) => {
     socket.emit("reserve_card", { roomId: gameState.roomId, cardId: null, fromDeck: tier }, () => undefined);
+  };
+
+  const takeGems = (colors: GemColor[]) => {
+    socket.emit("take_gems", { roomId: gameState.roomId, colors }, () => undefined);
+  };
+
+  const reserveCard = (cardId: string | null, fromDeck: 1 | 2 | 3 | null) => {
+    socket.emit("reserve_card", { roomId: gameState.roomId, cardId, fromDeck }, () => undefined);
+  };
+
+  const buyCard = (cardId: string, goldSubstitutions: Partial<Record<BasicColor, number>>) => {
+    socket.emit("buy_card", { roomId: gameState.roomId, cardId, goldSubstitutions }, () => undefined);
+  };
+
+  const discardTokens = (tokens: Partial<Gems>) => {
+    socket.emit("discard_tokens", { roomId: gameState.roomId, tokens }, () => undefined);
   };
 
   return (
@@ -105,7 +103,7 @@ export function GameBoard({ gameState, pendingDiscardExcess }: GameBoardProps) {
                       </button>
                     </div>
                     <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-                      <CardSlot tier={row.tier} deckCount={tierState.deckCount} isDeck />
+                      <CardSlot tier={row.tier} deck={tierState} mode="deck" disabled />
                       {tierState.faceUp.map((card, index) => (
                         <CardSlot
                           key={card?.id ?? `${row.key}-${index}`}
@@ -122,15 +120,18 @@ export function GameBoard({ gameState, pendingDiscardExcess }: GameBoardProps) {
           </section>
 
           <aside className="space-y-4 xl:order-3">
-            <GemBank bank={gameState.bank} selectedCounts={selectedGemCounts} onToggle={toggleGem} />
+            <GemBank bank={gameState.bank} />
             <ActionPanel
               gameState={gameState}
-              myPlayer={myPlayer}
-              selectedGemList={selectedGemList}
+              me={myPlayer}
+              currentPlayer={currentPlayer}
               selectedCard={selectedCard}
               pendingDiscardExcess={pendingDiscardExcess}
+              onTakeGems={takeGems}
+              onReserveCard={reserveCard}
+              onBuyCard={buyCard}
+              onDiscardTokens={discardTokens}
               onCloseCard={() => setSelectedCard(null)}
-              onClearGemSelection={clearGemSelection}
             />
           </aside>
         </div>

@@ -1,4 +1,4 @@
-import { AVATARS } from "./LobbyScreen";
+import { AVATARS } from "../types";
 import type { GameOverPayload } from "../types";
 
 interface Props {
@@ -11,7 +11,7 @@ export function GameOverModal({ payload }: Props) {
       <div className="w-full max-w-2xl rounded-3xl border border-amber-300/40 bg-slate-950 p-8 text-white shadow-2xl">
         <div className="text-center">
           <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-amber-400 text-4xl shadow-lg shadow-amber-400/30">
-            {AVATARS[payload.winner.avatarId]?.emoji ?? "👑"}
+            {AVATARS[payload.winner.avatarId] ?? "👑"}
           </div>
           <p className="text-sm text-amber-200">游戏结束</p>
           <h2 className="mt-2 text-3xl font-black text-amber-300">
@@ -28,7 +28,7 @@ export function GameOverModal({ payload }: Props) {
             >
               <div className="flex items-center gap-3">
                 <span className="w-8 text-xl font-black text-amber-200">#{index + 1}</span>
-                <span className="text-2xl">{AVATARS[player.avatarId]?.emoji ?? "💎"}</span>
+                <span className="text-2xl">{AVATARS[player.avatarId] ?? "💎"}</span>
                 <span className="font-bold">{player.username}</span>
               </div>
               <div className="text-right text-sm text-slate-300">
