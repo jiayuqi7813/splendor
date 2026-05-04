@@ -80,7 +80,7 @@ export function GameBoard({ gameState, pendingDiscardExcess }: GameBoardProps) {
           </aside>
 
           <section className="space-y-4 xl:order-2">
-            <NobleRow nobles={gameState.nobles} player={myPlayer} />
+            <NobleRow nobles={gameState.nobles} currentPlayer={myPlayer} />
 
             <div className="space-y-4 rounded-3xl border border-amber-300/15 bg-slate-950/45 p-3 shadow-2xl">
               {tiers.map((row) => {

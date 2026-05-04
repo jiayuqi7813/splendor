@@ -69,7 +69,7 @@ export interface GameRoom {
   roomId: string;
   players: PlayerState[];
   hostId: string;
-  gameState: GameState;
+  gameState: GameState | null;
   createdAt: number;
   lastActivity: number;
 }
@@ -182,7 +182,8 @@ function normalizeGoldSubs(goldSubs: Partial<Record<string, number>> | undefined
   if (!goldSubs) return normalized;
   for (const [key, value] of Object.entries(goldSubs)) {
     if (isBasicColor(key)) {
-      normalized[key] = Number.isInteger(value) && value > 0 ? value : 0;
+      const numericValue = value ?? 0;
+      normalized[key] = Number.isInteger(numericValue) && numericValue > 0 ? numericValue : 0;
     }
   }
   return normalized;
@@ -386,7 +387,7 @@ export function validateBuy(
   if (goldSubs) {
     for (const [key, value] of Object.entries(goldSubs)) {
       if (!isBasicColor(key)) return { valid: false, error: "黄金替代颜色无效" };
-      if (!Number.isInteger(value) || value < 0) return { valid: false, error: "黄金替代数量必须是非负整数" };
+      if (!Number.isInteger(value) || (value ?? 0) < 0) return { valid: false, error: "黄金替代数量必须是非负整数" };
     }
   }
   const { coloredPayment, goldSubs: normalized, goldTotal } = calculatePayment(player, location.card, goldSubs);
@@ -530,3 +531,4 @@ export function getPlayerView(state: GameState, playerId: string): GameState {
 }
 
 export { BASIC_COLORS, ALL_COLORS, emptyGems, emptyCosts };
+export type { BasicColor, GemColor };

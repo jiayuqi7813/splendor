@@ -1,12 +1,14 @@
 import { v4 as uuidv4 } from "uuid";
-import { createGame, GameRoom, GameState, PlayerState, PublicPlayer } from "./gameEngine";
+import { emptyCosts, emptyGems, GameRoom, GameState, PlayerState, createGame } from "./gameEngine";
 
 export interface RoomState {
   roomId: string;
   hostId: string;
-  players: PublicPlayer[];
+  players: PlayerState[];
   phase: "waiting" | "playing" | "finalRound" | "ended";
   started: boolean;
+  createdAt: number;
+  lastActivity: number;
 }
 
 export const rooms = new Map<string, GameRoom>();
@@ -32,6 +34,26 @@ export function toRoomState(room: GameRoom): RoomState {
     players: room.players.map((player) => ({ ...player, isHost: player.id === room.hostId })),
     phase,
     started: phase !== "waiting",
+    createdAt: room.createdAt,
+    lastActivity: room.lastActivity,
+  };
+}
+
+function makeLobbyPlayer(id: string, username: string, avatarId: number, isHost: boolean, socketId: string): PlayerState {
+  return {
+    id,
+    username,
+    avatarId,
+    isHost,
+    socketId,
+    connected: true,
+    gems: emptyGems(),
+    bonuses: emptyCosts(),
+    purchasedCards: [],
+    reservedCards: [],
+    nobles: [],
+    prestige: 0,
+    turnsTaken: 0,
   };
 }
 
@@ -40,27 +62,37 @@ export function touchRoom(roomId: string): void {
   if (room) room.lastActivity = Date.now();
 }
 
-export function createRoom(username: string, avatarId: number, socketId: string): { room: GameRoom; playerId: string } {
+export function createRoom(username: string, avatarId: number, socketId: string): { room: GameRoom; player: PlayerState; playerId: string } | { error: string } {
+  const cleanName = username.trim().slice(0, 16);
+  if (!cleanName) return { error: "请输入用户名。" };
   const roomId = generateRoomId();
   const playerId = uuidv4();
-  const player: PublicPlayer = {
-    id: playerId,
-    username: username.trim().slice(0, 16),
-    avatarId,
-    isHost: true,
-    socketId,
-    connected: true,
-  };
+  const player = makeLobbyPlayer(playerId, cleanName, avatarId, true, socketId);
   const room: GameRoom = {
     roomId,
     players: [player],
     hostId: playerId,
-    gameState: null,
+    gameState: {
+      roomId,
+      phase: "waiting",
+      currentPlayerId: "",
+      turnOrder: [],
+      finalRoundStarterId: null,
+      bank: emptyGems(),
+      tier1: { faceUp: [], deckCount: 0 },
+      tier2: { faceUp: [], deckCount: 0 },
+      tier3: { faceUp: [], deckCount: 0 },
+      nobles: [],
+      players: [player],
+      myPlayerId: "",
+      winner: null,
+      lastAction: null,
+    },
     createdAt: Date.now(),
     lastActivity: Date.now(),
   };
   rooms.set(roomId, room);
-  return { room, playerId };
+  return { room, player, playerId };
 }
 
 export function joinRoom(
@@ -97,17 +129,11 @@ export function joinRoom(
   if (room.players.length >= 4) return { error: "房间已满，最多 4 名玩家。" };
 
   const playerId = uuidv4();
-  const player: PublicPlayer = {
-    id: playerId,
-    username: cleanName,
-    avatarId,
-    isHost: false,
-    socketId,
-    connected: true,
-  };
+  const player = makeLobbyPlayer(playerId, cleanName, avatarId, false, socketId);
   room.players.push(player);
+  if (room.gameState?.phase === "waiting") room.gameState.players = room.players;
   touchRoom(roomId);
-  return { room, playerId };
+  return { room, playerId, reconnected: false };
 }
 
 export function startRoomGame(roomId: string, hostId: string): { room?: GameRoom; gameState?: GameState; error?: string } {
@@ -119,10 +145,13 @@ export function startRoomGame(roomId: string, hostId: string): { room?: GameRoom
   if (room.players.length > 4) return { error: "最多 4 名玩家。" };
 
   const gameRoom = createGame(room.players, room.players.length);
-  room.gameState = gameRoom.gameState;
+  const gameState = gameRoom.gameState!;
+  gameState.roomId = room.roomId;
   room.players = room.players.map((player) => ({ ...player, isHost: player.id === room.hostId, connected: true }));
+  gameState.players = room.players;
+  room.gameState = gameState;
   touchRoom(roomId);
-  return { room, gameState: room.gameState ?? undefined };
+  return { room, gameState };
 }
 
 export function updateRoomFromGamePlayers(room: GameRoom): void {
@@ -134,6 +163,13 @@ export function updateRoomFromGamePlayers(room: GameRoom): void {
     isHost: player.id === room.hostId,
     socketId: room.players.find((p) => p.id === player.id)?.socketId,
     connected: player.connected,
+    gems: player.gems,
+    bonuses: player.bonuses,
+    purchasedCards: player.purchasedCards,
+    reservedCards: player.reservedCards,
+    nobles: player.nobles,
+    prestige: player.prestige,
+    turnsTaken: player.turnsTaken,
   }));
 }
 
@@ -160,6 +196,7 @@ export function handleDisconnect(socketId: string): GameRoom | undefined {
     if (room.hostId === player.id) {
       room.hostId = room.players[0].id;
       room.players = room.players.map((p) => ({ ...p, isHost: p.id === room.hostId }));
+      if (room.gameState) room.gameState.players = room.players;
     }
   } else {
     player.connected = false;

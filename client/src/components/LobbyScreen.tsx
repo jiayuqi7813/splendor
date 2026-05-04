@@ -1,18 +1,20 @@
-import type { FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { AVATARS, BACKGROUND_URL } from "../types";
 
 interface LobbyScreenProps {
-  username: string;
-  avatarId: number;
-  roomCode: string;
-  joining: boolean;
+  username?: string;
+  avatarId?: number;
+  roomCode?: string;
+  joining?: boolean;
   error: string;
-  onUsernameChange: (value: string) => void;
-  onAvatarChange: (value: number) => void;
-  onRoomCodeChange: (value: string) => void;
-  onToggleJoin: () => void;
-  onCreateRoom: () => void;
-  onJoinRoom: () => void;
+  onUsernameChange?: (value: string) => void;
+  onAvatarChange?: (value: number) => void;
+  onRoomCodeChange?: (value: string) => void;
+  onToggleJoin?: () => void;
+  onCreateRoom?: () => void;
+  onJoinRoom?: () => void;
+  onCreate?: (username: string, avatarId: number) => void;
+  onJoin?: (roomId: string, username: string, avatarId: number) => void;
 }
 
 const avatarBg = [
@@ -31,10 +33,10 @@ const avatarBg = [
 ];
 
 export default function LobbyScreen({
-  username,
-  avatarId,
-  roomCode,
-  joining,
+  username: controlledUsername,
+  avatarId: controlledAvatarId,
+  roomCode: controlledRoomCode,
+  joining: controlledJoining,
   error,
   onUsernameChange,
   onAvatarChange,
@@ -42,14 +44,48 @@ export default function LobbyScreen({
   onToggleJoin,
   onCreateRoom,
   onJoinRoom,
+  onCreate,
+  onJoin,
 }: LobbyScreenProps) {
+  const [localUsername, setLocalUsername] = useState("");
+  const [localAvatarId, setLocalAvatarId] = useState(0);
+  const [localRoomCode, setLocalRoomCode] = useState("");
+  const [localJoining, setLocalJoining] = useState(false);
+  const username = controlledUsername ?? localUsername;
+  const avatarId = controlledAvatarId ?? localAvatarId;
+  const roomCode = controlledRoomCode ?? localRoomCode;
+  const joining = controlledJoining ?? localJoining;
+  const changeUsername = (value: string) => {
+    onUsernameChange?.(value);
+    if (controlledUsername === undefined) setLocalUsername(value);
+  };
+  const changeAvatar = (value: number) => {
+    onAvatarChange?.(value);
+    if (controlledAvatarId === undefined) setLocalAvatarId(value);
+  };
+  const changeRoomCode = (value: string) => {
+    onRoomCodeChange?.(value);
+    if (controlledRoomCode === undefined) setLocalRoomCode(value);
+  };
+  const create = () => {
+    onCreateRoom?.();
+    onCreate?.(username.trim(), avatarId);
+  };
+  const join = () => {
+    if (onJoinRoom) onJoinRoom();
+    else onJoin?.(roomCode.trim().toUpperCase(), username.trim(), avatarId);
+  };
+  const toggleJoin = () => {
+    onToggleJoin?.();
+    if (controlledJoining === undefined) setLocalJoining(true);
+  };
   const submitJoin = (event: FormEvent) => {
     event.preventDefault();
     if (joining) {
-      onJoinRoom();
+      join();
       return;
     }
-    onToggleJoin();
+    toggleJoin();
   };
 
   return (
@@ -74,7 +110,7 @@ export default function LobbyScreen({
                 value={username}
                 maxLength={16}
                 required
-                onChange={(event) => onUsernameChange(event.target.value)}
+                onChange={(event) => changeUsername(event.target.value)}
                 className="w-full rounded-2xl border border-amber-200/20 bg-slate-900/80 px-4 py-3 text-lg text-white outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-300/30"
                 placeholder="请输入最多 16 字"
               />
@@ -87,7 +123,7 @@ export default function LobbyScreen({
                   <button
                     key={emoji}
                     type="button"
-                    onClick={() => onAvatarChange(index)}
+                    onClick={() => changeAvatar(index)}
                     className={`grid aspect-square place-items-center rounded-full bg-gradient-to-br text-2xl shadow-lg transition hover:scale-110 ${
                       avatarBg[index]
                     } ${avatarId === index ? "ring-4 ring-amber-300 ring-offset-2 ring-offset-slate-950" : "ring-1 ring-white/20"}`}
@@ -105,7 +141,7 @@ export default function LobbyScreen({
                 <input
                   value={roomCode}
                   maxLength={6}
-                  onChange={(event) => onRoomCodeChange(event.target.value.toUpperCase())}
+                  onChange={(event) => changeRoomCode(event.target.value.toUpperCase())}
                   className="w-full rounded-2xl border border-amber-200/20 bg-slate-900/80 px-4 py-3 text-center text-2xl font-black uppercase tracking-[0.35em] text-white outline-none transition focus:border-amber-300 focus:ring-2 focus:ring-amber-300/30"
                   placeholder="ABC123"
                 />
@@ -117,7 +153,7 @@ export default function LobbyScreen({
             <div className="grid gap-3 md:grid-cols-2">
               <button
                 type="button"
-                onClick={onCreateRoom}
+                onClick={create}
                 className="rounded-2xl bg-gradient-to-r from-amber-300 to-yellow-600 px-6 py-4 text-lg font-black text-slate-950 shadow-lg shadow-amber-900/30 transition hover:scale-[1.02] hover:from-amber-200 hover:to-yellow-500"
               >
                 创建房间

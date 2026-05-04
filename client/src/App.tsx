@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { socket } from './socket';
 import { GameOverModal } from './components/GameOverModal';
 import { GameBoard } from './components/GameBoard';
-import { LobbyScreen } from './components/LobbyScreen';
+import LobbyScreen from './components/LobbyScreen';
 import { WaitingRoom } from './components/WaitingRoom';
 import type { GameOverPayload, GameState, RoomState } from './types';
 
@@ -112,7 +112,7 @@ export default function App() {
     return (
       <WaitingRoom
         roomState={roomState}
-        myPlayerId={playerId}
+        playerId={playerId}
         onStart={startGame}
         error={error}
       />
@@ -123,7 +123,7 @@ export default function App() {
     return (
       <>
         <GameBoard gameState={gameState} pendingDiscardExcess={discardExcess || null} />
-        {gameOver ? <GameOverModal payload={gameOver} onClose={resetToLobby} /> : null}
+        {gameOver ? <GameOverModal payload={gameOver} /> : null}
       </>
     );
   }

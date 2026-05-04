@@ -92,8 +92,6 @@ export const COLOR_LABELS: Record<GemColor, string> = {
   gold: "黄金",
 };
 
-export const COLOR_CN = COLOR_LABELS;
-
 export const COLOR_SHORT_LABELS: Record<BasicColor, string> = {
   white: "白",
   blue: "蓝",
@@ -110,8 +108,6 @@ export const COLOR_ACCENTS: Record<GemColor, string> = {
   brown: "border-[#8b4513] text-amber-700",
   gold: "border-[#ffd700] text-yellow-200",
 };
-
-export const colorRing = COLOR_ACCENTS;
 
 export const COLOR_DOTS: Record<BasicColor, string> = {
   white: "#e5e7eb",
