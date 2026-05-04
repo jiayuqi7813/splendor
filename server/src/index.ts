@@ -13,7 +13,7 @@ import {
   validateReserve,
   validateTakeGems,
 } from "./gameEngine";
-import { BasicColor, GemColor } from "./gameData";
+import { ALL_COLORS, BasicColor, Card, GemColor } from "./gameData";
 import {
   createRoom,
   handleDisconnect,
@@ -97,6 +97,59 @@ function respondError(cb: ((response: { error?: string }) => void) | undefined, 
   if (socket) socket.emit("error", { message });
 }
 
+type TracePhase = "start" | "move" | "end" | "cancel";
+type TraceItemInput =
+  | { kind: "bank-gem" | "my-gem"; color?: GemColor }
+  | { kind: "market-card"; cardId?: string }
+  | { kind: "reserved-card"; tier?: 1 | 2 | 3 }
+  | { kind: "deck"; tier?: 1 | 2 | 3 };
+
+type PublicTraceItem =
+  | { kind: "bank-gem" | "my-gem"; color: GemColor }
+  | { kind: "market-card"; cardId: string; color: Card["color"]; prestige: number; tier: 1 | 2 | 3 }
+  | { kind: "reserved-card"; tier: 1 | 2 | 3 }
+  | { kind: "deck"; tier: 1 | 2 | 3 };
+
+function clampUnit(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return Math.max(0, Math.min(1, value));
+}
+
+function isTracePhase(value: unknown): value is TracePhase {
+  return value === "start" || value === "move" || value === "end" || value === "cancel";
+}
+
+function isTier(value: unknown): value is 1 | 2 | 3 {
+  return value === 1 || value === 2 || value === 3;
+}
+
+function findPublicMarketCard(roomId: string, cardId: string): Card | null {
+  const room = rooms.get(roomId);
+  const gameState = room?.gameState;
+  if (!gameState) return null;
+  const cards = [...gameState.tier1.faceUp, ...gameState.tier2.faceUp, ...gameState.tier3.faceUp];
+  return cards.find((card) => card?.id === cardId) ?? null;
+}
+
+function sanitizeTraceItem(roomId: string, item: TraceItemInput | undefined): PublicTraceItem | null {
+  if (!item || typeof item.kind !== "string") return null;
+  if ((item.kind === "bank-gem" || item.kind === "my-gem") && item.color && ALL_COLORS.includes(item.color)) {
+    return { kind: item.kind, color: item.color };
+  }
+  if (item.kind === "deck" && isTier(item.tier)) {
+    return { kind: "deck", tier: item.tier };
+  }
+  if (item.kind === "reserved-card") {
+    return { kind: "reserved-card", tier: isTier(item.tier) ? item.tier : 1 };
+  }
+  if (item.kind === "market-card" && typeof item.cardId === "string") {
+    const card = findPublicMarketCard(roomId, item.cardId);
+    if (!card) return null;
+    return { kind: "market-card", cardId: card.id, color: card.color, prestige: card.prestige, tier: card.tier };
+  }
+  return null;
+}
+
 io.on("connection", (socket) => {
   socket.on(
     "create_room",
@@ -153,6 +206,47 @@ io.on("connection", (socket) => {
     cb({});
     emitGame(room.roomId);
   });
+
+  socket.on(
+    "player_trace",
+    (payload: {
+      roomId: string;
+      traceId: string;
+      phase: TracePhase;
+      x: number;
+      y: number;
+      item?: TraceItemInput;
+      targetId?: string;
+    }) => {
+      const room = rooms.get(payload.roomId);
+      const playerId = socket.data.playerId;
+      if (!room?.gameState || !playerId || socket.data.roomId !== room.roomId) return;
+      const player = room.gameState.players.find((entry) => entry.id === playerId);
+      if (!player) return;
+      const mayOperate = room.gameState.currentPlayerId === playerId || room.gameState.pendingDiscardPlayerId === playerId;
+      if (!mayOperate || !isTracePhase(payload.phase)) return;
+      const x = clampUnit(payload.x);
+      const y = clampUnit(payload.y);
+      const item = sanitizeTraceItem(room.roomId, payload.item);
+      if (x === null || y === null || !item) return;
+      const traceId = typeof payload.traceId === "string" ? payload.traceId.slice(0, 80) : "";
+      if (!traceId) return;
+
+      socket.to(room.roomId).emit("player_trace", {
+        roomId: room.roomId,
+        traceId,
+        phase: payload.phase,
+        playerId,
+        username: player.username,
+        avatarId: player.avatarId,
+        x,
+        y,
+        item,
+        targetId: typeof payload.targetId === "string" ? payload.targetId.slice(0, 80) : undefined,
+        at: Date.now(),
+      });
+    }
+  );
 
   socket.on(
     "reserve_card",

@@ -80,6 +80,28 @@ export interface GameOverPayload {
   reason: string;
 }
 
+export type TracePhase = "start" | "move" | "end" | "cancel";
+
+export type TraceItem =
+  | { kind: "bank-gem" | "my-gem"; color: GemColor }
+  | { kind: "market-card"; cardId: string; color: BasicColor; prestige: number; tier: 1 | 2 | 3 }
+  | { kind: "reserved-card"; tier: 1 | 2 | 3 }
+  | { kind: "deck"; tier: 1 | 2 | 3 };
+
+export interface PlayerTracePayload {
+  roomId?: string;
+  traceId: string;
+  phase: TracePhase;
+  playerId: string;
+  username: string;
+  avatarId: number;
+  x: number;
+  y: number;
+  item: TraceItem;
+  targetId?: string;
+  at: number;
+}
+
 export const BASIC_COLORS: BasicColor[] = ["white", "blue", "green", "red", "brown"];
 export const ALL_COLORS: GemColor[] = ["white", "blue", "green", "red", "brown", "gold"];
 
@@ -149,7 +171,7 @@ export function isHiddenCard(card: ReservedCard): card is HiddenCard {
   return "hidden" in card && card.hidden === true;
 }
 
-export const AVATARS = ["👑", "🔮", "💎", "🏺", "⚔️", "🧙", "🦁", "🐉", "🌟", "🎭", "🔥", "🌙"];
+export const AVATARS = ["A", "B", "C", "D", "E", "F", "G", "H", "J", "K", "L", "M"];
 export const AVATAR_BACKGROUNDS = [
   "from-amber-400 to-yellow-700",
   "from-purple-400 to-indigo-800",

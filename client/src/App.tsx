@@ -129,7 +129,7 @@ export default function App() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 text-amber-100">
+    <main className="loading-shell">
       正在连接璀璨宝石桌局...
     </main>
   );
