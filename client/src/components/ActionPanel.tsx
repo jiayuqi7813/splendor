@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { BasicColor, Card, GameState, GemColor, Gems, PlayerState, TierState } from '../types';
-import { BASIC_COLORS, COLOR_CN, TOKEN_IMAGES, cardImageUrl } from '../types';
+import { BASIC_COLORS, COLOR_CN, GEM_VISUALS, TOKEN_IMAGES, cardImageUrl } from '../types';
 
 interface Props {
   gameState: GameState;
