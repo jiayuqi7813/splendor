@@ -123,7 +123,7 @@ export function joinRoom(
     return { room, playerId: existing.id, reconnected: true };
   }
 
-  if (room.gameState && room.gameState.phase !== "waiting") {
+  if (room.gameState && room.gameState.phase !== "waiting" && room.gameState.currentPlayerId) {
     return { error: "游戏已经开始，只能使用原用户名重连。" };
   }
   if (room.players.length >= 4) return { error: "房间已满，最多 4 名玩家。" };
@@ -140,7 +140,7 @@ export function startRoomGame(roomId: string, hostId: string): { room?: GameRoom
   const room = rooms.get(roomId);
   if (!room) return { error: "房间不存在。" };
   if (room.hostId !== hostId) return { error: "只有房主可以开始游戏。" };
-  if (room.gameState && room.gameState.phase !== "waiting") return { error: "游戏已经开始。" };
+  if (room.gameState && room.gameState.phase !== "waiting" && room.gameState.currentPlayerId) return { error: "游戏已经开始。" };
   if (room.players.length < 2) return { error: "至少需要 2 名玩家才能开始。" };
   if (room.players.length > 4) return { error: "最多 4 名玩家。" };
 
