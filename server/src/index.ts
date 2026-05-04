@@ -209,7 +209,7 @@ io.on("connection", (socket) => {
 if (isProduction) {
   const publicDir =
     process.env.PUBLIC_DIR ??
-    (process.cwd().endsWith(`${path.sep}server`) ? path.join(process.cwd(), "..", "client", "dist") : path.join(process.cwd(), "public"));
+    (process.cwd().endsWith(`${path.sep}server`) ? path.join(process.cwd(), "..", "public") : path.join(process.cwd(), "client", "dist"));
   app.use(express.static(publicDir));
   app.get("*", (req, res, next) => {
     if (req.path.startsWith("/socket.io") || req.path.startsWith("/api")) return next();
