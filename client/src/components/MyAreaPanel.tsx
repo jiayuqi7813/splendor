@@ -1,14 +1,14 @@
-import { Bookmark, CheckCircle2, RotateCcw, Sparkles } from "lucide-react";
+import { Bookmark, CheckCircle2, RotateCcw } from "lucide-react";
 import type { CSSProperties } from "react";
 import type { BasicColor, Card, GemColor, PlayerState, ReservedCard } from "../types";
 import {
   BASIC_COLORS,
   COLOR_LABELS,
-  TOKEN_IMAGES,
   cardImageUrl,
   deckBackUrl,
   isHiddenCard,
   nobleImageUrl,
+  TOKEN_IMAGES,
 } from "../types";
 import { Draggable, DropZone, useBoardDrag } from "./BoardDragProvider";
 import { PaymentDropZone } from "./PaymentDropZone";
@@ -60,7 +60,6 @@ export function MyAreaPanel({ player }: { player: PlayerState }) {
     clearReserve,
     confirmReserve,
     confirmDiscard,
-    confirmBuy,
   } = useBoardDrag();
   const groups = groupedPurchasedCards(player);
 
@@ -120,39 +119,6 @@ export function MyAreaPanel({ player }: { player: PlayerState }) {
           ) : null}
           {player.reservedCards.length === 0 && !stagedReserve ? <span className="drop-placeholder">拖卡或牌堆到这里</span> : null}
         </div>
-      </DropZone>
-
-      <DropZone id="selected-card-zone" className="selected-card-zone" onDoubleClick={confirmBuy} label="选中卡预览，双击确认购买">
-        <div className="mini-section-head">
-          <strong>选中卡预览</strong>
-          {selectedCard ? <span>{selectedCardSource === "reserved" ? "来自预留区" : "来自市场"}</span> : null}
-        </div>
-        {selectedCard ? (
-          <div className="selected-card-content">
-            <DropZone id={`card-drop:${selectedCard.id}`} className="selected-card-image" onDoubleClick={confirmBuy}>
-              <img src={cardImageUrl(selectedCard.id)} alt="" />
-              <b>{selectedCard.prestige}</b>
-            </DropZone>
-            <div className="selected-card-need">
-              <strong>{COLOR_LABELS[selectedCard.color]} · 等级 {selectedCard.tier}</strong>
-              <span>
-                需要：
-                {BASIC_COLORS.filter((color) => selectedCard.cost[color] > 0).map((color) => (
-                  <em key={color}>
-                    <img src={TOKEN_IMAGES[color]} alt="" />
-                    {selectedCard.cost[color]}
-                  </em>
-                ))}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="empty-drop-copy">
-            <Sparkles size={24} />
-            <strong>拖发展卡到这里</strong>
-            <span>也可以点击市场卡进行选择</span>
-          </div>
-        )}
       </DropZone>
 
       <PaymentDropZone />

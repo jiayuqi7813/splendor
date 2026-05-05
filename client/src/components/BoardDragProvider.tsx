@@ -39,6 +39,7 @@ interface PaymentPlan {
   coloredPayment: Record<BasicColor, number>;
   goldSubstitutions: Record<BasicColor, number>;
   remaining: Record<BasicColor, number>;
+  goldTotal: number;
   missingTotal: number;
   canBuy: boolean;
 }
@@ -112,7 +113,7 @@ function validateTakeSelection(selection: GemColor[], bank: Gems) {
   return { valid: false, text: selection.length ? `已暂放 ${selection.length} 枚宝石` : "拖公共宝石到我的宝石区" };
 }
 
-function createPaymentPlan(player: PlayerState, card: Card | null, stagedPayment: Partial<Gems>): PaymentPlan | null {
+function createPaymentPlan(player: PlayerState, card: Card | null): PaymentPlan | null {
   if (!card) return null;
   const need = emptyBasic();
   const coloredPayment = emptyBasic();
@@ -121,20 +122,22 @@ function createPaymentPlan(player: PlayerState, card: Card | null, stagedPayment
 
   for (const color of BASIC_COLORS) {
     need[color] = Math.max(0, card.cost[color] - player.bonuses[color]);
-    coloredPayment[color] = Math.min(stagedPayment[color] ?? 0, player.gems[color], need[color]);
+    coloredPayment[color] = Math.min(player.gems[color], need[color]);
     remaining[color] = Math.max(0, need[color] - coloredPayment[color]);
   }
 
-  let goldLeft = Math.min(stagedPayment.gold ?? 0, player.gems.gold);
+  let goldLeft = player.gems.gold;
+  let goldTotal = 0;
   for (const color of BASIC_COLORS) {
     const goldForColor = Math.min(remaining[color], goldLeft);
     goldSubstitutions[color] = goldForColor;
     remaining[color] -= goldForColor;
     goldLeft -= goldForColor;
+    goldTotal += goldForColor;
   }
 
   const missingTotal = BASIC_COLORS.reduce((sum, color) => sum + remaining[color], 0);
-  return { need, coloredPayment, goldSubstitutions, remaining, missingTotal, canBuy: missingTotal === 0 };
+  return { need, coloredPayment, goldSubstitutions, remaining, goldTotal, missingTotal, canBuy: missingTotal === 0 };
 }
 
 function dragLabel(payload: DragPayload | null) {
@@ -234,7 +237,7 @@ export function BoardDragProvider({
   const mustDiscard = gameState.pendingDiscardPlayerId === me.id || pendingDiscardExcess !== null;
   const mayBroadcastTrace = isMyTurn || mustDiscard;
   const takeValidation = validateTakeSelection(stagedTakeGems, gameState.bank);
-  const paymentPlan = useMemo(() => createPaymentPlan(me, selectedCard, stagedPayment), [me, selectedCard, stagedPayment]);
+  const paymentPlan = useMemo(() => createPaymentPlan(me, selectedCard), [me, selectedCard]);
 
   useEffect(() => {
     setStagedTakeGems([]);
@@ -307,7 +310,7 @@ export function BoardDragProvider({
     setSelectedCardState(card);
     setSelectedCardSource(card ? source : null);
     setStagedPayment({});
-    if (card) setNotice("已选中发展卡。拖动我的宝石到卡牌或支付区，双击确认购买。");
+    if (card) setNotice("已选中发展卡。条件足够时可直接购买，也可以拖宝石查看支付。");
   };
 
   const stageTakeGem = (color: GemColor) => {
@@ -349,17 +352,19 @@ export function BoardDragProvider({
       setNotice(`${COLOR_LABELS[color]}数量不足。`);
       return;
     }
-    const plan = createPaymentPlan(me, targetCard, paymentBase);
-    if (color !== "gold" && plan && plan.need[color] <= plan.coloredPayment[color]) {
+    const plan = createPaymentPlan(me, targetCard);
+    const stagedCount = paymentBase[color] ?? 0;
+    const neededCount = color === "gold" ? plan?.goldTotal ?? 0 : plan?.need[color] ?? 0;
+    if (neededCount <= 0) {
+      setNotice(`${COLOR_LABELS[color]}暂时不需要用于这张卡。`);
+      return;
+    }
+    if (stagedCount >= neededCount) {
       setNotice(`${COLOR_LABELS[color]}已经足够支付这张卡。`);
       return;
     }
-    if (color === "gold" && plan?.missingTotal === 0) {
-      setNotice("这张卡暂时不需要黄金替代。");
-      return;
-    }
     setStagedPayment((prev) => incrementGem(resetPayment ? paymentBase : prev, color));
-    setNotice("已将宝石放入支付区。双击卡牌或支付区确认购买。");
+    setNotice("已记录手动支付。条件足够时可以直接点击购买。");
   };
 
   const stageDiscardGem = (color: GemColor) => {

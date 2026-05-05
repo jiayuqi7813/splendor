@@ -912,10 +912,29 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
+  color: inherit;
+  padding: 0;
+  text-align: left;
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
 }
 
 .noble-tile.ready {
   border-color: var(--teal);
+}
+
+.noble-tile:hover,
+.noble-tile.selected {
+  border-color: color-mix(in oklch, var(--blue) 70%, var(--line));
+  box-shadow: 0 0 0 3px oklch(62% 0.14 255 / 0.15), var(--shadow-sm);
+}
+
+.noble-tile:hover {
+  transform: translateY(-1px);
+}
+
+.noble-tile.ready.selected {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px oklch(62% 0.12 188 / 0.2), var(--shadow-sm);
 }
 
 .noble-tile > img {
@@ -2202,8 +2221,8 @@ textarea {
 }
 
 .card-drop-surface.is-over .market-card,
-.selected-card-image.is-over,
-.payment-drop-zone.is-over,
+.purchase-card-image.is-over,
+.purchase-zone.is-over,
 .reserve-zone.is-over,
 .my-gems-zone.is-over,
 .discard-drop-zone.is-over {
@@ -2419,7 +2438,7 @@ textarea {
 
 .my-area-panel {
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) minmax(210px, 0.72fr) minmax(250px, 0.86fr) minmax(310px, 1.08fr);
+  grid-template-columns: minmax(280px, 0.95fr) minmax(210px, 0.72fr) minmax(520px, 1.72fr);
   grid-template-rows: 28px minmax(0, 1fr);
   gap: 8px;
   margin: 0 12px 10px;
@@ -2457,8 +2476,7 @@ textarea {
 .my-gems-zone,
 .purchased-zone,
 .reserve-zone,
-.selected-card-zone,
-.payment-drop-zone,
+.purchase-zone,
 .discard-drop-zone {
   min-height: 0;
   border: 1px solid var(--line);
@@ -2707,14 +2725,7 @@ textarea {
   font-weight: 850;
 }
 
-.selected-payment-zone {
-  display: grid;
-  grid-template-columns: minmax(180px, 0.92fr) minmax(210px, 1fr);
-  gap: 10px;
-  min-height: 0;
-}
-
-.selected-card-zone {
+.purchase-zone {
   grid-column: 3;
   grid-row: 2;
   display: grid;
@@ -2722,35 +2733,42 @@ textarea {
   gap: 8px;
 }
 
-.payment-drop-zone {
-  grid-column: 4;
-  grid-row: 2;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
-  gap: 6px;
+.purchase-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
-.selected-card-content {
+.purchase-head-actions em {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.purchase-content {
   display: grid;
-  grid-template-columns: 70px minmax(0, 1fr);
-  gap: 8px;
+  grid-template-columns: minmax(78px, 92px) minmax(136px, 0.78fr) minmax(230px, 1.1fr);
+  align-items: stretch;
+  gap: 10px;
   min-height: 0;
 }
 
-.selected-card-image {
+.purchase-card-image {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
+  background: var(--surface-soft);
 }
 
-.selected-card-image img {
+.purchase-card-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.selected-card-image b {
+.purchase-card-image b {
   position: absolute;
   top: 5px;
   left: 5px;
@@ -2760,40 +2778,68 @@ textarea {
   place-items: center;
   border-radius: 5px;
   background: oklch(99% 0.006 225 / 0.92);
+  font-weight: 900;
 }
 
-.selected-card-need {
+.purchase-card-meta,
+.payment-summary {
   display: grid;
   align-content: center;
-  gap: 6px;
   min-width: 0;
 }
 
-.selected-card-need strong {
-  font-size: 0.82rem;
+.purchase-card-meta {
+  gap: 7px;
+}
+
+.purchase-card-meta strong {
+  color: var(--ink);
+  font-size: 0.92rem;
   line-height: 1.25;
 }
 
-.selected-card-need span {
+.purchase-card-meta span {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
 }
 
-.selected-card-need em {
+.purchase-card-meta em {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 5px;
   font-style: normal;
   font-weight: 850;
 }
 
-.selected-card-need img {
+.purchase-card-meta img {
   width: 17px;
   height: 17px;
   border-radius: 999px;
+}
+
+.purchase-card-meta p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+  font-weight: 780;
+  line-height: 1.35;
+}
+
+.payment-summary {
+  grid-template-rows: auto auto auto auto;
+  gap: 6px;
+}
+
+.manual-payment-note {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .empty-drop-copy {
@@ -2873,7 +2919,7 @@ textarea {
   color: var(--danger);
 }
 
-.purchase-meter,
+.purchase-button,
 .inline-confirm {
   display: inline-flex;
   align-items: center;
@@ -2886,10 +2932,15 @@ textarea {
   font-weight: 900;
 }
 
-.purchase-meter.ready,
+.purchase-button.ready,
 .inline-confirm {
   background: linear-gradient(180deg, oklch(61% 0.12 188), oklch(49% 0.12 188));
   color: oklch(99% 0.004 188);
+}
+
+.purchase-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.76;
 }
 
 .discard-drop-zone {
@@ -3231,16 +3282,13 @@ textarea {
 
   .purchased-zone,
   .reserve-zone,
-  .selected-card-zone,
-  .payment-drop-zone {
+  .purchase-zone {
     grid-column: auto;
     grid-row: auto;
   }
 
   .my-area-title,
-  .selected-payment-zone,
-  .selected-card-zone,
-  .payment-drop-zone,
+  .purchase-zone,
   .discard-drop-zone {
     grid-column: 1 / -1;
   }
@@ -3277,14 +3325,12 @@ textarea {
   }
 
   .my-area-title,
-  .selected-payment-zone,
-  .selected-card-zone,
-  .payment-drop-zone,
+  .purchase-zone,
   .discard-drop-zone {
     grid-column: auto;
   }
 
-  .selected-payment-zone,
+  .purchase-content,
   .discard-drop-zone {
     grid-template-columns: 1fr;
   }
