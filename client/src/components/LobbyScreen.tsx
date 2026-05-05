@@ -1,5 +1,5 @@
 import { DoorOpen, Plus } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { AVATARS } from "../types";
 
 interface LobbyScreenProps {
@@ -7,6 +7,7 @@ interface LobbyScreenProps {
   avatarId?: number;
   roomCode?: string;
   joining?: boolean;
+  busy?: boolean;
   error: string;
   onUsernameChange?: (value: string) => void;
   onAvatarChange?: (value: number) => void;
@@ -23,6 +24,7 @@ export default function LobbyScreen({
   avatarId: controlledAvatarId,
   roomCode: controlledRoomCode,
   joining: controlledJoining,
+  busy = false,
   error,
   onUsernameChange,
   onAvatarChange,
@@ -33,6 +35,7 @@ export default function LobbyScreen({
   onCreate,
   onJoin,
 }: LobbyScreenProps) {
+  const usernameInputRef = useRef<HTMLInputElement>(null);
   const [localUsername, setLocalUsername] = useState("");
   const [localAvatarId, setLocalAvatarId] = useState(0);
   const [localRoomCode, setLocalRoomCode] = useState("");
@@ -58,11 +61,21 @@ export default function LobbyScreen({
   };
 
   const create = () => {
+    if (!username.trim()) {
+      usernameInputRef.current?.focus();
+      usernameInputRef.current?.reportValidity();
+      return;
+    }
     onCreateRoom?.();
     onCreate?.(username.trim(), avatarId);
   };
 
   const join = () => {
+    if (!username.trim()) {
+      usernameInputRef.current?.focus();
+      usernameInputRef.current?.reportValidity();
+      return;
+    }
     if (onJoinRoom) onJoinRoom();
     else onJoin?.(roomCode.trim().toUpperCase(), username.trim(), avatarId);
   };
@@ -93,12 +106,15 @@ export default function LobbyScreen({
           <label>
             <span>玩家昵称</span>
             <input
+              ref={usernameInputRef}
               value={username}
               maxLength={16}
               required
               onChange={(event) => changeUsername(event.target.value)}
               className="hud-input"
               placeholder="请输入最多 16 字"
+              autoComplete="nickname"
+              spellCheck={false}
             />
           </label>
 
@@ -128,6 +144,8 @@ export default function LobbyScreen({
                 onChange={(event) => changeRoomCode(event.target.value.toUpperCase())}
                 className="hud-input room-input"
                 placeholder="ABC123"
+                autoComplete="off"
+                spellCheck={false}
               />
             </label>
           ) : null}
@@ -135,13 +153,13 @@ export default function LobbyScreen({
           {error ? <p className="status-box error-text">{error}</p> : null}
 
           <div className="button-row">
-            <button type="button" onClick={create} className="hud-button">
+            <button type="button" onClick={create} className="hud-button" disabled={busy}>
               <Plus size={19} />
-              创建房间
+              {busy ? "处理中" : "创建房间"}
             </button>
-            <button type="submit" className="hud-button secondary">
+            <button type="submit" className="hud-button secondary" disabled={busy}>
               <DoorOpen size={19} />
-              {joining ? "确认加入" : "加入房间"}
+              {busy ? "处理中" : joining ? "确认加入" : "加入房间"}
             </button>
           </div>
         </form>

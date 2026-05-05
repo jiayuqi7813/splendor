@@ -1,4 +1,5 @@
 import { Copy, Play } from "lucide-react";
+import { useMemo, useState } from "react";
 import { AVATARS } from "../types";
 import type { RoomState } from "../types";
 
@@ -11,9 +12,42 @@ interface WaitingRoomProps {
 
 export function WaitingRoom({ roomState, playerId, onStart, error }: WaitingRoomProps) {
   const isHost = roomState.hostId === playerId;
+  const [copied, setCopied] = useState(false);
+  const inviteLink = useMemo(() => {
+    const url = new URL(window.location.href);
+    url.search = "";
+    url.hash = "";
+    url.searchParams.set("room", roomState.roomId);
+    return url.toString();
+  }, [roomState.roomId]);
 
-  const copyRoomId = async () => {
-    await navigator.clipboard?.writeText(roomState.roomId);
+  const copyInviteLink = async () => {
+    const fallbackCopy = () => {
+      const textArea = document.createElement("textarea");
+      textArea.value = inviteLink;
+      textArea.setAttribute("readonly", "true");
+      textArea.style.position = "fixed";
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.opacity = "0";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand("copy");
+      document.body.removeChild(textArea);
+    };
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(inviteLink);
+      } else {
+        fallbackCopy();
+      }
+    } catch {
+      fallbackCopy();
+    }
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
   };
 
   return (
@@ -22,9 +56,9 @@ export function WaitingRoom({ roomState, playerId, onStart, error }: WaitingRoom
         <div className="waiting-head">
           <p className="hud-label">Waiting Room</p>
           <h1>房间号：{roomState.roomId}</h1>
-          <button type="button" onClick={copyRoomId} className="copy-button">
+          <button type="button" onClick={copyInviteLink} className="copy-button">
             <Copy size={18} />
-            复制房间号
+            {copied ? "已复制邀请链接" : "复制邀请链接"}
           </button>
           <p>等待玩家加入 ({roomState.players.length}/4)</p>
         </div>
