@@ -4,9 +4,10 @@ import type { GameOverPayload } from "../types";
 
 interface Props {
   payload: GameOverPayload;
+  onReturnToLobby?: () => void;
 }
 
-export function GameOverModal({ payload }: Props) {
+export function GameOverModal({ payload, onReturnToLobby }: Props) {
   return (
     <div className="modal-backdrop">
       <div className="modal-panel game-over-panel">
@@ -25,7 +26,7 @@ export function GameOverModal({ payload }: Props) {
           ))}
         </div>
 
-        <button type="button" onClick={() => window.location.reload()} className="hud-button">
+        <button type="button" onClick={onReturnToLobby ?? (() => window.location.reload())} className="hud-button">
           <RotateCcw size={19} />
           返回大厅
         </button>

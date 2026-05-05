@@ -70,6 +70,7 @@ export interface GameRoom {
   players: PlayerState[];
   hostId: string;
   gameState: GameState | null;
+  reconnectTokens?: Record<string, string>;
   createdAt: number;
   lastActivity: number;
 }

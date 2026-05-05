@@ -8,6 +8,7 @@ import {
   applyDiscardTokens,
   applyReserve,
   applyTakeGems,
+  GameRoom,
   getPlayerView,
   validateBuy,
   validateReserve,
@@ -15,9 +16,11 @@ import {
 } from "./gameEngine";
 import { ALL_COLORS, BasicColor, Card, GemColor } from "./gameData";
 import {
+  cleanupRooms,
   createRoom,
   handleDisconnect,
   joinRoom,
+  reconnectRoom,
   rooms,
   startRoomGame,
   toRoomState,
@@ -53,13 +56,9 @@ function emitRoom(roomId: string): void {
   io.to(roomId).emit("room_updated", toRoomState(room));
 }
 
-function socketForPlayer(playerId: string): Socket | undefined {
-  for (const socket of io.sockets.sockets.values()) {
-    if (socket.data.playerId === playerId) {
-      return socket;
-    }
-  }
-  return undefined;
+function socketForPlayer(room: GameRoom, playerId: string): Socket | undefined {
+  const player = room.players.find((entry) => entry.id === playerId);
+  return player?.socketId ? io.sockets.sockets.get(player.socketId) : undefined;
 }
 
 function emitGame(roomId: string): void {
@@ -70,7 +69,7 @@ function emitGame(roomId: string): void {
   }
 
   for (const player of room.players) {
-    const socket = socketForPlayer(player.id);
+    const socket = socketForPlayer(room, player.id);
     if (socket) {
       socket.emit("game_state", getPlayerView(room.gameState, player.id));
       if (room.gameState.pendingDiscardPlayerId === player.id) {
@@ -95,6 +94,29 @@ function emitGame(roomId: string): void {
 function respondError(cb: ((response: { error?: string }) => void) | undefined, message: string, socket?: Socket) {
   if (cb) cb({ error: message });
   if (socket) socket.emit("error", { message });
+}
+
+function bindPlayerSocket(socket: Socket, roomId: string, playerId: string): void {
+  for (const existingSocket of io.sockets.sockets.values()) {
+    if (existingSocket.id === socket.id) continue;
+    if (existingSocket.data.roomId === roomId && existingSocket.data.playerId === playerId) {
+      existingSocket.leave(roomId);
+      existingSocket.data.roomId = undefined;
+      existingSocket.data.playerId = undefined;
+      existingSocket.emit("session_replaced");
+    }
+  }
+  socket.data.playerId = playerId;
+  socket.data.roomId = roomId;
+  socket.join(roomId);
+}
+
+function getActivePlayerId(room: GameRoom, socket: Socket): string | null {
+  const playerId = typeof socket.data.playerId === "string" ? socket.data.playerId : "";
+  if (!playerId || socket.data.roomId !== room.roomId) return null;
+  const player = room.players.find((entry) => entry.id === playerId);
+  if (!player || player.socketId !== socket.id) return null;
+  return playerId;
 }
 
 type TracePhase = "start" | "move" | "end" | "cancel";
@@ -153,13 +175,14 @@ function sanitizeTraceItem(roomId: string, item: TraceItemInput | undefined): Pu
 io.on("connection", (socket) => {
   socket.on(
     "create_room",
-    (payload: { username: string; avatarId: number }, cb: (response: { roomId?: string; playerId?: string; error?: string }) => void) => {
+    (
+      payload: { username: string; avatarId: number },
+      cb: (response: { roomId?: string; playerId?: string; reconnectToken?: string; error?: string }) => void
+    ) => {
       const result = createRoom(payload.username, payload.avatarId, socket.id);
       if ("error" in result) return cb({ error: result.error });
-      socket.data.playerId = result.playerId;
-      socket.data.roomId = result.room.roomId;
-      socket.join(result.room.roomId);
-      cb({ roomId: result.room.roomId, playerId: result.playerId });
+      bindPlayerSocket(socket, result.room.roomId, result.playerId);
+      cb({ roomId: result.room.roomId, playerId: result.playerId, reconnectToken: result.reconnectToken });
       emitRoom(result.room.roomId);
     }
   );
@@ -168,15 +191,18 @@ io.on("connection", (socket) => {
     "join_room",
     (
       payload: { roomId: string; username: string; avatarId: number },
-      cb: (response: { playerId?: string; error?: string }) => void
+      cb: (response: { roomId?: string; playerId?: string; reconnectToken?: string; reconnected?: boolean; error?: string }) => void
     ) => {
       const result = joinRoom(payload.roomId, payload.username, payload.avatarId, socket.id);
       if ("error" in result) return cb({ error: result.error });
-      if (!result.room || !result.playerId) return cb({ error: "加入房间失败。" });
-      socket.data.playerId = result.playerId;
-      socket.data.roomId = result.room.roomId;
-      socket.join(result.room.roomId);
-      cb({ playerId: result.playerId });
+      if (!result.room || !result.playerId || !result.reconnectToken) return cb({ error: "加入房间失败。" });
+      bindPlayerSocket(socket, result.room.roomId, result.playerId);
+      cb({
+        roomId: result.room.roomId,
+        playerId: result.playerId,
+        reconnectToken: result.reconnectToken,
+        reconnected: result.reconnected,
+      });
       emitRoom(result.room.roomId);
       if (result.room.gameState?.phase !== "waiting") {
         emitGame(result.room.roomId);
@@ -184,8 +210,28 @@ io.on("connection", (socket) => {
     }
   );
 
+  socket.on(
+    "reconnect_room",
+    (
+      payload: { roomId: string; playerId: string; reconnectToken: string },
+      cb: (response: { roomId?: string; playerId?: string; reconnectToken?: string; phase?: string; error?: string }) => void
+    ) => {
+      const result = reconnectRoom(payload.roomId, payload.playerId, payload.reconnectToken, socket.id);
+      if ("error" in result) return cb({ error: result.error });
+      if (!result.room || !result.playerId || !result.reconnectToken) return cb({ error: "恢复房间失败。" });
+      bindPlayerSocket(socket, result.room.roomId, result.playerId);
+      const phase = result.room.gameState?.phase ?? "waiting";
+      cb({ roomId: result.room.roomId, playerId: result.playerId, reconnectToken: result.reconnectToken, phase });
+      emitRoom(result.room.roomId);
+      if (phase !== "waiting") {
+        emitGame(result.room.roomId);
+      }
+    }
+  );
+
   socket.on("start_game", (payload: { roomId: string }, cb: (response: { error?: string }) => void) => {
-    const playerId = socket.data.playerId;
+    const room = rooms.get(payload.roomId);
+    const playerId = room ? getActivePlayerId(room, socket) : null;
     if (!playerId) return respondError(cb, "玩家连接状态不存在，请重新进入房间。", socket);
     const result = startRoomGame(payload.roomId, playerId);
     if (result.error) return respondError(cb, result.error, socket);
@@ -197,7 +243,7 @@ io.on("connection", (socket) => {
 
   socket.on("take_gems", (payload: { roomId: string; colors: GemColor[] }, cb: (response: { error?: string }) => void) => {
     const room = rooms.get(payload.roomId);
-    const playerId = socket.data.playerId;
+    const playerId = room ? getActivePlayerId(room, socket) : null;
     if (!room?.gameState || !playerId) return respondError(cb, "房间或玩家状态不存在。", socket);
     const validation = validateTakeGems(room.gameState, playerId, payload.colors);
     if (!validation.valid) return respondError(cb, validation.error || "取宝石失败。", socket);
@@ -219,8 +265,8 @@ io.on("connection", (socket) => {
       targetId?: string;
     }) => {
       const room = rooms.get(payload.roomId);
-      const playerId = socket.data.playerId;
-      if (!room?.gameState || !playerId || socket.data.roomId !== room.roomId) return;
+      const playerId = room ? getActivePlayerId(room, socket) : null;
+      if (!room?.gameState || !playerId) return;
       const player = room.gameState.players.find((entry) => entry.id === playerId);
       if (!player) return;
       const mayOperate = room.gameState.currentPlayerId === playerId || room.gameState.pendingDiscardPlayerId === playerId;
@@ -252,7 +298,7 @@ io.on("connection", (socket) => {
     "reserve_card",
     (payload: { roomId: string; cardId: string | null; fromDeck: 1 | 2 | 3 | null }, cb: (response: { error?: string }) => void) => {
       const room = rooms.get(payload.roomId);
-      const playerId = socket.data.playerId;
+      const playerId = room ? getActivePlayerId(room, socket) : null;
       if (!room?.gameState || !playerId) return respondError(cb, "房间或玩家状态不存在。", socket);
       const validation = validateReserve(room.gameState, playerId, payload.cardId, payload.fromDeck);
       if (!validation.valid) return respondError(cb, validation.error || "保留卡牌失败。", socket);
@@ -267,7 +313,7 @@ io.on("connection", (socket) => {
     "buy_card",
     (payload: { roomId: string; cardId: string; goldSubstitutions: Partial<Record<BasicColor, number>> }, cb: (response: { error?: string }) => void) => {
       const room = rooms.get(payload.roomId);
-      const playerId = socket.data.playerId;
+      const playerId = room ? getActivePlayerId(room, socket) : null;
       if (!room?.gameState || !playerId) return respondError(cb, "房间或玩家状态不存在。", socket);
       const validation = validateBuy(room.gameState, playerId, payload.cardId, payload.goldSubstitutions || {});
       if (!validation.valid) return respondError(cb, validation.error || "购买卡牌失败。", socket);
@@ -280,7 +326,7 @@ io.on("connection", (socket) => {
 
   socket.on("discard_tokens", (payload: { roomId: string; tokens: Partial<Record<GemColor, number>> }, cb: (response: { error?: string }) => void) => {
     const room = rooms.get(payload.roomId);
-    const playerId = socket.data.playerId;
+    const playerId = room ? getActivePlayerId(room, socket) : null;
     if (!room?.gameState || !playerId) return respondError(cb, "房间或玩家状态不存在。", socket);
     try {
       room.gameState = applyDiscardTokens(room.gameState, playerId, payload.tokens || {});
@@ -301,6 +347,8 @@ io.on("connection", (socket) => {
     }
   });
 });
+
+setInterval(() => cleanupRooms(), 10 * 60 * 1000).unref();
 
 if (isProduction) {
   const publicDir =
