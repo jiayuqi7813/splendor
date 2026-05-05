@@ -904,6 +904,34 @@ textarea {
   min-height: 0;
 }
 
+.pokemon-special-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-height: 0;
+}
+
+.pokemon-special-row {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pokemon-special-row > strong,
+.pokemon-special-row > span {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.pokemon-special-row .market-card,
+.pokemon-special-row .card-drop-surface {
+  width: 100%;
+  height: 100%;
+  min-height: 116px;
+}
+
 .noble-tile {
   display: grid;
   grid-template-columns: minmax(50px, 0.62fr) minmax(54px, 0.8fr);
@@ -1388,15 +1416,47 @@ textarea {
 }
 
 .lobby-form label,
-.avatar-field {
+.avatar-field,
+.variant-field {
   display: grid;
   gap: 8px;
 }
 
 .lobby-form label > span,
-.avatar-field > span {
+.avatar-field > span,
+.variant-field > span {
   color: var(--ink-soft);
   font-weight: 850;
+}
+
+.variant-toggle {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.variant-toggle button {
+  display: grid;
+  gap: 4px;
+  min-height: 74px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+}
+
+.variant-toggle button.selected {
+  border-color: var(--teal);
+  background: color-mix(in oklch, var(--surface) 76%, oklch(82% 0.08 188));
+  box-shadow: inset 0 0 0 2px oklch(62% 0.11 188 / 0.22);
+}
+
+.variant-toggle small,
+.variant-badge {
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .room-input {
@@ -2477,13 +2537,56 @@ textarea {
 .purchased-zone,
 .reserve-zone,
 .purchase-zone,
-.discard-drop-zone {
+.discard-drop-zone,
+.evolution-zone {
   min-height: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
   padding: 8px;
   overflow: hidden;
+}
+
+.evolution-zone {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 6px;
+  border-color: color-mix(in oklch, var(--teal) 42%, var(--line));
+}
+
+.evolution-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  overflow: auto;
+}
+
+.evolution-options button {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  padding: 5px;
+  text-align: left;
+}
+
+.evolution-options img {
+  width: 34px;
+  aspect-ratio: 3 / 4;
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+.evolution-options span {
+  overflow: hidden;
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .my-gems-zone {
@@ -3372,5 +3475,2612 @@ textarea {
   .mini-card {
     width: 54px;
     height: 76px;
+  }
+}
+
+/* Dual-mode tabletop refactor */
+.tabletop-shell {
+  grid-template-rows: 52px minmax(0, 1fr) clamp(218px, 34dvh, 292px);
+  height: 100dvh;
+  min-height: 0;
+  background:
+    radial-gradient(circle at 50% -16%, oklch(88% 0.052 250 / 0.34), transparent 38%),
+    linear-gradient(180deg, oklch(99% 0.006 225), oklch(95.4% 0.015 225));
+}
+
+.pokemon-shell {
+  background:
+    radial-gradient(circle at 48% -16%, oklch(88% 0.075 255 / 0.3), transparent 37%),
+    radial-gradient(circle at 72% 16%, oklch(86% 0.09 84 / 0.18), transparent 28%),
+    linear-gradient(180deg, oklch(99% 0.007 225), oklch(95% 0.018 225));
+}
+
+.tabletop-topbar {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 52px;
+  padding: 0 clamp(12px, 1.6vw, 22px);
+}
+
+.tabletop-title-stack {
+  display: flex;
+  align-items: center;
+  justify-self: center;
+  gap: clamp(10px, 1.8vw, 20px);
+  min-width: 0;
+}
+
+.tabletop-topbar .brand-lockup {
+  justify-content: center;
+  min-width: 0;
+}
+
+.tabletop-topbar .brand-lockup strong {
+  font-size: clamp(1.12rem, 2.2vw, 1.46rem);
+  letter-spacing: 0;
+}
+
+.tabletop-utility,
+.tabletop-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tabletop-utility a,
+.tabletop-nav button,
+.tabletop-nav a {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--surface) 92%, oklch(92% 0.018 225));
+  color: var(--ink-soft);
+  padding: 0;
+  box-shadow: 0 1px 0 oklch(100% 0 0 / 0.75) inset;
+}
+
+.tabletop-nav {
+  justify-content: flex-end;
+}
+
+.round-indicator {
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.round-indicator small {
+  border-radius: 999px;
+  background: oklch(93% 0.028 188);
+  color: var(--teal-deep);
+  padding: 3px 8px;
+  font-size: 0.68rem;
+  font-weight: 900;
+}
+
+.tabletop-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(236px, 21vw, 306px);
+  grid-template-areas: "main opponents";
+  gap: 12px;
+  min-height: 0;
+  padding: 10px 14px 8px;
+  overflow: hidden;
+}
+
+.tabletop-main-column {
+  grid-area: main;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) clamp(54px, 8.6dvh, 72px);
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.market-column {
+  display: grid;
+  grid-template-rows: clamp(82px, 24%, 118px) minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.market-column,
+.opponent-panel,
+.development-market,
+.my-area-panel,
+.public-bank-strip {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--surface) 96%, oklch(91% 0.035 225));
+  box-shadow: var(--shadow-sm);
+}
+
+.market-column {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.market-column .noble-panel {
+  min-height: 0;
+  padding: 8px 12px;
+}
+
+.market-column .noble-list {
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 8px;
+  overflow: hidden;
+}
+
+.market-column .noble-tile {
+  grid-template-columns: 58px minmax(0, 1fr);
+  min-height: 0;
+}
+
+.market-column .noble-tile > img {
+  height: 100%;
+  max-height: 78px;
+}
+
+.market-column .noble-info span {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.market-column .noble-info em {
+  grid-template-columns: 14px auto;
+  min-width: 42px;
+}
+
+.pokemon-special-panel .pokemon-special-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pokemon-special-panel .pokemon-special-row {
+  grid-template-columns: minmax(78px, 0.64fr) minmax(82px, 128px) auto;
+  grid-template-rows: minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+}
+
+.pokemon-special-panel .pokemon-special-row .card-drop-surface,
+.pokemon-special-panel .pokemon-special-row .market-card {
+  min-height: 0;
+  height: 100%;
+}
+
+.development-market {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 12px;
+  overflow: hidden;
+}
+
+.market-tier-list {
+  display: grid;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  min-height: 0;
+}
+
+.market-tier-row {
+  display: grid;
+  grid-template-columns: 42px minmax(74px, 88px) repeat(4, minmax(86px, 1fr)) minmax(78px, 92px);
+  gap: 8px;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 0;
+}
+
+.market-tier-row .draggable-card-shell,
+.market-tier-row .card-drop-surface,
+.market-tier-row .market-card,
+.market-tier-row .deck-card {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.market-drop-hint {
+  min-width: 0;
+  padding: 6px;
+  line-height: 1.25;
+}
+
+.public-bank-strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(148px, 0.24fr);
+  align-items: stretch;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  padding: 6px 10px;
+  overflow: hidden;
+}
+
+.public-bank-strip .bank-panel {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  align-items: center;
+  gap: 12px;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.public-bank-strip .bank-panel h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.public-bank-strip .bank-tokens {
+  grid-template-columns: repeat(6, minmax(46px, 1fr));
+  gap: clamp(6px, 1vw, 12px);
+}
+
+.public-bank-strip .bank-token {
+  width: clamp(46px, 6.4dvh, 58px);
+  height: clamp(46px, 6.4dvh, 58px);
+  min-height: 40px;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+.public-bank-strip .bank-token img {
+  width: clamp(36px, 6.2dvh, 54px);
+  height: clamp(36px, 6.2dvh, 54px);
+  min-width: 34px;
+  object-fit: cover;
+}
+
+.public-bank-strip .bank-token span {
+  right: clamp(0px, 0.6vw, 9px);
+  bottom: -3px;
+  min-width: 21px;
+  height: 21px;
+  font-size: 0.78rem;
+}
+
+.public-bank-strip .turn-note {
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  min-height: 0;
+  border-radius: 8px;
+  background: oklch(93% 0.027 188);
+  color: var(--teal-deep);
+  padding: 7px 9px;
+}
+
+.public-bank-strip .turn-note strong {
+  font-size: 0.82rem;
+  line-height: 1.12;
+}
+
+.public-bank-strip .turn-note span {
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  font-weight: 760;
+  line-height: 1.22;
+}
+
+.opponent-panel {
+  grid-area: opponents;
+  padding: 10px;
+}
+
+.opponent-list {
+  gap: 8px;
+}
+
+.opponent-card {
+  padding: 9px;
+}
+
+.opponent-summary {
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.opponent-avatar {
+  width: 40px;
+  height: 40px;
+}
+
+.opponent-token-grid {
+  gap: 6px 8px;
+  margin-top: 8px;
+}
+
+.opponent-detail {
+  max-height: min(270px, 42dvh);
+  overflow: auto;
+}
+
+.my-area-panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(200px, 0.7fr) minmax(360px, 1.35fr) minmax(210px, 0.72fr) minmax(300px, 1fr);
+  grid-template-rows: 26px clamp(54px, 9dvh, 68px) minmax(0, 1fr);
+  grid-template-areas:
+    "title title title action"
+    "gems gems achievements action"
+    "purchased purchased reserve action";
+  gap: 8px;
+  min-height: 0;
+  margin: 0 14px 10px;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.my-area-title {
+  grid-area: title;
+  min-width: 0;
+}
+
+.my-area-title h2 {
+  font-size: 0.98rem;
+}
+
+.my-area-title p {
+  min-width: 0;
+  font-size: 0.78rem;
+}
+
+.my-area-gems {
+  grid-area: gems;
+  display: grid;
+  grid-template-columns: minmax(118px, 0.32fr) minmax(0, 1fr) minmax(110px, 0.28fr);
+  grid-template-rows: 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.my-area-gems .mini-section-head {
+  min-width: 0;
+}
+
+.my-area-gems .my-token-row {
+  grid-template-columns: repeat(6, minmax(38px, 1fr));
+  grid-auto-rows: 1fr;
+  align-items: center;
+  gap: 6px;
+}
+
+.my-area-gems .my-token {
+  min-height: 38px;
+}
+
+.my-area-gems .my-token img {
+  width: 28px;
+  height: 28px;
+}
+
+.my-area-gems .staged-gem-row {
+  justify-content: flex-end;
+  min-height: 0;
+}
+
+.purchased-zone {
+  grid-area: purchased;
+  grid-column: auto;
+  grid-row: auto;
+}
+
+.reserve-zone {
+  grid-area: reserve;
+  grid-column: auto;
+  grid-row: auto;
+}
+
+.achievement-zone {
+  grid-area: achievements;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 6px;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 8px;
+  overflow: hidden;
+}
+
+.achievement-card-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto hidden;
+}
+
+.achievement-card-row img {
+  width: 34px;
+  height: 44px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.achievement-card-row em {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 760;
+  line-height: 1.28;
+}
+
+.pokemon-achievement-zone .tiny-card {
+  width: 34px;
+  height: 46px;
+  flex: 0 0 auto;
+}
+
+.purchased-zone,
+.reserve-zone,
+.purchase-zone,
+.discard-drop-zone,
+.evolution-zone {
+  min-width: 0;
+}
+
+.purchased-groups {
+  grid-template-columns: repeat(5, minmax(70px, 1fr));
+  gap: 7px;
+}
+
+.purchased-group > div {
+  overflow: auto hidden;
+}
+
+.tiny-card {
+  width: 34px;
+  height: 48px;
+  flex: 0 0 auto;
+}
+
+.mini-card {
+  width: 56px;
+  height: 78px;
+}
+
+.reserved-card-row {
+  align-items: stretch;
+  gap: 7px;
+}
+
+.reserved-staged,
+.drop-placeholder {
+  height: auto;
+  min-height: 76px;
+}
+
+.purchase-zone,
+.evolution-zone {
+  grid-area: action;
+  grid-column: auto;
+  grid-row: auto;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.purchase-content {
+  grid-template-columns: minmax(88px, 118px) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 8px;
+}
+
+.purchase-card-image {
+  grid-row: 1 / 3;
+  min-height: 0;
+}
+
+.purchase-card-meta {
+  align-content: start;
+  gap: 6px;
+}
+
+.purchase-card-meta strong {
+  font-size: 0.9rem;
+}
+
+.purchase-card-meta span {
+  gap: 4px;
+}
+
+.payment-summary {
+  align-content: stretch;
+  gap: 6px;
+}
+
+.payment-need-row {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.payment-token-row.compact {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.manual-payment-note {
+  white-space: normal;
+}
+
+.purchase-button {
+  min-height: 32px;
+}
+
+.empty-drop-copy {
+  min-height: 0;
+}
+
+.discard-drop-zone {
+  z-index: 3;
+  grid-area: action;
+  grid-column: auto;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto auto 1fr;
+  align-content: center;
+}
+
+.my-nobles-row {
+  position: static;
+  right: auto;
+  bottom: auto;
+  display: grid;
+}
+
+.my-nobles-row img {
+  width: 34px;
+  height: 44px;
+}
+
+@media (max-height: 720px) and (min-width: 1181px) {
+  .tabletop-shell {
+    grid-template-rows: 50px minmax(0, 1fr) 214px;
+  }
+
+  .tabletop-board {
+    padding-block: 8px 7px;
+  }
+
+  .tabletop-main-column {
+    grid-template-rows: minmax(0, 1fr) 52px;
+    gap: 8px;
+  }
+
+  .market-column {
+    grid-template-rows: 82px minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .development-market {
+    padding: 8px 10px;
+  }
+
+  .market-tier-list,
+  .market-tier-row {
+    gap: 7px;
+  }
+
+  .my-area-panel {
+    grid-template-rows: 24px 50px minmax(0, 1fr);
+    gap: 7px;
+  }
+
+  .panel-heading.slim h2,
+  .mini-section-head strong {
+    font-size: 0.9rem;
+  }
+
+  .purchased-group > span,
+  .purchase-card-meta p,
+  .staged-gem-row {
+    font-size: 0.66rem;
+  }
+}
+
+@media (max-width: 1180px) {
+  body {
+    overflow: auto;
+  }
+
+  .tabletop-shell {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+    grid-template-rows: 52px auto auto;
+  }
+
+  .tabletop-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 8;
+  }
+
+  .tabletop-title-stack {
+    justify-self: start;
+  }
+
+  .round-indicator small {
+    display: none;
+  }
+
+  .tabletop-board {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "main"
+      "opponents";
+    overflow: visible;
+  }
+
+  .tabletop-main-column {
+    grid-template-rows: auto auto;
+    overflow: visible;
+  }
+
+  .market-column,
+  .development-market,
+  .opponent-panel {
+    overflow: visible;
+  }
+
+  .market-column {
+    grid-template-rows: auto auto;
+  }
+
+  .market-tier-list {
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .market-tier-row {
+    grid-template-columns: 42px 86px repeat(4, 116px) 92px;
+    min-width: max-content;
+  }
+
+  .public-bank-strip {
+    grid-template-columns: 1fr;
+    min-height: 86px;
+  }
+
+  .public-bank-strip .turn-note {
+    display: none;
+  }
+
+  .public-bank-strip .bank-panel {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: 1fr;
+  }
+
+  .opponent-list {
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    overflow: visible;
+  }
+
+  .my-area-panel {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
+    grid-template-areas:
+      "title title"
+      "gems gems"
+      "purchased reserve"
+      "achievements action";
+    height: auto;
+    overflow: visible;
+  }
+
+  .purchase-zone,
+  .evolution-zone,
+  .discard-drop-zone {
+    min-height: 220px;
+  }
+}
+
+@media (max-width: 760px) {
+  .tabletop-topbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 0 10px;
+  }
+
+  .tabletop-utility a,
+  .tabletop-nav button {
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .round-indicator {
+    display: none;
+  }
+
+  .tabletop-board {
+    padding: 9px;
+  }
+
+  .tabletop-topbar .gem-logo {
+    width: 34px;
+    height: 34px;
+  }
+
+  .tabletop-topbar .brand-lockup strong {
+    font-size: 1.02rem;
+  }
+
+  .market-column .noble-list,
+  .pokemon-special-panel .pokemon-special-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pokemon-special-panel .pokemon-special-row {
+    grid-template-columns: minmax(76px, 0.7fr) minmax(82px, 112px) auto;
+  }
+
+  .public-bank-strip .bank-panel {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    gap: 6px;
+  }
+
+  .public-bank-strip .bank-tokens {
+    grid-template-columns: repeat(3, minmax(54px, 1fr));
+  }
+
+  .my-area-panel {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "title"
+      "gems"
+      "purchased"
+      "reserve"
+      "achievements"
+      "action";
+    margin: 0 9px 70px;
+  }
+
+  .my-area-gems {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+  }
+
+  .my-area-gems .my-token-row {
+    grid-template-columns: repeat(3, minmax(52px, 1fr));
+  }
+
+  .purchased-groups {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .purchase-content {
+    grid-template-columns: minmax(94px, 124px) minmax(0, 1fr);
+  }
+
+  .mobile-summary {
+    display: flex;
+  }
+}
+
+/* Reference-table component pass: fixed card pieces, centered board, real playmat sections */
+:root {
+  --table-max: 1456px;
+  --board-card-h: clamp(78px, 11.2dvh, 126px);
+  --board-card-w: calc(var(--board-card-h) * 0.74);
+  --my-card-h: clamp(58px, 8dvh, 86px);
+  --my-card-w: calc(var(--my-card-h) * 0.72);
+}
+
+.tabletop-shell {
+  grid-template-rows: 52px minmax(0, 1fr) clamp(286px, 35dvh, 392px);
+}
+
+.tabletop-board,
+.my-area-panel {
+  width: min(calc(100vw - 32px), var(--table-max));
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.tabletop-board {
+  grid-template-columns: minmax(0, 960px) clamp(270px, 22vw, 324px);
+  justify-content: center;
+  padding: 10px 0 8px;
+}
+
+.tabletop-main-column {
+  grid-template-rows: minmax(0, 1fr) clamp(62px, 7.2dvh, 76px);
+}
+
+.market-column {
+  grid-template-rows: clamp(104px, 14.8dvh, 132px) minmax(0, 1fr);
+}
+
+.development-market {
+  position: relative;
+  justify-content: center;
+  padding: 22px clamp(14px, 2vw, 24px) 14px;
+}
+
+.development-market .panel-heading.slim {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  z-index: 2;
+  width: max-content;
+  max-width: calc(100% - 40px);
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--surface) 92%, transparent);
+  padding: 0 12px;
+  transform: translateX(-50%);
+}
+
+.development-market .panel-heading.slim span {
+  display: none;
+}
+
+.market-tier-list {
+  align-content: center;
+  justify-content: center;
+  grid-template-rows: repeat(3, var(--board-card-h));
+  gap: clamp(8px, 1.35dvh, 14px);
+}
+
+.market-tier-row {
+  grid-template-columns: 34px var(--board-card-w) repeat(4, var(--board-card-w)) minmax(86px, 102px);
+  justify-content: center;
+  gap: clamp(8px, 1.15vw, 18px);
+}
+
+.tier-ribbon {
+  align-self: center;
+  height: var(--board-card-h);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  line-height: 1;
+}
+
+.market-tier-row .draggable-card-shell,
+.market-tier-row .card-drop-surface,
+.market-tier-row .market-card,
+.market-tier-row .deck-card,
+.market-tier-row .market-drop-hint {
+  width: var(--board-card-w);
+  height: var(--board-card-h);
+  min-width: 0;
+  min-height: 0;
+}
+
+.market-tier-row .market-drop-hint {
+  width: 100%;
+  min-width: 86px;
+  border-color: oklch(74% 0.052 225);
+  background: oklch(98% 0.006 225 / 0.62);
+}
+
+.market-card,
+.deck-card,
+.mini-card,
+.tiny-card {
+  border-radius: 6px;
+  box-shadow:
+    0 1px 1px oklch(35% 0.04 235 / 0.12),
+    0 4px 10px oklch(35% 0.04 235 / 0.16);
+}
+
+.market-card > img,
+.deck-card > img {
+  object-fit: cover;
+}
+
+.market-prestige {
+  top: 3px;
+  left: 3px;
+  width: clamp(22px, 2.4dvh, 28px);
+  height: clamp(22px, 2.4dvh, 28px);
+  border-radius: 4px;
+  font-size: clamp(0.94rem, 2dvh, 1.18rem);
+}
+
+.market-tier {
+  right: 4px;
+  bottom: 4px;
+  min-width: clamp(22px, 2.7dvh, 30px);
+  height: clamp(22px, 2.7dvh, 30px);
+  border-radius: 4px;
+  font-size: clamp(0.84rem, 1.8dvh, 1rem);
+}
+
+.market-bonus {
+  top: 8px;
+  right: 8px;
+  width: clamp(18px, 2.6dvh, 24px);
+  height: clamp(18px, 2.6dvh, 24px);
+}
+
+.market-costs {
+  bottom: 5px;
+  left: 5px;
+}
+
+.market-costs span {
+  grid-template-columns: clamp(13px, 1.8dvh, 16px) auto;
+  min-width: clamp(28px, 3.5dvh, 36px);
+  height: clamp(16px, 2.05dvh, 20px);
+  font-size: clamp(0.62rem, 1.45dvh, 0.74rem);
+}
+
+.market-costs img {
+  width: clamp(13px, 1.8dvh, 16px);
+  height: clamp(13px, 1.8dvh, 16px);
+}
+
+.deck-card span {
+  inset: 42% 6px auto;
+  font-size: clamp(0.72rem, 1.6dvh, 0.92rem);
+}
+
+.deck-card strong {
+  min-width: clamp(26px, 3.2dvh, 34px);
+  height: clamp(24px, 3dvh, 30px);
+}
+
+.deck-tier-1 {
+  background: linear-gradient(145deg, oklch(45% 0.09 140), oklch(24% 0.055 142));
+}
+
+.deck-tier-2 {
+  background: linear-gradient(145deg, oklch(65% 0.1 78), oklch(42% 0.075 73));
+}
+
+.deck-tier-3 {
+  background: linear-gradient(145deg, oklch(48% 0.13 255), oklch(28% 0.07 250));
+}
+
+.deck-tier-1 img,
+.deck-tier-2 img,
+.deck-tier-3 img {
+  mix-blend-mode: normal;
+}
+
+.noble-panel {
+  grid-template-columns: clamp(72px, 8vw, 92px) minmax(0, 1fr);
+  grid-template-rows: 1fr;
+  align-items: center;
+  padding: 10px clamp(14px, 2vw, 24px);
+}
+
+.noble-panel .panel-heading.slim {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 4px;
+}
+
+.noble-panel .panel-heading.slim h2 {
+  font-size: clamp(0.96rem, 1.45vw, 1.08rem);
+}
+
+.noble-panel .panel-heading.slim span {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.market-column .noble-list {
+  display: flex;
+  justify-content: space-around;
+  gap: clamp(10px, 2.1vw, 36px);
+  min-width: 0;
+}
+
+.market-column .noble-tile {
+  position: relative;
+  display: grid;
+  width: clamp(74px, 7.2vw, 94px);
+  height: clamp(84px, 10.8dvh, 112px);
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(0, 1fr) auto;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
+}
+
+.market-column .noble-tile > img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  object-fit: cover;
+  box-shadow: var(--shadow-sm);
+}
+
+.noble-score {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  z-index: 2;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 5px;
+  background: oklch(99% 0.006 225 / 0.96);
+  color: oklch(55% 0.12 75);
+  font-weight: 950;
+  box-shadow: var(--shadow-sm);
+}
+
+.market-column .noble-info {
+  position: absolute;
+  right: -5px;
+  bottom: -7px;
+  left: -5px;
+  display: block;
+  padding: 0;
+}
+
+.market-column .noble-info span {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+}
+
+.market-column .noble-info em {
+  display: inline-grid;
+  grid-template-columns: 12px auto;
+  gap: 2px;
+  min-width: 26px;
+  height: 16px;
+  border: 1px solid oklch(85% 0.02 225);
+  border-radius: 4px;
+  background: oklch(99% 0.006 225 / 0.94);
+  padding: 1px 3px 1px 1px;
+  font-size: 0.62rem;
+  line-height: 1;
+}
+
+.market-column .noble-info em img {
+  width: 12px;
+  height: 12px;
+}
+
+.market-column .noble-info small {
+  display: none;
+}
+
+.pokemon-special-panel .pokemon-special-row {
+  grid-template-columns: minmax(80px, 0.7fr) var(--board-card-w) auto;
+}
+
+.pokemon-special-panel .pokemon-special-row .card-drop-surface,
+.pokemon-special-panel .pokemon-special-row .market-card {
+  width: var(--board-card-w);
+  height: var(--board-card-h);
+}
+
+.public-bank-strip {
+  grid-template-columns: minmax(0, 1fr) clamp(210px, 20vw, 286px);
+  padding: 6px 14px;
+}
+
+.public-bank-strip .bank-panel {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.public-bank-strip .bank-panel h2 {
+  font-size: 0.98rem;
+}
+
+.public-bank-strip .bank-tokens {
+  justify-items: center;
+  gap: clamp(12px, 2.4vw, 34px);
+}
+
+.public-bank-strip .bank-token {
+  width: clamp(48px, 6.4dvh, 64px);
+  height: clamp(48px, 6.4dvh, 64px);
+}
+
+.public-bank-strip .bank-token img {
+  width: clamp(44px, 6.1dvh, 60px);
+  height: clamp(44px, 6.1dvh, 60px);
+}
+
+.public-bank-strip .turn-note {
+  background: oklch(90% 0.04 175);
+}
+
+.opponent-panel {
+  padding: 10px;
+}
+
+.opponent-card {
+  display: grid;
+  gap: 8px;
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 9px;
+}
+
+.opponent-card.active {
+  border-color: oklch(64% 0.15 255);
+  box-shadow: 0 0 0 2px oklch(64% 0.15 255 / 0.16);
+}
+
+.opponent-summary {
+  grid-template-columns: 50px minmax(0, 1fr) auto;
+}
+
+.opponent-avatar {
+  width: 50px;
+  height: 50px;
+  overflow: hidden;
+  border-radius: 7px;
+}
+
+.opponent-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.opponent-resource-board {
+  display: grid;
+  gap: 6px;
+}
+
+.opponent-token-grid,
+.opponent-bonus-row.compact {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 5px;
+  margin: 0;
+}
+
+.opponent-token-grid span,
+.opponent-bonus-row.compact span {
+  justify-content: center;
+  font-size: 0.72rem;
+}
+
+.opponent-preview-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(80px, 0.72fr);
+  gap: 10px;
+}
+
+.opponent-preview-row h3 {
+  margin: 0 0 5px;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.opponent-card-strip {
+  display: flex;
+  gap: 4px;
+  min-height: 38px;
+  overflow: hidden;
+}
+
+.opponent-card-strip img {
+  width: 28px;
+  height: 38px;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.opponent-card-strip em {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-style: normal;
+  font-weight: 850;
+}
+
+.opponent-detail {
+  max-height: 238px;
+  padding: 8px;
+}
+
+.my-area-panel {
+  grid-template-columns: minmax(0, 1fr) clamp(286px, 24vw, 352px);
+  grid-template-rows: 28px minmax(0, 1fr);
+  grid-template-areas:
+    "title action"
+    "playmat action";
+  gap: 8px 12px;
+  min-height: 0;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+}
+
+.my-area-title {
+  grid-area: title;
+}
+
+.my-playmat {
+  grid-area: playmat;
+  display: grid;
+  grid-template-rows: clamp(54px, 7.5dvh, 70px) minmax(86px, 1fr) minmax(76px, 0.72fr);
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.my-playmat > .my-area-gems,
+.my-playmat > .purchased-zone,
+.my-playmat > .my-lower-row,
+.my-lower-row > .reserve-zone,
+.my-lower-row > .achievement-zone,
+.my-action-rail > .purchase-zone,
+.my-action-rail > .evolution-zone,
+.my-action-rail > .discard-drop-zone {
+  grid-area: auto;
+  grid-column: auto;
+  grid-row: auto;
+}
+
+.my-action-rail {
+  grid-area: action;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+}
+
+.my-area-gems {
+  grid-template-columns: clamp(102px, 12vw, 130px) minmax(0, 1fr) clamp(112px, 13vw, 190px);
+  grid-template-rows: 1fr;
+  align-items: center;
+  gap: 12px;
+  overflow: visible;
+}
+
+.my-area-gems .my-token-row {
+  display: flex;
+  justify-content: space-around;
+  gap: clamp(8px, 1.7vw, 24px);
+}
+
+.my-area-gems .draggable-token {
+  flex: 0 0 auto;
+}
+
+.my-area-gems .my-token {
+  width: clamp(42px, 5.8dvh, 56px);
+  height: clamp(42px, 5.8dvh, 56px);
+  min-height: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.my-area-gems .my-token img {
+  width: clamp(38px, 5.4dvh, 52px);
+  height: clamp(38px, 5.4dvh, 52px);
+}
+
+.my-area-gems .my-token span {
+  right: -2px;
+  bottom: -4px;
+  min-width: 21px;
+  height: 21px;
+}
+
+.purchased-zone {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+  overflow: hidden;
+}
+
+.purchased-groups {
+  grid-template-columns: repeat(5, minmax(88px, 1fr));
+  align-items: start;
+  overflow: auto hidden;
+}
+
+.purchased-group {
+  align-content: start;
+}
+
+.purchased-group > span {
+  background: transparent;
+  padding: 0;
+  color: color-mix(in oklch, var(--group-color) 80%, var(--ink));
+  font-size: 0.72rem;
+}
+
+.purchased-group > div {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: var(--my-card-h);
+  overflow: auto hidden;
+}
+
+.tiny-card {
+  width: var(--my-card-w);
+  height: var(--my-card-h);
+}
+
+.empty-purchased-card,
+.reserve-slot.empty {
+  display: grid;
+  place-items: center;
+  border-style: dashed;
+  background:
+    linear-gradient(180deg, oklch(99% 0.004 225 / 0.82), oklch(94% 0.015 225 / 0.72));
+  box-shadow: none;
+  color: var(--muted);
+}
+
+.empty-purchased-card b,
+.reserve-slot.empty b {
+  position: static;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.my-lower-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.62fr) minmax(220px, 0.38fr);
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.reserve-zone,
+.achievement-zone {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.reserved-card-row {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+  min-width: 0;
+  overflow: auto hidden;
+}
+
+.mini-card {
+  width: clamp(48px, 6.5dvh, 62px);
+  height: clamp(66px, 9dvh, 88px);
+}
+
+.reserve-slot.empty {
+  flex: 0 0 auto;
+}
+
+.reserved-staged {
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  border-style: dashed;
+  border-color: var(--teal);
+  background: oklch(93% 0.035 188);
+  color: var(--teal-deep);
+}
+
+.reserved-staged b {
+  position: static;
+  background: transparent;
+  box-shadow: none;
+  color: currentColor;
+  font-size: 0.76rem;
+}
+
+.achievement-card-row img {
+  width: clamp(34px, 5.5dvh, 46px);
+  height: clamp(44px, 7dvh, 60px);
+}
+
+.purchase-zone,
+.evolution-zone,
+.discard-drop-zone {
+  height: 100%;
+}
+
+.purchase-zone {
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
+}
+
+.purchase-zone .mini-section-head {
+  justify-content: center;
+}
+
+.purchase-content {
+  grid-template-columns: 1fr;
+  grid-template-rows: minmax(102px, 0.95fr) auto minmax(86px, 0.72fr);
+  justify-items: center;
+  gap: 8px;
+}
+
+.purchase-card-image {
+  grid-row: 1;
+  width: min(46%, 138px);
+  min-width: 98px;
+  justify-self: center;
+}
+
+.purchase-card-meta {
+  justify-items: center;
+  text-align: center;
+}
+
+.purchase-card-meta span {
+  justify-content: center;
+}
+
+.payment-summary {
+  width: 100%;
+  align-content: end;
+}
+
+.payment-need-row {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.empty-drop-copy {
+  height: 100%;
+  min-height: 160px;
+}
+
+@media (max-width: 1180px) {
+  .tabletop-board,
+  .my-area-panel {
+    width: min(calc(100vw - 20px), var(--table-max));
+  }
+
+  .market-tier-list {
+    justify-content: start;
+  }
+
+  .development-market .panel-heading.slim {
+    position: static;
+    transform: none;
+    justify-self: center;
+    margin-bottom: 2px;
+  }
+
+  .market-tier-row {
+    grid-template-columns: 34px 74px repeat(4, 74px) 92px;
+    min-width: max-content;
+  }
+
+  .market-tier-row .draggable-card-shell,
+  .market-tier-row .card-drop-surface,
+  .market-tier-row .market-card,
+  .market-tier-row .deck-card {
+    width: 74px;
+    height: 104px;
+  }
+
+  .my-area-panel {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "title"
+      "playmat"
+      "action";
+  }
+
+  .my-action-rail {
+    min-height: 260px;
+  }
+}
+
+@media (max-width: 760px) {
+  .tabletop-shell {
+    grid-template-rows: 52px auto auto;
+  }
+
+  .noble-panel {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+  }
+
+  .market-column .noble-list {
+    justify-content: start;
+    overflow-x: auto;
+    padding: 8px 4px;
+  }
+
+  .public-bank-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .public-bank-strip .bank-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .my-playmat,
+  .my-lower-row {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+
+  .my-area-gems {
+    grid-template-columns: 1fr;
+  }
+
+  .my-area-gems .my-token-row {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .purchased-groups {
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    overflow: visible;
+  }
+}
+
+@media (max-height: 800px) and (min-width: 1000px) {
+  :root {
+    --board-card-h: clamp(64px, 9.4dvh, 86px);
+    --my-card-h: clamp(46px, 6.2dvh, 64px);
+  }
+
+  .tabletop-shell {
+    grid-template-rows: 50px minmax(0, 1fr) 248px;
+  }
+
+  .tabletop-topbar {
+    min-height: 50px;
+  }
+
+  .tabletop-main-column {
+    grid-template-rows: minmax(0, 1fr) 56px;
+  }
+
+  .market-column {
+    grid-template-rows: 86px minmax(0, 1fr);
+  }
+
+  .development-market {
+    padding-top: 24px;
+    padding-bottom: 10px;
+  }
+
+  .market-tier-list {
+    gap: 7px;
+  }
+
+  .noble-panel {
+    padding-block: 7px;
+  }
+
+  .market-column .noble-tile {
+    height: 76px;
+  }
+
+  .public-bank-strip {
+    padding-block: 4px;
+  }
+
+  .public-bank-strip .bank-token {
+    width: 46px;
+    height: 46px;
+  }
+
+  .public-bank-strip .bank-token img {
+    width: 43px;
+    height: 43px;
+  }
+
+  .my-area-panel {
+    grid-template-rows: 24px minmax(0, 1fr);
+    padding-block: 7px;
+  }
+
+  .my-playmat {
+    grid-template-rows: 48px minmax(80px, 1fr) 76px;
+    gap: 7px;
+  }
+
+  .my-area-gems .my-token {
+    width: 40px;
+    height: 40px;
+  }
+
+  .my-area-gems .my-token img {
+    width: 36px;
+    height: 36px;
+  }
+
+  .purchase-content {
+    grid-template-rows: minmax(82px, 0.8fr) auto minmax(74px, 0.7fr);
+  }
+}
+
+@media (max-height: 700px) and (min-width: 1000px) {
+  :root {
+    --board-card-h: 58px;
+    --my-card-h: 42px;
+  }
+
+  .tabletop-shell {
+    grid-template-rows: 48px minmax(0, 1fr) 216px;
+  }
+
+  .market-column {
+    grid-template-rows: 76px minmax(0, 1fr);
+  }
+
+  .market-tier-list {
+    gap: 6px;
+  }
+
+  .market-tier-row {
+    gap: 8px;
+  }
+
+  .development-market {
+    padding-top: 20px;
+    padding-bottom: 8px;
+  }
+
+  .public-bank-strip {
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+
+  .my-playmat {
+    grid-template-rows: 42px minmax(64px, 1fr) 64px;
+  }
+
+  .mini-section-head button {
+    width: 24px;
+    height: 24px;
+  }
+}
+
+/* Focus-table drawer pass: secondary zones float over the table instead of resizing it */
+:root {
+  --board-card-h: clamp(98px, 16dvh, 136px);
+  --board-card-w: calc(var(--board-card-h) * 0.74);
+  --drawer-z: 28;
+}
+
+.focus-table-shell {
+  position: relative;
+  grid-template-rows: 52px minmax(0, 1fr);
+  padding-bottom: 56px;
+}
+
+.focus-table-shell .tabletop-board {
+  width: min(calc(100vw - 28px), 1320px);
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "main";
+  padding: 10px 0 12px;
+}
+
+.focus-table-shell .tabletop-main-column {
+  grid-template-rows: minmax(0, 1fr) clamp(62px, 8dvh, 78px);
+}
+
+.focus-table-shell .market-column {
+  grid-template-rows: clamp(106px, 15dvh, 138px) minmax(0, 1fr);
+}
+
+.focus-table-shell .noble-panel {
+  padding-inline: clamp(16px, 2.4vw, 34px);
+}
+
+.focus-table-shell .development-market {
+  padding: 26px clamp(18px, 2.6vw, 36px) 18px;
+}
+
+.focus-table-shell .market-tier-list {
+  grid-template-rows: repeat(3, var(--board-card-h));
+  align-content: center;
+  gap: clamp(9px, 1.45dvh, 15px);
+}
+
+.focus-table-shell .market-tier-row {
+  grid-template-columns: 38px var(--board-card-w) repeat(4, var(--board-card-w)) minmax(100px, 118px);
+  gap: clamp(12px, 1.7vw, 22px);
+}
+
+.focus-table-shell .market-tier-row .draggable-card-shell,
+.focus-table-shell .market-tier-row .card-drop-surface,
+.focus-table-shell .market-tier-row .market-card,
+.focus-table-shell .market-tier-row .deck-card,
+.focus-table-shell .market-tier-row .market-drop-hint {
+  width: var(--board-card-w);
+  height: var(--board-card-h);
+}
+
+.focus-table-shell .market-tier-row .market-drop-hint {
+  width: 100%;
+  min-width: 100px;
+}
+
+.focus-table-shell .public-bank-strip {
+  grid-template-columns: minmax(0, 1fr) clamp(220px, 24vw, 320px);
+}
+
+.drawer-toggle-button.active,
+.tabletop-nav .drawer-toggle-button.active {
+  border-color: color-mix(in oklch, var(--teal) 54%, var(--line));
+  background: oklch(91% 0.04 188);
+  color: var(--teal-deep);
+}
+
+.opponent-drawer-tab {
+  position: fixed;
+  top: 82px;
+  right: 12px;
+  z-index: calc(var(--drawer-z) + 2);
+  display: inline-grid;
+  grid-template-columns: auto auto auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--surface) 94%, oklch(92% 0.018 225));
+  color: var(--ink-soft);
+  padding: 0 10px;
+  box-shadow: var(--shadow-sm);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.opponent-drawer-tab strong {
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  background: oklch(91% 0.04 188);
+  color: var(--teal-deep);
+  font-size: 0.72rem;
+}
+
+.opponent-drawer-tab.open {
+  background: oklch(91% 0.04 188);
+  color: var(--teal-deep);
+}
+
+.opponent-drawer {
+  position: fixed;
+  top: 68px;
+  right: 12px;
+  bottom: 70px;
+  z-index: var(--drawer-z);
+  width: min(340px, calc(100vw - 24px));
+  transform: translateX(calc(100% + 20px));
+  opacity: 0.92;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease;
+}
+
+.opponent-drawer.open {
+  transform: translateX(0);
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.drawer-close {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  box-shadow: var(--shadow-sm);
+}
+
+.opponent-drawer-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+}
+
+.opponent-drawer .opponent-panel {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  grid-area: auto;
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--surface) 94%, oklch(91% 0.035 225));
+  box-shadow: var(--shadow-md);
+}
+
+.opponent-drawer .opponent-panel .panel-heading {
+  padding-right: 38px;
+}
+
+.opponent-drawer .opponent-list {
+  padding-right: 2px;
+}
+
+.my-area-drawer {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  left: max(12px, env(safe-area-inset-left));
+  z-index: calc(var(--drawer-z) + 1);
+  display: grid;
+  width: min(calc(100vw - 24px), var(--table-max));
+  grid-template-rows: 48px minmax(0, 1fr);
+  margin-inline: auto;
+  transform: translateY(calc(100% - 48px));
+  pointer-events: none;
+  transition: transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.my-area-drawer.open {
+  transform: translateY(0);
+}
+
+.my-area-drawer.drag-hot-open .my-area-peek {
+  border-color: color-mix(in oklch, var(--teal) 64%, var(--line));
+  background: linear-gradient(180deg, oklch(96% 0.03 188 / 0.98), oklch(91% 0.045 188 / 0.98));
+}
+
+.my-area-peek {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(10px, 2vw, 22px);
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid color-mix(in oklch, var(--blue) 50%, var(--line));
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(180deg, oklch(98% 0.014 220 / 0.98), oklch(94% 0.035 210 / 0.98));
+  color: var(--ink);
+  padding: 0 clamp(12px, 1.7vw, 22px);
+  pointer-events: auto;
+  box-shadow: 0 -10px 30px oklch(35% 0.04 235 / 0.12);
+}
+
+.my-area-peek > span:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.my-area-peek strong {
+  color: oklch(52% 0.18 255);
+  font-size: 1rem;
+}
+
+.my-area-peek em {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 820;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawer-summary-pips {
+  display: flex;
+  flex: 0 1 auto;
+  justify-content: flex-end;
+  gap: 7px;
+  min-width: 0;
+}
+
+.drawer-summary-pips b {
+  min-width: max-content;
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--surface) 78%, oklch(90% 0.035 188));
+  color: var(--ink-soft);
+  padding: 4px 8px;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.my-area-drawer-body {
+  height: clamp(294px, 43dvh, 420px);
+  min-height: 0;
+  visibility: hidden;
+  pointer-events: auto;
+}
+
+.my-area-drawer.open .my-area-drawer-body {
+  visibility: visible;
+}
+
+.my-area-drawer:not(.open) .my-area-drawer-body {
+  pointer-events: none;
+}
+
+.my-area-drawer .my-area-panel {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-top-color: color-mix(in oklch, var(--blue) 52%, var(--line));
+  border-radius: 0 0 12px 12px;
+  box-shadow: var(--shadow-md);
+}
+
+.focus-table-shell .mobile-summary {
+  display: none;
+}
+
+@media (max-height: 720px) and (min-width: 1000px) {
+  :root {
+    --board-card-h: clamp(82px, 13.8dvh, 102px);
+  }
+
+  .focus-table-shell {
+    grid-template-rows: 48px minmax(0, 1fr);
+    padding-bottom: 50px;
+  }
+
+  .focus-table-shell .tabletop-main-column {
+    grid-template-rows: minmax(0, 1fr) 56px;
+    gap: 8px;
+  }
+
+  .focus-table-shell .market-column {
+    grid-template-rows: 84px minmax(0, 1fr);
+  }
+
+  .focus-table-shell .development-market {
+    padding: 20px 14px 10px;
+  }
+
+  .focus-table-shell .market-tier-list {
+    gap: 6px;
+  }
+
+  .focus-table-shell .market-tier-row {
+    gap: 10px;
+  }
+
+  .my-area-drawer {
+    grid-template-rows: 44px minmax(0, 1fr);
+    transform: translateY(calc(100% - 44px));
+  }
+
+  .my-area-peek {
+    min-height: 44px;
+  }
+
+  .my-area-drawer-body {
+    height: min(46dvh, 320px);
+  }
+}
+
+@media (max-width: 1180px) {
+  .focus-table-shell {
+    grid-template-rows: 52px auto;
+    padding-bottom: 58px;
+  }
+
+  .focus-table-shell .tabletop-board {
+    grid-template-columns: 1fr;
+    grid-template-areas: "main";
+    overflow: visible;
+  }
+
+  .focus-table-shell .tabletop-main-column,
+  .focus-table-shell .market-column {
+    grid-template-rows: auto auto;
+  }
+
+  .opponent-drawer {
+    top: 62px;
+    bottom: 62px;
+  }
+
+  .my-area-drawer-body {
+    height: min(72dvh, 620px);
+  }
+}
+
+@media (max-width: 760px) {
+  .opponent-drawer-tab {
+    top: 70px;
+    right: 10px;
+  }
+
+  .opponent-drawer {
+    right: 8px;
+    left: 8px;
+    width: auto;
+  }
+
+  .my-area-peek {
+    align-items: center;
+    gap: 8px;
+    padding-inline: 10px;
+  }
+
+  .my-area-peek > span:first-child {
+    display: grid;
+    gap: 0;
+  }
+
+  .drawer-summary-pips {
+    overflow: auto hidden;
+  }
+
+  .drawer-summary-pips b {
+    padding-inline: 7px;
+    font-size: 0.68rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .my-area-drawer,
+  .opponent-drawer {
+    transition: none;
+  }
+}
+
+/* Always-visible personal resource dock above the action drawer */
+:root {
+  --drawer-gems-h: 78px;
+  --drawer-peek-h: 48px;
+  --drawer-visible-h: calc(var(--drawer-gems-h) + var(--drawer-peek-h));
+}
+
+.focus-table-shell {
+  padding-bottom: calc(var(--drawer-visible-h) + 12px);
+}
+
+.my-area-drawer {
+  grid-template-rows: var(--drawer-gems-h) var(--drawer-peek-h) auto;
+  transform: translateY(calc(100% - var(--drawer-visible-h)));
+}
+
+.my-drawer-gems {
+  grid-template-columns: clamp(112px, 12vw, 148px) minmax(0, 1fr) minmax(230px, 0.44fr);
+  grid-template-rows: 1fr;
+  align-items: center;
+  gap: clamp(10px, 1.6vw, 18px);
+  border-color: color-mix(in oklch, var(--blue) 42%, var(--line));
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background:
+    linear-gradient(180deg, oklch(98% 0.012 220 / 0.98), oklch(95% 0.026 205 / 0.98));
+  padding: 8px clamp(12px, 1.6vw, 20px);
+  pointer-events: auto;
+  box-shadow: 0 -10px 28px oklch(35% 0.04 235 / 0.1);
+}
+
+.my-drawer-gems .mini-section-head {
+  align-content: center;
+  justify-content: start;
+}
+
+.my-drawer-gems .mini-section-head strong {
+  color: oklch(52% 0.18 255);
+  font-size: 1rem;
+}
+
+.my-drawer-gems .mini-section-head button {
+  margin-left: 8px;
+}
+
+.my-drawer-gems .my-token-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 1.8vw, 22px);
+  overflow: visible;
+}
+
+.my-drawer-gems .draggable-token {
+  flex: 0 0 auto;
+}
+
+.my-drawer-gems .my-token {
+  width: clamp(42px, 5.8dvh, 56px);
+  height: clamp(42px, 5.8dvh, 56px);
+  min-height: 0;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.my-drawer-gems .my-token img {
+  width: clamp(38px, 5.4dvh, 52px);
+  height: clamp(38px, 5.4dvh, 52px);
+}
+
+.my-drawer-gems .my-token span {
+  right: -2px;
+  bottom: -4px;
+  min-width: 21px;
+  height: 21px;
+}
+
+.my-drawer-gems .staged-gem-row {
+  justify-content: flex-end;
+  gap: 7px;
+  min-height: 36px;
+}
+
+.my-drawer-gems .staged-gem-row > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--ink-soft);
+  font-size: 0.74rem;
+  font-weight: 820;
+}
+
+.take-confirm-button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 32px;
+  border: 1px solid color-mix(in oklch, var(--teal) 48%, var(--line));
+  border-radius: 999px;
+  background: oklch(90% 0.045 188);
+  color: var(--teal-deep);
+  padding: 0 12px;
+  font-size: 0.76rem;
+  font-weight: 950;
+}
+
+.take-confirm-button:disabled {
+  border-color: var(--line);
+  background: oklch(93% 0.01 225);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.my-area-peek {
+  min-height: var(--drawer-peek-h);
+  border-top: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.my-area-drawer .my-area-panel {
+  border-top: 0;
+}
+
+.my-area-drawer .my-playmat {
+  grid-template-rows: minmax(98px, 1fr) minmax(82px, 0.72fr);
+}
+
+@media (max-height: 720px) and (min-width: 1000px) {
+  :root {
+    --drawer-gems-h: 68px;
+    --drawer-peek-h: 42px;
+  }
+
+  .focus-table-shell {
+    padding-bottom: calc(var(--drawer-visible-h) + 8px);
+  }
+
+  .my-area-drawer {
+    grid-template-rows: var(--drawer-gems-h) var(--drawer-peek-h) auto;
+    transform: translateY(calc(100% - var(--drawer-visible-h)));
+  }
+
+  .my-area-drawer.open {
+    transform: translateY(0);
+  }
+
+  .my-drawer-gems {
+    padding-block: 6px;
+  }
+}
+
+@media (max-width: 760px) {
+  :root {
+    --drawer-gems-h: 118px;
+  }
+
+  .my-drawer-gems {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 5px;
+  }
+
+  .my-drawer-gems .mini-section-head {
+    display: flex;
+  }
+
+  .my-drawer-gems .my-token-row {
+    justify-content: space-between;
+    gap: 4px;
+  }
+
+  .my-drawer-gems .staged-gem-row {
+    justify-content: start;
+  }
+}
+
+/* Final drawer shape: one visible "my gems" row, summary lives in the table corner */
+:root {
+  --drawer-head-h: var(--drawer-gems-h);
+  --drawer-visible-h: var(--drawer-head-h);
+}
+
+.focus-table-shell .tabletop-board {
+  position: relative;
+}
+
+.player-corner-hud {
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  z-index: 6;
+  display: flex;
+  gap: 6px;
+  max-width: calc(100% - 160px);
+  pointer-events: none;
+}
+
+.player-corner-hud b {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--surface) 86%, oklch(91% 0.035 188));
+  color: var(--ink-soft);
+  padding: 4px 8px;
+  box-shadow: var(--shadow-sm);
+  font-size: 0.72rem;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.my-area-drawer {
+  grid-template-rows: var(--drawer-head-h) auto;
+  transform: translateY(calc(100% - var(--drawer-head-h)));
+}
+
+.my-area-drawer.open {
+  transform: translateY(0);
+}
+
+.my-area-drawer-head {
+  display: grid;
+  grid-template-rows: var(--drawer-gems-h);
+  min-height: 0;
+  border: 1px solid color-mix(in oklch, var(--blue) 50%, var(--line));
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  background:
+    linear-gradient(180deg, oklch(98% 0.014 220 / 0.98), oklch(93.8% 0.034 200 / 0.98));
+  overflow: hidden;
+  pointer-events: auto;
+  box-shadow: 0 -10px 30px oklch(35% 0.04 235 / 0.12);
+  cursor: pointer;
+}
+
+.my-area-drawer.drag-hot-open .my-area-drawer-head {
+  border-color: color-mix(in oklch, var(--teal) 64%, var(--line));
+  background:
+    linear-gradient(180deg, oklch(97% 0.026 188 / 0.98), oklch(91% 0.045 188 / 0.98));
+}
+
+.my-drawer-gems {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.my-area-drawer .my-area-panel {
+  border-top: 1px solid color-mix(in oklch, var(--blue) 42%, var(--line));
+  box-shadow: var(--shadow-md);
+}
+
+@media (max-height: 720px) and (min-width: 1000px) {
+  .my-area-drawer {
+    grid-template-rows: var(--drawer-head-h) auto;
+    transform: translateY(calc(100% - var(--drawer-head-h)));
+  }
+
+  .my-area-drawer.open {
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 760px) {
+  .player-corner-hud {
+    top: 62px;
+    left: 10px;
+    max-width: calc(100% - 20px);
+    overflow: auto hidden;
+  }
+}
+
+/* Final horizontal workbench: purchased cards | reserved cards | purchase */
+.my-area-drawer-body {
+  height: clamp(300px, 40dvh, 388px);
+  overflow: hidden;
+}
+
+.my-area-drawer .my-area-panel {
+  display: grid;
+  grid-template-columns: minmax(430px, 1.16fr) minmax(290px, 0.7fr) minmax(390px, 0.9fr);
+  grid-template-rows: 30px minmax(0, 1fr);
+  grid-template-areas:
+    "title title title"
+    "purchased reserve action";
+  gap: 8px;
+  min-height: 0;
+  padding: 8px 10px 10px;
+}
+
+.my-area-drawer .my-area-title {
+  grid-area: title;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+}
+
+.my-area-drawer .my-area-title h2 {
+  display: none;
+}
+
+.my-area-drawer .my-area-title p {
+  max-width: none;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.my-area-drawer .my-playmat {
+  display: contents;
+}
+
+.my-area-drawer .purchased-zone {
+  grid-area: purchased;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.my-area-drawer .reserve-stack {
+  grid-area: reserve;
+  display: grid;
+  grid-template-rows: minmax(118px, 1fr) minmax(78px, 0.44fr);
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.my-area-drawer .reserve-stack > .reserve-zone,
+.my-area-drawer .reserve-stack > .achievement-zone {
+  grid-area: auto;
+  grid-column: auto;
+  grid-row: auto;
+  justify-self: stretch;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.my-area-drawer .reserve-stack > .achievement-zone {
+  border-style: dashed;
+  background: color-mix(in oklch, var(--surface) 88%, oklch(92% 0.024 198));
+}
+
+.my-area-drawer .reserve-zone.has-staged-reserve {
+  grid-template-rows: auto minmax(0, 1fr) minmax(34px, auto);
+}
+
+.reserve-confirm-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid color-mix(in oklch, var(--teal) 46%, var(--line));
+  border-radius: 9px;
+  background: linear-gradient(180deg, oklch(61% 0.12 188), oklch(49% 0.12 188));
+  color: oklch(99% 0.004 188);
+  font-size: 0.8rem;
+  font-weight: 950;
+  box-shadow: 0 8px 18px oklch(48% 0.1 188 / 0.18);
+}
+
+.my-area-drawer .my-action-rail {
+  grid-area: action;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.my-area-drawer .purchase-zone {
+  display: grid;
+  grid-template-rows: 31px minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.my-area-drawer .purchase-zone .mini-section-head {
+  min-height: 0;
+}
+
+.my-area-drawer .purchase-content {
+  display: grid;
+  grid-template-columns: minmax(144px, 176px) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 9px 10px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.my-area-drawer .purchase-card-image {
+  grid-row: 1 / 3;
+  align-self: start;
+  justify-self: center;
+  width: min(176px, 100%);
+  height: auto;
+  max-height: 242px;
+  aspect-ratio: 0.72 / 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--surface) 82%, oklch(91% 0.022 212));
+}
+
+.my-area-drawer .purchase-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.my-area-drawer .purchase-card-meta {
+  grid-column: 2;
+  min-width: 0;
+  gap: 5px;
+}
+
+.my-area-drawer .purchase-card-meta strong,
+.my-area-drawer .purchase-card-meta p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.my-area-drawer .purchase-card-meta span {
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.my-area-drawer .payment-summary {
+  grid-column: 2;
+  display: grid;
+  grid-template-rows: auto auto auto minmax(34px, auto);
+  gap: 7px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.my-area-drawer .payment-need-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.my-area-drawer .payment-need-row span {
+  min-width: 0;
+  padding: 5px 4px;
+}
+
+.my-area-drawer .payment-need-row b {
+  display: none;
+}
+
+.my-area-drawer .payment-token-row.compact {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.my-area-drawer .payment-token-row.compact span {
+  min-width: 0;
+}
+
+.my-area-drawer .manual-payment-note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.my-area-drawer .purchase-button {
+  min-height: 34px;
+}
+
+@media (max-height: 720px) and (min-width: 1000px) {
+  .my-area-drawer-body {
+    height: clamp(278px, 39dvh, 330px);
+  }
+
+  .my-area-drawer .my-area-panel {
+    grid-template-rows: 26px minmax(0, 1fr);
+    gap: 7px;
+    padding: 7px 9px 9px;
+  }
+
+  .my-area-drawer .purchase-content {
+    grid-template-columns: minmax(122px, 148px) minmax(0, 1fr);
+  }
+
+  .my-area-drawer .purchase-card-image {
+    width: min(148px, 100%);
+    max-height: 206px;
+  }
+
+  .my-area-drawer .payment-summary {
+    gap: 5px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .my-area-drawer-body {
+    height: min(72dvh, 620px);
+    overflow: auto;
+  }
+
+  .my-area-drawer .my-area-panel {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto;
+    grid-template-areas:
+      "title"
+      "action"
+      "purchased"
+      "reserve";
+    min-height: 560px;
+  }
+
+  .my-area-drawer .reserve-stack {
+    grid-template-rows: minmax(140px, auto) minmax(90px, auto);
   }
 }

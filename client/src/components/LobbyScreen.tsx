@@ -1,17 +1,20 @@
 import { DoorOpen, Plus } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
 import { AVATARS } from "../types";
+import type { GameVariant } from "../types";
 
 interface LobbyScreenProps {
   username?: string;
   avatarId?: number;
   roomCode?: string;
+  variant?: GameVariant;
   joining?: boolean;
   busy?: boolean;
   error: string;
   onUsernameChange?: (value: string) => void;
   onAvatarChange?: (value: number) => void;
   onRoomCodeChange?: (value: string) => void;
+  onVariantChange?: (value: GameVariant) => void;
   onToggleJoin?: () => void;
   onCreateRoom?: () => void;
   onJoinRoom?: () => void;
@@ -23,12 +26,14 @@ export default function LobbyScreen({
   username: controlledUsername,
   avatarId: controlledAvatarId,
   roomCode: controlledRoomCode,
+  variant: controlledVariant,
   joining: controlledJoining,
   busy = false,
   error,
   onUsernameChange,
   onAvatarChange,
   onRoomCodeChange,
+  onVariantChange,
   onToggleJoin,
   onCreateRoom,
   onJoinRoom,
@@ -39,10 +44,12 @@ export default function LobbyScreen({
   const [localUsername, setLocalUsername] = useState("");
   const [localAvatarId, setLocalAvatarId] = useState(0);
   const [localRoomCode, setLocalRoomCode] = useState("");
+  const [localVariant, setLocalVariant] = useState<GameVariant>("classic");
   const [localJoining, setLocalJoining] = useState(false);
   const username = controlledUsername ?? localUsername;
   const avatarId = controlledAvatarId ?? localAvatarId;
   const roomCode = controlledRoomCode ?? localRoomCode;
+  const variant = controlledVariant ?? localVariant;
   const joining = controlledJoining ?? localJoining;
 
   const changeUsername = (value: string) => {
@@ -58,6 +65,11 @@ export default function LobbyScreen({
   const changeRoomCode = (value: string) => {
     onRoomCodeChange?.(value);
     if (controlledRoomCode === undefined) setLocalRoomCode(value);
+  };
+
+  const changeVariant = (value: GameVariant) => {
+    onVariantChange?.(value);
+    if (controlledVariant === undefined) setLocalVariant(value);
   };
 
   const create = () => {
@@ -134,6 +146,27 @@ export default function LobbyScreen({
               ))}
             </div>
           </div>
+
+          {!joining ? (
+            <div className="variant-field">
+              <span>选择玩法</span>
+              <div className="variant-toggle" role="radiogroup" aria-label="选择玩法">
+                {(["classic", "pokemon"] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={variant === value}
+                    onClick={() => changeVariant(value)}
+                    className={variant === value ? "selected" : ""}
+                  >
+                    <strong>{value === "pokemon" ? "宝可梦版" : "经典版"}</strong>
+                    <small>{value === "pokemon" ? "18 分 · 捕捉与进化" : "15 分 · 贵族来访"}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {joining ? (
             <label>

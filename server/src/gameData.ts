@@ -1,5 +1,7 @@
 export type GemColor = "white" | "blue" | "green" | "red" | "brown" | "gold";
 export type BasicColor = Exclude<GemColor, "gold">;
+export type GameVariant = "classic" | "pokemon";
+export type CardDeckKind = "common" | "rare" | "legendary";
 export type Gems = Record<GemColor, number>;
 export type Costs = Record<BasicColor, number>;
 
@@ -9,6 +11,14 @@ export interface Card {
   color: BasicColor;
   prestige: number;
   cost: Costs;
+  variant?: GameVariant;
+  deckKind?: CardDeckKind;
+  name?: string;
+  image?: string;
+  goldCost?: number;
+  bonusColors?: BasicColor[];
+  evolvesFrom?: string;
+  evolutionCost?: Costs;
 }
 
 export interface Noble {
@@ -135,4 +145,203 @@ export const NOBLES: Noble[] = [
   { id: "20008", prestige: 3, req: c(0, 3, 3, 3, 0) },
   { id: "20009", prestige: 3, req: c(0, 0, 3, 3, 3) },
   { id: "20010", prestige: 3, req: c(3, 0, 0, 3, 3) },
+];
+
+const pokemonNames = [
+  "迷你龙",
+  "哈克龙",
+  "快龙",
+  "伊布",
+  "超梦",
+  "迷你龙",
+  "走路草",
+  "走路草",
+  "走路草",
+  "独角虫",
+  "独角虫",
+  "小火龙",
+  "小火龙",
+  "波波",
+  "波波",
+  "波波",
+  "凯西",
+  "凯西",
+  "绿毛虫",
+  "绿毛虫",
+  "蚊香蝌蚪",
+  "蚊香蝌蚪",
+  "蚊香蝌蚪",
+  "喇叭芽",
+  "喇叭芽",
+  "喇叭芽",
+  "腕力",
+  "腕力",
+  "杰尼龟",
+  "杰尼龟",
+  "妙蛙种子",
+  "妙蛙种子",
+  "鬼斯",
+  "鬼斯",
+  "尼多兰",
+  "尼多兰",
+  "尼多兰",
+  "哈克龙",
+  "臭臭花",
+  "臭臭花",
+  "铁壳蛹",
+  "铁壳蛹",
+  "火恐龙",
+  "火恐龙",
+  "比比鸟",
+  "比比鸟",
+  "勇基拉",
+  "勇基拉",
+  "铁甲蛹",
+  "铁甲蛹",
+  "蚊香君",
+  "蚊香君",
+  "豪力",
+  "豪力",
+  "卡咪龟",
+  "卡咪龟",
+  "口呆花",
+  "口呆花",
+  "鬼斯通",
+  "鬼斯通",
+  "妙蛙草",
+  "妙蛙草",
+  "尼多娜",
+  "尼多娜",
+  "大针蜂",
+  "霸王花",
+  "喷火龙",
+  "隆隆岩",
+  "大比鸟",
+  "胡地",
+  "巴大蝶",
+  "蚊香泳士",
+  "水箭龟",
+  "怪力",
+  "大食花",
+  "耿鬼",
+  "尼多后",
+  "妙蛙花",
+  "百变怪",
+  "卡比兽",
+  "拉普拉斯",
+  "化石翼龙",
+  "小刚的大岩蛇",
+  "火箭队的果然翁",
+  "小刚的可达鸭",
+  "火箭队的喵喵",
+  "梦幻",
+  "火焰鸟",
+  "闪电鸟",
+  "急冻鸟",
+  "美洛耶塔",
+  "凯路迪欧",
+  "蒂安希",
+  "比克提尼",
+  "捷拉奥拉",
+  "小智的皮卡丘",
+  "小拳石",
+  "小拳石",
+  "隆隆石",
+  "隆隆石",
+] as const;
+
+const evolvesFromByName: Partial<Record<string, string>> = {
+  哈克龙: "迷你龙",
+  快龙: "哈克龙",
+  臭臭花: "走路草",
+  霸王花: "臭臭花",
+  铁壳蛹: "独角虫",
+  大针蜂: "铁壳蛹",
+  火恐龙: "小火龙",
+  喷火龙: "火恐龙",
+  比比鸟: "波波",
+  大比鸟: "比比鸟",
+  勇基拉: "凯西",
+  胡地: "勇基拉",
+  铁甲蛹: "绿毛虫",
+  巴大蝶: "铁甲蛹",
+  蚊香君: "蚊香蝌蚪",
+  蚊香泳士: "蚊香君",
+  豪力: "腕力",
+  怪力: "豪力",
+  卡咪龟: "杰尼龟",
+  水箭龟: "卡咪龟",
+  口呆花: "喇叭芽",
+  大食花: "口呆花",
+  鬼斯通: "鬼斯",
+  耿鬼: "鬼斯通",
+  妙蛙草: "妙蛙种子",
+  妙蛙花: "妙蛙草",
+  尼多娜: "尼多兰",
+  尼多后: "尼多娜",
+  隆隆石: "小拳石",
+  隆隆岩: "隆隆石",
+};
+
+function assetPath(folder: string, file: string) {
+  return `/assets/pokemon-splendor/${folder}/${file}.webp`;
+}
+
+function pokemonCommonImage(tier: 1 | 2 | 3, serial: number) {
+  return assetPath(`cards/stage${tier}`, `stage${tier}-${String(serial).padStart(3, "0")}`);
+}
+
+const tierSerials: Record<1 | 2 | 3, number> = { 1: 0, 2: 0, 3: 0 };
+
+export const POKEMON_DEVELOPMENT_CARDS: Card[] = DEVELOPMENT_CARDS.map((card, index) => {
+  const name = pokemonNames[index] ?? `宝可梦 ${index + 1}`;
+  const serial = (tierSerials[card.tier] += 1);
+  return {
+    ...card,
+    id: `pk-${card.id}`,
+    variant: "pokemon",
+    deckKind: "common",
+    name,
+    image: pokemonCommonImage(card.tier, serial),
+    evolvesFrom: evolvesFromByName[name],
+    evolutionCost: card.cost,
+  };
+});
+
+const special = (
+  id: string,
+  name: string,
+  deckKind: Exclude<CardDeckKind, "common">,
+  prestige: number,
+  image: string,
+  goldCost: number,
+  bonusColors: [BasicColor, BasicColor],
+): Card => ({
+  id,
+  tier: 3,
+  color: bonusColors[0],
+  prestige,
+  cost: emptyCosts(),
+  variant: "pokemon",
+  deckKind,
+  name,
+  image,
+  goldCost,
+  bonusColors,
+});
+
+export const POKEMON_RARE_CARDS: Card[] = [
+  special("pk-r01", "美洛耶塔", "rare", 2, assetPath("cards/rare", "rare-001"), 1, ["white", "blue"]),
+  special("pk-r02", "凯路迪欧", "rare", 2, assetPath("cards/rare", "rare-002"), 1, ["red", "brown"]),
+  special("pk-r03", "蒂安希", "rare", 2, assetPath("cards/rare", "rare-003"), 1, ["blue", "green"]),
+  special("pk-r04", "比克提尼", "rare", 2, assetPath("cards/rare", "rare-004"), 1, ["red", "green"]),
+  special("pk-r05", "捷拉奥拉", "rare", 2, assetPath("cards/rare", "rare-005"), 1, ["white", "brown"]),
+];
+
+export const POKEMON_LEGENDARY_CARDS: Card[] = [
+  special("pk-l01", "小智的皮卡丘", "legendary", 3, assetPath("cards/legendary", "legendary-001"), 2, ["green", "red"]),
+  special("pk-l02", "小拳石", "legendary", 2, assetPath("cards/legendary", "legendary-002"), 2, ["blue", "brown"]),
+  special("pk-l03", "小拳石", "legendary", 2, assetPath("cards/legendary", "legendary-003"), 2, ["white", "green"]),
+  special("pk-l04", "隆隆石", "legendary", 2, assetPath("cards/legendary", "legendary-004"), 2, ["red", "blue"]),
+  special("pk-l05", "隆隆岩", "legendary", 2, assetPath("cards/legendary", "legendary-005"), 2, ["brown", "green"]),
 ];

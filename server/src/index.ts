@@ -6,15 +6,17 @@ import { Server, Socket } from "socket.io";
 import {
   applyBuy,
   applyDiscardTokens,
+  applyEvolvePokemon,
   applyReserve,
   applyTakeGems,
   GameRoom,
   getPlayerView,
+  validateEvolvePokemon,
   validateBuy,
   validateReserve,
   validateTakeGems,
 } from "./gameEngine";
-import { ALL_COLORS, BasicColor, Card, GemColor } from "./gameData";
+import { ALL_COLORS, BasicColor, Card, GameVariant, GemColor } from "./gameData";
 import {
   cleanupRooms,
   createRoom,
@@ -31,10 +33,11 @@ const app = express();
 const server = http.createServer(app);
 const PORT = Number(process.env.PORT || 3000);
 const isProduction = process.env.NODE_ENV === "production";
+const devOrigins = [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/];
 
 app.use(express.json());
 if (!isProduction) {
-  app.use(cors({ origin: "http://localhost:5173" }));
+  app.use(cors({ origin: devOrigins }));
 }
 
 app.get("/health", (_req, res) => {
@@ -45,7 +48,7 @@ const io = new Server(server, {
   cors: isProduction
     ? undefined
     : {
-        origin: "http://localhost:5173",
+        origin: devOrigins,
         methods: ["GET", "POST"],
       },
 });
@@ -84,6 +87,10 @@ function emitGame(roomId: string): void {
       winner: room.gameState.winner,
       finalScores: [...room.gameState.players].sort((a, b) => {
         if (b.prestige !== a.prestige) return b.prestige - a.prestige;
+        if (room.gameState?.variant === "pokemon") {
+          if (b.tuckedCards.length !== a.tuckedCards.length) return b.tuckedCards.length - a.tuckedCards.length;
+          return b.purchasedCards.length - a.purchasedCards.length;
+        }
         return a.purchasedCards.length - b.purchasedCards.length;
       }),
       reason: room.gameState.gameOverReason || "游戏结束，已按声望与购卡数量结算胜者。",
@@ -128,7 +135,7 @@ type TraceItemInput =
 
 type PublicTraceItem =
   | { kind: "bank-gem" | "my-gem"; color: GemColor }
-  | { kind: "market-card"; cardId: string; color: Card["color"]; prestige: number; tier: 1 | 2 | 3 }
+  | { kind: "market-card"; cardId: string; color: Card["color"]; prestige: number; tier: 1 | 2 | 3; image?: string; name?: string }
   | { kind: "reserved-card"; tier: 1 | 2 | 3 }
   | { kind: "deck"; tier: 1 | 2 | 3 };
 
@@ -149,7 +156,13 @@ function findPublicMarketCard(roomId: string, cardId: string): Card | null {
   const room = rooms.get(roomId);
   const gameState = room?.gameState;
   if (!gameState) return null;
-  const cards = [...gameState.tier1.faceUp, ...gameState.tier2.faceUp, ...gameState.tier3.faceUp];
+  const cards = [
+    ...gameState.tier1.faceUp,
+    ...gameState.tier2.faceUp,
+    ...gameState.tier3.faceUp,
+    ...(gameState.rare?.faceUp ?? []),
+    ...(gameState.legendary?.faceUp ?? []),
+  ];
   return cards.find((card) => card?.id === cardId) ?? null;
 }
 
@@ -167,7 +180,7 @@ function sanitizeTraceItem(roomId: string, item: TraceItemInput | undefined): Pu
   if (item.kind === "market-card" && typeof item.cardId === "string") {
     const card = findPublicMarketCard(roomId, item.cardId);
     if (!card) return null;
-    return { kind: "market-card", cardId: card.id, color: card.color, prestige: card.prestige, tier: card.tier };
+    return { kind: "market-card", cardId: card.id, color: card.color, prestige: card.prestige, tier: card.tier, image: card.image, name: card.name };
   }
   return null;
 }
@@ -176,10 +189,10 @@ io.on("connection", (socket) => {
   socket.on(
     "create_room",
     (
-      payload: { username: string; avatarId: number },
+      payload: { username: string; avatarId: number; variant?: GameVariant },
       cb: (response: { roomId?: string; playerId?: string; reconnectToken?: string; error?: string }) => void
     ) => {
-      const result = createRoom(payload.username, payload.avatarId, socket.id);
+      const result = createRoom(payload.username, payload.avatarId, socket.id, payload.variant);
       if ("error" in result) return cb({ error: result.error });
       bindPlayerSocket(socket, result.room.roomId, result.playerId);
       cb({ roomId: result.room.roomId, playerId: result.playerId, reconnectToken: result.reconnectToken });
@@ -240,6 +253,24 @@ io.on("connection", (socket) => {
     emitGame(payload.roomId);
     cb({});
   });
+
+  socket.on(
+    "evolve_pokemon",
+    (
+      payload: { roomId: string; targetCardId?: string | null; skip?: boolean },
+      cb: (response: { error?: string }) => void
+    ) => {
+      const room = rooms.get(payload.roomId);
+      const playerId = room ? getActivePlayerId(room, socket) : null;
+      if (!room?.gameState || !playerId) return respondError(cb, "房间或玩家状态不存在。", socket);
+      const validation = validateEvolvePokemon(room.gameState, playerId, payload.targetCardId, payload.skip);
+      if (!validation.valid) return respondError(cb, validation.error || "进化失败。", socket);
+      room.gameState = applyEvolvePokemon(room.gameState, playerId, payload.targetCardId, payload.skip);
+      touchRoom(room.roomId);
+      cb({});
+      emitGame(room.roomId);
+    }
+  );
 
   socket.on("take_gems", (payload: { roomId: string; colors: GemColor[] }, cb: (response: { error?: string }) => void) => {
     const room = rooms.get(payload.roomId);

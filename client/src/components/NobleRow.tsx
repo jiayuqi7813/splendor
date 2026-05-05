@@ -21,7 +21,7 @@ export function NobleRow({ nobles, currentPlayer }: NobleRowProps) {
   const [selectedNobleId, setSelectedNobleId] = useState<string | null>(null);
   const selectedNoble = useMemo(() => nobles.find((noble) => noble.id === selectedNobleId) ?? null, [nobles, selectedNobleId]);
   const selectedMissing = selectedNoble ? missingBonusCount(selectedNoble, currentPlayer) : 0;
-  const headingStatus = selectedNoble ? (selectedMissing === 0 ? "已满足，结算后自动来访" : `还差 ${selectedMissing} 张永久加成`) : `${nobles.length} 张`;
+  const headingStatus = selectedNoble ? (selectedMissing === 0 ? "已满足" : `还差 ${selectedMissing}`) : `${nobles.length} 张`;
 
   useEffect(() => {
     if (selectedNobleId && !nobles.some((noble) => noble.id === selectedNobleId)) {
@@ -32,7 +32,7 @@ export function NobleRow({ nobles, currentPlayer }: NobleRowProps) {
   return (
     <section className="noble-panel">
       <div className="panel-heading slim">
-        <h2>贵族（可获得 3 分）</h2>
+        <h2>贵族</h2>
         <span>{headingStatus}</span>
       </div>
       <div className="noble-list">
@@ -48,10 +48,9 @@ export function NobleRow({ nobles, currentPlayer }: NobleRowProps) {
               aria-label={`查看贵族，${noble.prestige} 分，${ready ? "已满足条件" : `还差 ${missingBonusCount(noble, currentPlayer)} 张永久加成`}`}
               onClick={() => setSelectedNobleId((current) => (current === noble.id ? null : noble.id))}
             >
-              <span className="noble-crown">♛</span>
+              <strong className="noble-score">{noble.prestige}</strong>
               <img src={nobleImageUrl(noble.id)} alt="" />
               <div className="noble-info">
-                <strong>{noble.prestige}</strong>
                 <span>
                   {BASIC_COLORS.filter((color) => noble.req[color] > 0).map((color) => (
                     <em key={color} className={currentPlayer && currentPlayer.bonuses[color] >= noble.req[color] ? "met" : ""}>

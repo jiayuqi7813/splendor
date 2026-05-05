@@ -1,5 +1,7 @@
 export type GemColor = "white" | "blue" | "green" | "red" | "brown" | "gold";
 export type BasicColor = Exclude<GemColor, "gold">;
+export type GameVariant = "classic" | "pokemon";
+export type CardDeckKind = "common" | "rare" | "legendary";
 export type Gems = Record<GemColor, number>;
 export type Costs = Record<BasicColor, number>;
 
@@ -9,12 +11,21 @@ export interface Card {
   color: BasicColor;
   prestige: number;
   cost: Costs;
+  variant?: GameVariant;
+  deckKind?: CardDeckKind;
+  name?: string;
+  image?: string;
+  goldCost?: number;
+  bonusColors?: BasicColor[];
+  evolvesFrom?: string;
+  evolutionCost?: Costs;
 }
 
 export interface HiddenCard {
   id: string;
   hidden: true;
   tier?: 1 | 2 | 3;
+  deckKind?: CardDeckKind;
 }
 
 export type ReservedCard = Card | HiddenCard;
@@ -34,6 +45,7 @@ export interface PlayerState {
   bonuses: Costs;
   purchasedCards: Card[];
   reservedCards: ReservedCard[];
+  tuckedCards: Card[];
   nobles: Noble[];
   prestige: number;
   connected?: boolean;
@@ -47,6 +59,7 @@ export interface TierState {
 
 export interface GameState {
   roomId: string;
+  variant: GameVariant;
   phase: "waiting" | "playing" | "finalRound" | "ended";
   currentPlayerId: string;
   turnOrder: string[];
@@ -55,17 +68,21 @@ export interface GameState {
   tier1: TierState;
   tier2: TierState;
   tier3: TierState;
+  rare?: TierState;
+  legendary?: TierState;
   nobles: Noble[];
   players: PlayerState[];
   myPlayerId: string;
   winner: PlayerState | null;
   lastAction: string | null;
   pendingDiscardPlayerId?: string | null;
+  pendingEvolutionPlayerId?: string | null;
   gameOverReason?: string | null;
 }
 
 export interface RoomState {
   roomId: string;
+  variant: GameVariant;
   players: PlayerState[];
   hostId: string;
   phase: "waiting" | "playing" | "finalRound" | "ended";
@@ -84,7 +101,7 @@ export type TracePhase = "start" | "move" | "end" | "cancel";
 
 export type TraceItem =
   | { kind: "bank-gem" | "my-gem"; color: GemColor }
-  | { kind: "market-card"; cardId: string; color: BasicColor; prestige: number; tier: 1 | 2 | 3 }
+  | { kind: "market-card"; cardId: string; color: BasicColor; prestige: number; tier: 1 | 2 | 3; image?: string; name?: string }
   | { kind: "reserved-card"; tier: 1 | 2 | 3 }
   | { kind: "deck"; tier: 1 | 2 | 3 };
 
@@ -112,6 +129,15 @@ export const COLOR_LABELS: Record<GemColor, string> = {
   red: "红宝石",
   brown: "玛瑙",
   gold: "黄金",
+};
+
+export const POKEMON_COLOR_LABELS: Record<GemColor, string> = {
+  white: "治愈球",
+  blue: "超级球",
+  green: "先机球",
+  red: "精灵球",
+  brown: "高级球",
+  gold: "大师球",
 };
 
 export const COLOR_SHORT_LABELS: Record<BasicColor, string> = {
@@ -142,7 +168,16 @@ export const COLOR_DOTS: Record<BasicColor, string> = {
 export const BASE_IMAGE_URL = "https://raw.githubusercontent.com/hexanome-04/splendor/master/client/public/images";
 export const BACKGROUND_URL = `${BASE_IMAGE_URL}/bluebackground.jpg`;
 
-export function cardImageUrl(id: string) {
+export function variantName(variant: GameVariant | undefined) {
+  return variant === "pokemon" ? "宝可梦版" : "经典版";
+}
+
+export function colorLabelsFor(variant: GameVariant | undefined) {
+  return variant === "pokemon" ? POKEMON_COLOR_LABELS : COLOR_LABELS;
+}
+
+export function cardImageUrl(id: string, card?: Pick<Card, "image"> | null) {
+  if (card?.image) return card.image;
   return `${BASE_IMAGE_URL}/development-cards/${id}.jpg`;
 }
 
@@ -150,7 +185,18 @@ export function nobleImageUrl(id: string) {
   return `${BASE_IMAGE_URL}/nobles/${id}.jpg`;
 }
 
-export function tokenImageUrl(color: GemColor) {
+export function tokenImageUrl(color: GemColor, variant: GameVariant = "classic") {
+  if (variant === "pokemon") {
+    const names: Record<GemColor, string> = {
+      white: "healball-pink",
+      blue: "greatball-blue",
+      green: "quickball-yellow",
+      red: "pokeball-red",
+      brown: "ultraball-black",
+      gold: "masterball-purple",
+    };
+    return `/assets/pokemon-splendor/tokens/${names[color]}.webp`;
+  }
   const names: Record<GemColor, string> = {
     white: "WhiteToken",
     blue: "BlueToken",
@@ -162,7 +208,11 @@ export function tokenImageUrl(color: GemColor) {
   return `${BASE_IMAGE_URL}/tokens/${names[color]}.jpg`;
 }
 
-export function deckBackUrl(tier: 1 | 2 | 3) {
+export function deckBackUrl(tier: 1 | 2 | 3, variant: GameVariant = "classic", deckKind: CardDeckKind = "common") {
+  if (variant === "pokemon") {
+    const file = deckKind === "rare" ? "rare" : deckKind === "legendary" ? "legendary" : `stage${tier}`;
+    return `/assets/pokemon-splendor/card-backs/${file}.webp`;
+  }
   const file = tier === 1 ? "GreenCard.jpg" : tier === 2 ? "YellowCard.jpg" : "BlueCard.jpg";
   return `${BASE_IMAGE_URL}/${file}`;
 }
@@ -199,6 +249,17 @@ export const TOKEN_IMAGES: Record<GemColor, string> = {
   brown: tokenImageUrl("brown"),
   gold: tokenImageUrl("gold"),
 };
+
+export function tokenImagesFor(variant: GameVariant | undefined): Record<GemColor, string> {
+  return {
+    white: tokenImageUrl("white", variant ?? "classic"),
+    blue: tokenImageUrl("blue", variant ?? "classic"),
+    green: tokenImageUrl("green", variant ?? "classic"),
+    red: tokenImageUrl("red", variant ?? "classic"),
+    brown: tokenImageUrl("brown", variant ?? "classic"),
+    gold: tokenImageUrl("gold", variant ?? "classic"),
+  };
+}
 
 export const BACK_IMAGES: Record<1 | 2 | 3, string> = {
   1: deckBackUrl(1),

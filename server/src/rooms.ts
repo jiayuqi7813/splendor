@@ -1,8 +1,10 @@
 import { v4 as uuidv4 } from "uuid";
-import { emptyCosts, emptyGems, GameRoom, GameState, PlayerState, createGame } from "./gameEngine";
+import { emptyCosts, emptyGems, GameRoom, GameState, PlayerState, createGame, normalizeVariant } from "./gameEngine";
+import type { GameVariant } from "./gameData";
 
 export interface RoomState {
   roomId: string;
+  variant: GameVariant;
   hostId: string;
   players: PlayerState[];
   phase: "waiting" | "playing" | "finalRound" | "ended";
@@ -38,6 +40,7 @@ export function toRoomState(room: GameRoom): RoomState {
   const phase = room.gameState?.phase ?? "waiting";
   return {
     roomId: room.roomId,
+    variant: room.variant,
     hostId: room.hostId,
     players: room.players.map((player) => {
       const publicPlayer = { ...player };
@@ -63,6 +66,7 @@ function makeLobbyPlayer(id: string, username: string, avatarId: number, isHost:
     bonuses: emptyCosts(),
     purchasedCards: [],
     reservedCards: [],
+    tuckedCards: [],
     nobles: [],
     prestige: 0,
     turnsTaken: 0,
@@ -78,15 +82,18 @@ export function createRoom(
   username: string,
   avatarId: number,
   socketId: string,
+  variantInput: GameVariant = "classic",
 ): { room: GameRoom; player: PlayerState; playerId: string; reconnectToken: string } | { error: string } {
   const cleanName = username.trim().slice(0, 16);
   if (!cleanName) return { error: "请输入用户名。" };
+  const variant = normalizeVariant(variantInput);
   const roomId = generateRoomId();
   const playerId = uuidv4();
   const reconnectToken = uuidv4();
   const player = makeLobbyPlayer(playerId, cleanName, avatarId, true, socketId);
   const room: GameRoom = {
     roomId,
+    variant,
     players: [player],
     hostId: playerId,
     reconnectTokens: {
@@ -94,6 +101,7 @@ export function createRoom(
     },
     gameState: {
       roomId,
+      variant,
       phase: "waiting",
       currentPlayerId: "",
       turnOrder: [],
@@ -102,11 +110,14 @@ export function createRoom(
       tier1: { faceUp: [], deckCount: 0 },
       tier2: { faceUp: [], deckCount: 0 },
       tier3: { faceUp: [], deckCount: 0 },
+      rare: variant === "pokemon" ? { faceUp: [], deckCount: 0 } : undefined,
+      legendary: variant === "pokemon" ? { faceUp: [], deckCount: 0 } : undefined,
       nobles: [],
       players: [player],
       myPlayerId: "",
       winner: null,
       lastAction: null,
+      pendingEvolutionPlayerId: null,
     },
     createdAt: Date.now(),
     lastActivity: Date.now(),
@@ -198,7 +209,7 @@ export function startRoomGame(roomId: string, hostId: string): { room?: GameRoom
   if (connectedPlayers.length > 4) return { error: "最多 4 名玩家。" };
 
   room.players = connectedPlayers;
-  const gameRoom = createGame(room.players, room.players.length);
+  const gameRoom = createGame(room.players, room.players.length, room.variant);
   const gameState = gameRoom.gameState!;
   gameState.roomId = room.roomId;
   room.players = room.players.map((player) => ({ ...player, isHost: player.id === room.hostId, connected: true }));
@@ -221,6 +232,7 @@ export function updateRoomFromGamePlayers(room: GameRoom): void {
     bonuses: player.bonuses,
     purchasedCards: player.purchasedCards,
     reservedCards: player.reservedCards,
+    tuckedCards: player.tuckedCards,
     nobles: player.nobles,
     prestige: player.prestige,
     turnsTaken: player.turnsTaken,

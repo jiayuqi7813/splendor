@@ -5,7 +5,7 @@ import { GameBoard } from './components/GameBoard';
 import LobbyScreen from './components/LobbyScreen';
 import { WaitingRoom } from './components/WaitingRoom';
 import { clearSeatSession, readSeatSession, saveSeatSession, type StoredSeatSession } from './reconnectSession';
-import type { GameOverPayload, GameState, RoomState } from './types';
+import type { GameOverPayload, GameState, GameVariant, RoomState } from './types';
 
 type Screen = 'lobby' | 'waiting' | 'game';
 type SeatResponse = {
@@ -35,6 +35,7 @@ export default function App() {
   const [lobbyUsername, setLobbyUsername] = useState('');
   const [lobbyAvatarId, setLobbyAvatarId] = useState(0);
   const [lobbyRoomCode, setLobbyRoomCode] = useState(invitedRoomId);
+  const [lobbyVariant, setLobbyVariant] = useState<GameVariant>('classic');
   const [lobbyJoining, setLobbyJoining] = useState(Boolean(invitedRoomId));
   const [lobbyBusy, setLobbyBusy] = useState(false);
   const [restoringSession, setRestoringSession] = useState(false);
@@ -212,7 +213,7 @@ export default function App() {
       return;
     }
     setLobbyBusy(true);
-    socket.emit('create_room', { username: cleanUsername, avatarId }, (response: SeatResponse) => {
+    socket.emit('create_room', { username: cleanUsername, avatarId, variant: lobbyVariant }, (response: SeatResponse) => {
       setLobbyBusy(false);
       if (response.error || !response.roomId || !response.playerId || !response.reconnectToken) {
         setError(response.error ?? '创建房间失败');
@@ -307,6 +308,8 @@ export default function App() {
         onUsernameChange={setLobbyUsername}
         onAvatarChange={setLobbyAvatarId}
         onRoomCodeChange={(value) => setLobbyRoomCode(value.toUpperCase().slice(0, 6))}
+        variant={lobbyVariant}
+        onVariantChange={setLobbyVariant}
         onToggleJoin={() => setLobbyJoining(true)}
         onCreate={createRoom}
         onJoin={joinRoom}

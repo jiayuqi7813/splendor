@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
-import type { Card, HiddenCard, TierState } from "../types";
-import { BACK_IMAGES, BASIC_COLORS, CARD_IMAGES, COLOR_LABELS, TOKEN_IMAGES } from "../types";
+import type { Card, GameVariant, HiddenCard, TierState } from "../types";
+import { BACK_IMAGES, BASIC_COLORS, CARD_IMAGES, COLOR_LABELS, colorLabelsFor, deckBackUrl, tokenImagesFor, cardImageUrl } from "../types";
 import { Draggable, DropZone } from "./BoardDragProvider";
 
 interface Props {
@@ -11,6 +11,8 @@ interface Props {
   onClick?: () => void;
   disabled?: boolean;
   selected?: boolean;
+  variant?: GameVariant;
+  deckKind?: "common" | "rare" | "legendary";
 }
 
 function isHidden(card: Card | HiddenCard | null | undefined): card is HiddenCard {
@@ -23,7 +25,9 @@ const deckLabels: Record<1 | 2 | 3, string> = {
   3: "LEVEL III",
 };
 
-export function CardSlot({ card, tier, deck, mode = "card", onClick, disabled, selected }: Props) {
+export function CardSlot({ card, tier, deck, mode = "card", onClick, disabled, selected, variant = "classic", deckKind = "common" }: Props) {
+  const labels = colorLabelsFor(variant);
+  const tokenImages = tokenImagesFor(variant);
   if (mode === "deck") {
     const deckTier = tier ?? 1;
     const count = deck?.deckCount ?? 0;
@@ -32,11 +36,11 @@ export function CardSlot({ card, tier, deck, mode = "card", onClick, disabled, s
         type="button"
         onClick={onClick}
         disabled={disabled || count <= 0}
-        className="deck-card"
+        className={`deck-card deck-tier-${deckTier}`}
         aria-label={`${deckTier} 级牌堆，剩余 ${count} 张`}
       >
-        <img src={BACK_IMAGES[deckTier]} alt="" />
-        <span>{deckLabels[deckTier]}</span>
+        <img src={variant === "pokemon" ? deckBackUrl(deckTier, variant, deckKind) : BACK_IMAGES[deckTier]} alt="" />
+        <span>{variant === "pokemon" ? deckLabels[deckTier].replace("LEVEL", "STAGE") : deckLabels[deckTier]}</span>
         <strong>{count}</strong>
       </button>
     );
@@ -54,8 +58,8 @@ export function CardSlot({ card, tier, deck, mode = "card", onClick, disabled, s
   if (isHidden(card)) {
     const hiddenTier = card.tier ?? tier ?? 1;
     return (
-      <div className="deck-card reserved-back">
-        <img src={BACK_IMAGES[hiddenTier]} alt="" />
+      <div className={`deck-card reserved-back deck-tier-${hiddenTier}`}>
+        <img src={deckBackUrl(hiddenTier, variant, card.deckKind ?? "common")} alt="" />
         <span>保留</span>
       </div>
     );
@@ -71,20 +75,24 @@ export function CardSlot({ card, tier, deck, mode = "card", onClick, disabled, s
         disabled={disabled}
         className={`market-card ${selected ? "selected" : ""}`}
         style={{ "--card-accent": `var(--gem-${card.color})` } as CSSProperties}
-        aria-label={`${COLOR_LABELS[card.color]}发展卡，${card.prestige} 分`}
+        aria-label={`${labels[card.color]}${variant === "pokemon" ? "宝可梦" : "发展卡"}，${card.prestige} 分`}
       >
-        <img src={CARD_IMAGES(card.id)} alt="" />
-        <span className="market-prestige">{card.prestige}</span>
-        <span className="market-bonus" />
-        <span className="market-tier">{card.tier}</span>
-        <span className="market-costs">
-          {visibleCosts.map((color) => (
-            <span key={color}>
-              <img src={TOKEN_IMAGES[color]} alt="" />
-              <b>{card.cost[color]}</b>
+        <img src={variant === "pokemon" ? cardImageUrl(card.id, card) : CARD_IMAGES(card.id)} alt="" />
+        {variant === "pokemon" ? null : (
+          <>
+            <span className="market-prestige">{card.prestige}</span>
+            <span className="market-bonus" />
+            <span className="market-tier">{card.tier}</span>
+            <span className="market-costs">
+              {visibleCosts.map((color) => (
+                <span key={color}>
+                  <img src={tokenImages[color]} alt="" />
+                  <b>{card.cost[color]}</b>
+                </span>
+              ))}
             </span>
-          ))}
-        </span>
+          </>
+        )}
       </button>
     </DropZone>
   );

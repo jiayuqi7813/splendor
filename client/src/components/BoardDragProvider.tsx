@@ -2,8 +2,10 @@ import {
   DndContext,
   DragOverlay,
   KeyboardSensor,
+  MeasuringStrategy,
   PointerSensor,
   closestCenter,
+  pointerWithin,
   useDraggable,
   useDroppable,
   useSensor,
@@ -12,11 +14,12 @@ import {
   type DragEndEvent,
   type DragMoveEvent,
   type DragStartEvent,
+  type CollisionDetection,
 } from "@dnd-kit/core";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { socket } from "../socket";
-import type { BasicColor, Card, GameState, GemColor, Gems, PlayerState, PlayerTracePayload, TraceItem, TracePhase } from "../types";
-import { AVATARS, BASIC_COLORS, COLOR_LABELS, TOKEN_IMAGES, cardImageUrl, deckBackUrl, isHiddenCard } from "../types";
+import type { BasicColor, Card, GameState, GameVariant, GemColor, Gems, PlayerState, PlayerTracePayload, TraceItem, TracePhase } from "../types";
+import { AVATARS, BASIC_COLORS, cardImageUrl, colorLabelsFor, deckBackUrl, isHiddenCard, tokenImagesFor } from "../types";
 
 type DragPayload =
   | { kind: "bank-gem"; color: GemColor }
@@ -40,12 +43,14 @@ interface PaymentPlan {
   goldSubstitutions: Record<BasicColor, number>;
   remaining: Record<BasicColor, number>;
   goldTotal: number;
+  fixedGold: number;
   missingTotal: number;
   canBuy: boolean;
 }
 
 interface BoardDragContextValue {
   activeDrag: DragPayload | null;
+  activeDragPoint: { x: number; y: number } | null;
   selectedCard: Card | null;
   selectedCardSource: "market" | "reserved" | null;
   stagedTakeGems: GemColor[];
@@ -67,10 +72,18 @@ interface BoardDragContextValue {
   clearDiscard: () => void;
   clearReserve: () => void;
   confirmTake: () => void;
+  canConfirmTake: boolean;
   confirmBuy: () => void;
   confirmReserve: () => void;
   confirmDiscard: () => void;
   describeTake: string;
+  variant: GameVariant;
+  colorLabels: Record<GemColor, string>;
+  tokenImages: Record<GemColor, string>;
+  availableEvolutions: Card[];
+  canHandleEvolution: boolean;
+  confirmEvolution: (targetCardId: string) => void;
+  skipEvolution: () => void;
 }
 
 const BoardDragContext = createContext<BoardDragContextValue | null>(null);
@@ -84,6 +97,14 @@ const TRACE_COLORS = [
   "oklch(66% 0.14 78)",
   "oklch(45% 0.05 70)",
 ];
+const ACTION_DROP_IDS = new Set(["my-gems-zone", "selected-card-zone", "payment-zone", "reserve-zone", "discard-zone"]);
+
+const tabletopCollisionDetection: CollisionDetection = (args) => {
+  const pointerCollisions = pointerWithin(args);
+  const actionCollisions = pointerCollisions.filter(({ id }) => ACTION_DROP_IDS.has(String(id)));
+  if (actionCollisions.length > 0) return actionCollisions;
+  return pointerCollisions.length > 0 ? pointerCollisions : closestCenter(args);
+};
 
 function emptyBasic(): Record<BasicColor, number> {
   return { white: 0, blue: 0, green: 0, red: 0, brown: 0 };
@@ -97,7 +118,7 @@ function incrementGem(gems: Partial<Gems>, color: GemColor) {
   return { ...gems, [color]: (gems[color] ?? 0) + 1 };
 }
 
-function validateTakeSelection(selection: GemColor[], bank: Gems) {
+function validateTakeSelection(selection: GemColor[], bank: Gems, labels: Record<GemColor, string>) {
   if (selection.length === 3) {
     const unique = new Set(selection);
     const valid = unique.size === 3 && selection.every((color) => color !== "gold" && bank[color] > 0);
@@ -107,10 +128,10 @@ function validateTakeSelection(selection: GemColor[], bank: Gems) {
   if (selection.length === 2) {
     const [first, second] = selection;
     const valid = first === second && first !== "gold" && bank[first] >= 4;
-    return { valid, text: valid ? `双击确认拿取 2 枚${COLOR_LABELS[first]}` : "两颗相同宝石要求库存至少 4" };
+    return { valid, text: valid ? `双击确认拿取 2 枚${labels[first]}` : "两颗相同要求库存至少 4" };
   }
 
-  return { valid: false, text: selection.length ? `已暂放 ${selection.length} 枚宝石` : "拖公共宝石到我的宝石区" };
+  return { valid: false, text: selection.length ? `已暂放 ${selection.length} 枚` : "拖公共区到我的区域" };
 }
 
 function createPaymentPlan(player: PlayerState, card: Card | null): PaymentPlan | null {
@@ -126,8 +147,9 @@ function createPaymentPlan(player: PlayerState, card: Card | null): PaymentPlan 
     remaining[color] = Math.max(0, need[color] - coloredPayment[color]);
   }
 
-  let goldLeft = player.gems.gold;
-  let goldTotal = 0;
+  const fixedGold = card.goldCost ?? 0;
+  let goldLeft = Math.max(0, player.gems.gold - fixedGold);
+  let goldTotal = fixedGold;
   for (const color of BASIC_COLORS) {
     const goldForColor = Math.min(remaining[color], goldLeft);
     goldSubstitutions[color] = goldForColor;
@@ -136,15 +158,16 @@ function createPaymentPlan(player: PlayerState, card: Card | null): PaymentPlan 
     goldTotal += goldForColor;
   }
 
-  const missingTotal = BASIC_COLORS.reduce((sum, color) => sum + remaining[color], 0);
-  return { need, coloredPayment, goldSubstitutions, remaining, goldTotal, missingTotal, canBuy: missingTotal === 0 };
+  const missingGold = Math.max(0, fixedGold - player.gems.gold);
+  const missingTotal = BASIC_COLORS.reduce((sum, color) => sum + remaining[color], 0) + missingGold;
+  return { need, coloredPayment, goldSubstitutions, remaining, goldTotal, fixedGold, missingTotal, canBuy: missingTotal === 0 };
 }
 
-function dragLabel(payload: DragPayload | null) {
+function dragLabel(payload: DragPayload | null, labels: Record<GemColor, string>) {
   if (!payload) return "";
-  if (payload.kind === "bank-gem" || payload.kind === "my-gem") return COLOR_LABELS[payload.color];
+  if (payload.kind === "bank-gem" || payload.kind === "my-gem") return labels[payload.color];
   if (payload.kind === "deck") return `${payload.tier} 级牌堆`;
-  return `${COLOR_LABELS[payload.card.color]}卡 ${payload.card.prestige} 分`;
+  return `${payload.card.name ?? labels[payload.card.color]} ${payload.card.prestige} 分`;
 }
 
 function viewportPoint(clientX: number, clientY: number): TracePoint {
@@ -180,13 +203,13 @@ function traceItemFromPayload(payload: DragPayload): TraceItemInput {
   return { kind: "reserved-card", tier: payload.card.tier };
 }
 
-function traceItemLabel(item: TraceItem) {
+function traceItemLabel(item: TraceItem, labels: Record<GemColor, string>) {
   switch (item.kind) {
     case "bank-gem":
     case "my-gem":
-      return COLOR_LABELS[item.color];
+      return labels[item.color];
     case "market-card":
-      return `${COLOR_LABELS[item.color]}卡 ${item.prestige} 分`;
+      return `${item.name ?? labels[item.color]} ${item.prestige} 分`;
     case "reserved-card":
       return "预留卡";
     case "deck":
@@ -203,6 +226,7 @@ export function BoardDragProvider({
   onReserveCard,
   onBuyCard,
   onDiscardTokens,
+  onEvolvePokemon,
   children,
 }: {
   gameState: GameState;
@@ -213,9 +237,11 @@ export function BoardDragProvider({
   onReserveCard: (cardId: string | null, fromDeck: 1 | 2 | 3 | null) => void;
   onBuyCard: (cardId: string, goldSubstitutions: Partial<Record<BasicColor, number>>) => void;
   onDiscardTokens: (tokens: Partial<Gems>) => void;
+  onEvolvePokemon: (targetCardId: string | null, skip?: boolean) => void;
   children: ReactNode;
 }) {
   const [activeDrag, setActiveDrag] = useState<DragPayload | null>(null);
+  const [activeDragPoint, setActiveDragPoint] = useState<{ x: number; y: number } | null>(null);
   const [selectedCard, setSelectedCardState] = useState<Card | null>(null);
   const [selectedCardSource, setSelectedCardSource] = useState<"market" | "reserved" | null>(null);
   const [stagedTakeGems, setStagedTakeGems] = useState<GemColor[]>([]);
@@ -236,8 +262,22 @@ export function BoardDragProvider({
   const isMyTurn = gameState.currentPlayerId === me.id;
   const mustDiscard = gameState.pendingDiscardPlayerId === me.id || pendingDiscardExcess !== null;
   const mayBroadcastTrace = isMyTurn || mustDiscard;
-  const takeValidation = validateTakeSelection(stagedTakeGems, gameState.bank);
+  const colorLabels = colorLabelsFor(gameState.variant);
+  const tokenImages = tokenImagesFor(gameState.variant);
+  const takeValidation = validateTakeSelection(stagedTakeGems, gameState.bank, colorLabels);
   const paymentPlan = useMemo(() => createPaymentPlan(me, selectedCard), [me, selectedCard]);
+  const canHandleEvolution = gameState.variant === "pokemon" && gameState.pendingEvolutionPlayerId === me.id;
+  const availableEvolutions = useMemo(() => {
+    if (!canHandleEvolution) return [];
+    const market = [...gameState.tier1.faceUp, ...gameState.tier2.faceUp, ...gameState.tier3.faceUp].filter((card): card is Card => Boolean(card));
+    const reserved = me.reservedCards.filter((card): card is Card => !isHiddenCard(card));
+    return [...market, ...reserved].filter((card) => {
+      if (!card.evolvesFrom || card.deckKind !== "common") return false;
+      if (!me.purchasedCards.some((owned) => owned.name === card.evolvesFrom)) return false;
+      const evolutionCost = card.evolutionCost ?? card.cost;
+      return BASIC_COLORS.every((color) => me.bonuses[color] >= evolutionCost[color]);
+    });
+  }, [canHandleEvolution, gameState.tier1.faceUp, gameState.tier2.faceUp, gameState.tier3.faceUp, me]);
 
   useEffect(() => {
     setStagedTakeGems([]);
@@ -303,6 +343,10 @@ export function BoardDragProvider({
       setNotice("当前必须先完成弃置代币。");
       return false;
     }
+    if (gameState.pendingEvolutionPlayerId) {
+      setNotice("当前必须先完成或跳过进化。");
+      return false;
+    }
     return true;
   };
 
@@ -310,17 +354,17 @@ export function BoardDragProvider({
     setSelectedCardState(card);
     setSelectedCardSource(card ? source : null);
     setStagedPayment({});
-    if (card) setNotice("已选中发展卡。条件足够时可直接购买，也可以拖宝石查看支付。");
+    if (card) setNotice(gameState.variant === "pokemon" ? "已选中宝可梦。条件足够时可直接捕捉。" : "已选中发展卡。条件足够时可直接购买，也可以拖宝石查看支付。");
   };
 
   const stageTakeGem = (color: GemColor) => {
     if (!guardTurn()) return;
     if (color === "gold") {
-      setNotice("黄金不能直接从公共区拿取，只能通过预留卡牌获得。");
+      setNotice(`${colorLabels.gold}不能直接从公共区拿取，只能通过预留卡牌获得。`);
       return;
     }
     if (gameState.bank[color] <= 0) {
-      setNotice(`${COLOR_LABELS[color]}库存不足。`);
+      setNotice(`${colorLabels[color]}库存不足。`);
       return;
     }
     setStagedTakeGems((prev) => {
@@ -328,16 +372,16 @@ export function BoardDragProvider({
       if (prev.length === 0) return [color];
       if (prev.length === 1 && sameCount === 1) {
         if (gameState.bank[color] < 4) {
-          setNotice("两颗相同宝石要求公共库存至少 4。");
+          setNotice("两颗相同要求公共库存至少 4。");
           return prev;
         }
-        setNotice(`已暂放 2 枚${COLOR_LABELS[color]}，双击我的宝石区确认。`);
+        setNotice(`已暂放 2 枚${colorLabels[color]}，双击我的区域确认。`);
         return [color, color];
       }
       if (prev.length < 3 && sameCount === 0 && new Set(prev).size === prev.length) {
         return [...prev, color];
       }
-      setNotice("取宝石只能是 3 种不同，或库存至少 4 时取 2 枚同色。");
+      setNotice("只能取 3 种不同，或库存至少 4 时取 2 枚同色。");
       return prev;
     });
   };
@@ -345,22 +389,22 @@ export function BoardDragProvider({
   const stagePaymentGem = (color: GemColor, targetCard: Card | null = selectedCard, paymentBase: Partial<Gems> = stagedPayment, resetPayment = false) => {
     if (!guardTurn()) return;
     if (!targetCard) {
-      setNotice("请先选择或拖入一张要购买的发展卡。");
+      setNotice(gameState.variant === "pokemon" ? "请先选择或拖入一张要捕捉的宝可梦。" : "请先选择或拖入一张要购买的发展卡。");
       return;
     }
     if (me.gems[color] <= (paymentBase[color] ?? 0)) {
-      setNotice(`${COLOR_LABELS[color]}数量不足。`);
+      setNotice(`${colorLabels[color]}数量不足。`);
       return;
     }
     const plan = createPaymentPlan(me, targetCard);
     const stagedCount = paymentBase[color] ?? 0;
     const neededCount = color === "gold" ? plan?.goldTotal ?? 0 : plan?.need[color] ?? 0;
     if (neededCount <= 0) {
-      setNotice(`${COLOR_LABELS[color]}暂时不需要用于这张卡。`);
+      setNotice(`${colorLabels[color]}暂时不需要用于这张卡。`);
       return;
     }
     if (stagedCount >= neededCount) {
-      setNotice(`${COLOR_LABELS[color]}已经足够支付这张卡。`);
+      setNotice(`${colorLabels[color]}已经足够支付这张卡。`);
       return;
     }
     setStagedPayment((prev) => incrementGem(resetPayment ? paymentBase : prev, color));
@@ -373,21 +417,25 @@ export function BoardDragProvider({
       return;
     }
     if (me.gems[color] <= (stagedDiscard[color] ?? 0)) {
-      setNotice(`${COLOR_LABELS[color]}数量不足，无法继续弃置。`);
+      setNotice(`${colorLabels[color]}数量不足，无法继续弃置。`);
       return;
     }
     setStagedDiscard((prev) => incrementGem(prev, color));
-    setNotice("已暂放弃置代币。双击弃币区确认。");
+    setNotice("已暂放弃置对象。双击弃置区确认。");
   };
 
   const stageReserveCard = (card: Card) => {
     if (!guardTurn()) return;
+    if (gameState.variant === "pokemon" && card.deckKind !== "common") {
+      setNotice("稀有和传说宝可梦不能保留，只能捕捉。");
+      return;
+    }
     if (me.reservedCards.length >= 3) {
       setNotice("预留区已满。");
       return;
     }
     setStagedReserve({ card });
-    setNotice("已暂放到预留区。双击预留区确认。");
+    setNotice("已暂放到预留区，点击确认预留。");
   };
 
   const stageReserveDeck = (tier: 1 | 2 | 3) => {
@@ -397,7 +445,7 @@ export function BoardDragProvider({
       return;
     }
     setStagedReserve({ fromDeck: tier });
-    setNotice(`已暂放 ${tier} 级牌堆。双击预留区确认。`);
+    setNotice(`已暂放 ${tier} 级牌堆，点击确认预留。`);
   };
 
   const confirmTake = () => {
@@ -407,18 +455,18 @@ export function BoardDragProvider({
       return;
     }
     onTakeGems(stagedTakeGems);
-    setNotice("已提交取宝石动作。");
+    setNotice(gameState.variant === "pokemon" ? "已提交拿取精灵球动作。" : "已提交取宝石动作。");
     setStagedTakeGems([]);
   };
 
   const confirmBuy = () => {
     if (!guardTurn() || !selectedCard || !paymentPlan) return;
     if (!paymentPlan.canBuy) {
-      setNotice("宝石不足，还不能购买这张卡。");
+      setNotice(gameState.variant === "pokemon" ? "精灵球不足，还不能捕捉这只宝可梦。" : "宝石不足，还不能购买这张卡。");
       return;
     }
     onBuyCard(selectedCard.id, paymentPlan.goldSubstitutions);
-    setNotice("已提交购买动作。");
+    setNotice(gameState.variant === "pokemon" ? "已提交捕捉动作。" : "已提交购买动作。");
     setSelectedCardState(null);
     setSelectedCardSource(null);
     setStagedPayment({});
@@ -442,6 +490,16 @@ export function BoardDragProvider({
     onDiscardTokens(stagedDiscard);
     setNotice("已提交弃置动作。");
     setStagedDiscard({});
+  };
+
+  const confirmEvolution = (targetCardId: string) => {
+    if (!canHandleEvolution) return;
+    onEvolvePokemon(targetCardId, false);
+  };
+
+  const skipEvolution = () => {
+    if (!canHandleEvolution) return;
+    onEvolvePokemon(null, true);
   };
 
   const emitTrace = (phase: TracePhase, payload: DragPayload, point: TracePoint, targetId?: string) => {
@@ -474,6 +532,7 @@ export function BoardDragProvider({
     const startPoint = pointFromActivator(event.activatorEvent);
     initialTracePointRef.current = startPoint;
     latestTracePointRef.current = startPoint;
+    setActiveDragPoint(startPoint ? { x: startPoint.x, y: startPoint.y } : null);
     lastTraceEmitRef.current = 0;
     if (payload && startPoint) emitTrace("start", payload, startPoint);
   };
@@ -484,6 +543,7 @@ export function BoardDragProvider({
     const point = pointFromDragDelta(event);
     if (!point) return;
     latestTracePointRef.current = point;
+    setActiveDragPoint({ x: point.x, y: point.y });
     const now = Date.now();
     if (now - lastTraceEmitRef.current < TRACE_THROTTLE_MS) return;
     lastTraceEmitRef.current = now;
@@ -496,6 +556,7 @@ export function BoardDragProvider({
     const endPoint = payload ? pointFromDragDelta(event) : null;
     if (payload && endPoint) emitTrace("end", payload, endPoint, overId || undefined);
     setActiveDrag(null);
+    setActiveDragPoint(null);
     activeDragRef.current = null;
     initialClientPointRef.current = null;
     initialTracePointRef.current = null;
@@ -537,6 +598,7 @@ export function BoardDragProvider({
     const cancelPoint = payload ? pointFromDragDelta(event) : null;
     if (payload && cancelPoint) emitTrace("cancel", payload, cancelPoint);
     setActiveDrag(null);
+    setActiveDragPoint(null);
     activeDragRef.current = null;
     initialClientPointRef.current = null;
     initialTracePointRef.current = null;
@@ -546,6 +608,7 @@ export function BoardDragProvider({
 
   const value: BoardDragContextValue = {
     activeDrag,
+    activeDragPoint,
     selectedCard,
     selectedCardSource,
     stagedTakeGems,
@@ -567,35 +630,49 @@ export function BoardDragProvider({
     clearDiscard: () => setStagedDiscard({}),
     clearReserve: () => setStagedReserve(null),
     confirmTake,
+    canConfirmTake: takeValidation.valid,
     confirmBuy,
     confirmReserve,
     confirmDiscard,
     describeTake: takeValidation.text,
+    variant: gameState.variant,
+    colorLabels,
+    tokenImages,
+    availableEvolutions,
+    canHandleEvolution,
+    confirmEvolution,
+    skipEvolution,
   };
 
   return (
     <BoardDragContext.Provider value={value}>
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCenter}
+        collisionDetection={tabletopCollisionDetection}
+        measuring={{
+          droppable: {
+            strategy: MeasuringStrategy.Always,
+            frequency: 16,
+          },
+        }}
         onDragStart={onDragStart}
         onDragMove={onDragMove}
         onDragEnd={onDragEnd}
         onDragCancel={onDragCancel}
       >
         {children}
-        <RemoteTraceLayer traces={remoteTraces} />
+        <RemoteTraceLayer traces={remoteTraces} variant={gameState.variant} />
         <DragOverlay>
           {activeDrag ? (
             <div className={`drag-overlay ${activeDrag.kind.includes("gem") ? "token" : "card"}`}>
               {activeDrag.kind === "bank-gem" || activeDrag.kind === "my-gem" ? (
-                <img src={TOKEN_IMAGES[activeDrag.color]} alt="" />
+                <img src={tokenImages[activeDrag.color]} alt="" />
               ) : activeDrag.kind === "deck" ? (
                 <strong>{activeDrag.tier}</strong>
               ) : (
-                <img src={cardImageUrl(activeDrag.card.id)} alt="" />
+                <img src={cardImageUrl(activeDrag.card.id, activeDrag.card)} alt="" />
               )}
-              <span>{dragLabel(activeDrag)}</span>
+              <span>{dragLabel(activeDrag, colorLabels)}</span>
             </div>
           ) : null}
         </DragOverlay>
@@ -605,7 +682,13 @@ export function BoardDragProvider({
 }
 
 function findCardById(gameState: GameState, me: PlayerState, cardId: string): Card | null {
-  const marketCards = [...gameState.tier1.faceUp, ...gameState.tier2.faceUp, ...gameState.tier3.faceUp].filter(Boolean) as Card[];
+  const marketCards = [
+    ...gameState.tier1.faceUp,
+    ...gameState.tier2.faceUp,
+    ...gameState.tier3.faceUp,
+    ...(gameState.rare?.faceUp ?? []),
+    ...(gameState.legendary?.faceUp ?? []),
+  ].filter(Boolean) as Card[];
   const reservedCard = me.reservedCards.find((card) => !isHiddenCard(card) && card.id === cardId);
   return marketCards.find((card) => card.id === cardId) ?? (reservedCard && !isHiddenCard(reservedCard) ? reservedCard : null);
 }
@@ -614,26 +697,28 @@ function isReservedCard(me: PlayerState, cardId: string) {
   return me.reservedCards.some((card) => !isHiddenCard(card) && card.id === cardId);
 }
 
-function TraceItemVisual({ item }: { item: TraceItem }) {
+function TraceItemVisual({ item, variant }: { item: TraceItem; variant: GameVariant }) {
+  const traceTokenImages = tokenImagesFor(variant);
   switch (item.kind) {
     case "bank-gem":
     case "my-gem":
-      return <img src={TOKEN_IMAGES[item.color]} alt="" />;
+      return <img src={traceTokenImages[item.color]} alt="" />;
     case "market-card":
-      return <img src={cardImageUrl(item.cardId)} alt="" />;
+      return <img src={cardImageUrl(item.cardId, { image: item.image })} alt="" />;
     case "deck":
     case "reserved-card":
       return (
         <>
-          <img src={deckBackUrl(item.tier)} alt="" />
+          <img src={deckBackUrl(item.tier, variant)} alt="" />
           <b>{item.kind === "deck" ? item.tier : "藏"}</b>
         </>
       );
   }
 }
 
-function RemoteTraceLayer({ traces }: { traces: RemoteTrace[] }) {
+function RemoteTraceLayer({ traces, variant }: { traces: RemoteTrace[]; variant: GameVariant }) {
   if (!traces.length) return null;
+  const labels = colorLabelsFor(variant);
 
   return (
     <div className="remote-trace-layer" aria-hidden="true">
@@ -668,11 +753,11 @@ function RemoteTraceLayer({ traces }: { traces: RemoteTrace[] }) {
             <div className={`remote-trace-figure ${trace.item.kind.includes("gem") ? "token" : "card"}`}>
               <span className="remote-trace-avatar">{AVATARS[trace.avatarId % AVATARS.length]}</span>
               <span className="remote-trace-object">
-                <TraceItemVisual item={trace.item} />
+                <TraceItemVisual item={trace.item} variant={variant} />
               </span>
               <span className="remote-trace-label">
                 <strong>{trace.username}</strong>
-                <em>{traceItemLabel(trace.item)}</em>
+                <em>{traceItemLabel(trace.item, labels)}</em>
               </span>
             </div>
           </div>

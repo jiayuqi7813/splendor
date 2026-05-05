@@ -1,6 +1,6 @@
 import { Copy, Play } from "lucide-react";
 import { useMemo, useState } from "react";
-import { AVATARS } from "../types";
+import { AVATARS, variantName } from "../types";
 import type { RoomState } from "../types";
 
 interface WaitingRoomProps {
@@ -56,6 +56,7 @@ export function WaitingRoom({ roomState, playerId, onStart, error }: WaitingRoom
         <div className="waiting-head">
           <p className="hud-label">Waiting Room</p>
           <h1>房间号：{roomState.roomId}</h1>
+          <p className="variant-badge">{variantName(roomState.variant)}</p>
           <button type="button" onClick={copyInviteLink} className="copy-button">
             <Copy size={18} />
             {copied ? "已复制邀请链接" : "复制邀请链接"}

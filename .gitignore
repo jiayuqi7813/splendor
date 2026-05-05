@@ -5,3 +5,5 @@ server/dist/
 .env
 .DS_Store
 npm-debug.log*
+Images/
+Images.zip
