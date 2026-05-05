@@ -16,5 +16,6 @@ COPY --from=builder /app/server/package*.json ./server/
 RUN cd server && npm install --production
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV PUBLIC_DIR=/app/public
 EXPOSE 3000
 CMD ["node", "server/dist/index.js"]
