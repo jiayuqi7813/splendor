@@ -46,6 +46,13 @@ export interface PublicTier {
   deckCount: number;
 }
 
+export interface ActionLogEntry {
+  id: string;
+  text: string;
+  at: number;
+  playerId?: string | null;
+}
+
 export interface GameState {
   roomId: string;
   variant: GameVariant;
@@ -64,6 +71,7 @@ export interface GameState {
   myPlayerId: string;
   winner: PlayerState | null;
   lastAction: string | null;
+  actionLog?: ActionLogEntry[];
   pendingDiscardPlayerId?: string | null;
   pendingEvolutionPlayerId?: string | null;
   finalRoundTargetTurns?: number | null;
@@ -90,6 +98,7 @@ export interface GameRoom {
 
 type Validation = { valid: boolean; error?: string };
 type DeckKey = "tier1" | "tier2" | "tier3" | "rare" | "legendary";
+const ACTION_LOG_LIMIT = 36;
 
 type CardLocation =
   | { type: "market"; card: Card; deckKey: DeckKey; tier?: 1 | 2 | 3; index: number }
@@ -123,6 +132,19 @@ function syncPublicTiers(state: GameState): void {
   state.tier3 = publicTier(state._decks.tier3);
   if (state._decks.rare) state.rare = publicTier(state._decks.rare);
   if (state._decks.legendary) state.legendary = publicTier(state._decks.legendary);
+}
+
+function recordAction(state: GameState, text: string, playerId?: string | null): void {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  state.lastAction = trimmed;
+  const entry: ActionLogEntry = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    text: trimmed,
+    at: Date.now(),
+    playerId: playerId ?? null,
+  };
+  state.actionLog = [...(state.actionLog ?? []), entry].slice(-ACTION_LOG_LIMIT);
 }
 
 function getTierInternal(state: GameState, tier: 1 | 2 | 3): TierInternal {
@@ -279,7 +301,7 @@ function offerEvolutionOrAdvance(state: GameState, playerId: string): GameState 
   const targets = availableEvolutionTargets(state, player);
   if (targets.length > 0) {
     state.pendingEvolutionPlayerId = playerId;
-    state.lastAction = `${state.lastAction}，可以进化或跳过`;
+    recordAction(state, `${state.lastAction ?? ""}，可以进化或跳过`, playerId);
     syncPublicTiers(state);
     return state;
   }
@@ -292,17 +314,17 @@ function finishActionOrRequireDiscard(state: GameState, playerId: string, action
   if (!player) return state;
   if (sumGems(player.gems) > 10) {
     state.pendingDiscardPlayerId = playerId;
-    state.lastAction = `${actionText}，需要弃置 ${sumGems(player.gems) - 10} 个代币`;
+    recordAction(state, `${actionText}，需要弃置 ${sumGems(player.gems) - 10} 个代币`, playerId);
     syncPublicTiers(state);
     return state;
   }
   if (state.variant === "pokemon") {
-    state.lastAction = actionText;
+    recordAction(state, actionText, playerId);
     return offerEvolutionOrAdvance(state, playerId);
   }
   const noble = checkNobleVisit(state, playerId);
   const suffix = noble ? `，贵族 ${noble.id} 来访` : "";
-  state.lastAction = `${actionText}${suffix}`;
+  recordAction(state, `${actionText}${suffix}`, playerId);
   return advanceTurn(state);
 }
 
@@ -329,7 +351,7 @@ function settleGame(state: GameState): void {
       ? `${state.winner.username} 以 ${state.winner.prestige} 点声望获胜；若声望相同，则购买发展卡更少者胜出。`
       : "游戏结束。";
   }
-  state.lastAction = state.gameOverReason;
+  recordAction(state, state.gameOverReason, state.winner?.id ?? null);
 }
 
 function isGameVariant(value: unknown): value is GameVariant {
@@ -367,6 +389,8 @@ export function createGame(players: PlayerState[], playerCount: number, variantI
       : {}),
   };
   const gemCount = playerCount === 2 ? 4 : playerCount === 3 ? 5 : 7;
+  const startText = "游戏开始，第一位玩家开始行动";
+  const startedAt = Date.now();
   const initializedPlayers = players.map((player) => ({
     ...player,
     gems: emptyGems(),
@@ -396,7 +420,8 @@ export function createGame(players: PlayerState[], playerCount: number, variantI
     players: initializedPlayers,
     myPlayerId: "",
     winner: null,
-    lastAction: "游戏开始，第一位玩家开始行动",
+    lastAction: startText,
+    actionLog: [{ id: `${startedAt}-start`, text: startText, at: startedAt, playerId: initializedPlayers[0]?.id ?? null }],
     pendingDiscardPlayerId: null,
     pendingEvolutionPlayerId: null,
     finalRoundTargetTurns: null,
@@ -595,11 +620,11 @@ export function applyDiscardTokens(state: GameState, playerId: string, tokens: P
   }
   state.pendingDiscardPlayerId = null;
   if (state.variant === "pokemon") {
-    state.lastAction = `${player.username} 弃置了 ${discardTotal} 个精灵球`;
+    recordAction(state, `${player.username} 弃置了 ${discardTotal} 个精灵球`, playerId);
     return offerEvolutionOrAdvance(state, playerId);
   }
   const noble = checkNobleVisit(state, playerId);
-  state.lastAction = `${player.username} 弃置了 ${discardTotal} 个代币${noble ? `，贵族 ${noble.id} 来访` : ""}`;
+  recordAction(state, `${player.username} 弃置了 ${discardTotal} 个代币${noble ? `，贵族 ${noble.id} 来访` : ""}`, playerId);
   return advanceTurn(state);
 }
 
@@ -638,7 +663,7 @@ export function advanceTurn(state: GameState): GameState {
     state.phase = "finalRound";
     state.finalRoundStarterId = current.id;
     state.finalRoundTargetTurns = current.turnsTaken;
-    state.lastAction = `${state.lastAction}；${current.username} 达到 ${targetPrestige} 点${state.variant === "pokemon" ? "奖杯" : "声望"}，触发最终轮`;
+    recordAction(state, `${state.lastAction ?? ""}；${current.username} 达到 ${targetPrestige} 点${state.variant === "pokemon" ? "奖杯" : "声望"}，触发最终轮`, current.id);
   }
   if (
     state.phase === "finalRound" &&
@@ -690,7 +715,7 @@ export function applyEvolvePokemon(
   const player = getPlayer(state, playerId)!;
   if (skip || !targetCardId) {
     state.pendingEvolutionPlayerId = null;
-    state.lastAction = `${player.username} 跳过进化`;
+    recordAction(state, `${player.username} 跳过进化`, playerId);
     return advanceTurn(state);
   }
 
@@ -711,7 +736,7 @@ export function applyEvolvePokemon(
   player.purchasedCards.push(target);
   recalculatePlayerCards(player);
   state.pendingEvolutionPlayerId = null;
-  state.lastAction = `${player.username} 将 ${base.name ?? base.id} 进化为 ${target.name ?? target.id}`;
+  recordAction(state, `${player.username} 将 ${base.name ?? base.id} 进化为 ${target.name ?? target.id}`, playerId);
   return advanceTurn(state);
 }
 

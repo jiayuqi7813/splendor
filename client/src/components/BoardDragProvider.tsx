@@ -32,6 +32,7 @@ type StagedReserve = { card?: Card; fromDeck?: 1 | 2 | 3 } | null;
 type TracePoint = { x: number; y: number; at: number };
 type RemoteTrace = PlayerTracePayload & { points: TracePoint[]; finishing: boolean };
 type TraceItemInput =
+  | { kind: "cursor" }
   | { kind: "bank-gem" | "my-gem"; color: GemColor }
   | { kind: "market-card"; cardId: string }
   | { kind: "reserved-card"; tier: 1 | 2 | 3 }
@@ -88,7 +89,10 @@ interface BoardDragContextValue {
 
 const BoardDragContext = createContext<BoardDragContextValue | null>(null);
 const TRACE_THROTTLE_MS = 45;
+const CURSOR_TRACE_THROTTLE_MS = 70;
+const CURSOR_IDLE_END_MS = 680;
 const TRACE_POINT_LIMIT = 12;
+const REMOTE_TRACE_LIMIT = 12;
 const TRACE_COLORS = [
   "oklch(58% 0.12 188)",
   "oklch(58% 0.17 28)",
@@ -205,6 +209,8 @@ function traceItemFromPayload(payload: DragPayload): TraceItemInput {
 
 function traceItemLabel(item: TraceItem, labels: Record<GemColor, string>) {
   switch (item.kind) {
+    case "cursor":
+      return "鼠标";
     case "bank-gem":
     case "my-gem":
       return labels[item.color];
@@ -256,6 +262,10 @@ export function BoardDragProvider({
   const latestTracePointRef = useRef<TracePoint | null>(null);
   const traceIdRef = useRef("");
   const lastTraceEmitRef = useRef(0);
+  const cursorTraceIdRef = useRef("");
+  const latestCursorPointRef = useRef<TracePoint | null>(null);
+  const lastCursorEmitRef = useRef(0);
+  const cursorIdleTimerRef = useRef<number | null>(null);
   const removeTraceTimersRef = useRef<Record<string, number>>({});
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor));
@@ -306,7 +316,7 @@ export function BoardDragProvider({
               points: [point],
               finishing: payload.phase === "end" || payload.phase === "cancel",
             };
-        return [...prev.filter((trace) => trace.traceId !== payload.traceId), nextTrace].slice(-4);
+        return [...prev.filter((trace) => trace.traceId !== payload.traceId), nextTrace].slice(-REMOTE_TRACE_LIMIT);
       });
 
       if (payload.phase === "end" || payload.phase === "cancel") {
@@ -333,6 +343,68 @@ export function BoardDragProvider({
     }, 1400);
     return () => window.clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const emitCursorTrace = (phase: TracePhase, point: TracePoint) => {
+      if (!cursorTraceIdRef.current || phase === "start") {
+        cursorTraceIdRef.current = `${me.id}:cursor:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`;
+      }
+      socket.emit("player_trace", {
+        roomId: gameState.roomId,
+        traceId: cursorTraceIdRef.current,
+        phase,
+        x: point.x,
+        y: point.y,
+        item: { kind: "cursor" } satisfies TraceItemInput,
+      });
+    };
+
+    const finishCursorTrace = (phase: TracePhase = "end") => {
+      if (cursorIdleTimerRef.current !== null) {
+        window.clearTimeout(cursorIdleTimerRef.current);
+        cursorIdleTimerRef.current = null;
+      }
+      const point = latestCursorPointRef.current;
+      if (cursorTraceIdRef.current && point) {
+        emitCursorTrace(phase, point);
+      }
+      cursorTraceIdRef.current = "";
+      latestCursorPointRef.current = null;
+      lastCursorEmitRef.current = 0;
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (document.visibilityState !== "visible" || activeDragRef.current) return;
+      const now = Date.now();
+      if (now - lastCursorEmitRef.current < CURSOR_TRACE_THROTTLE_MS) return;
+
+      const point = viewportPoint(event.clientX, event.clientY);
+      latestCursorPointRef.current = point;
+      lastCursorEmitRef.current = now;
+      emitCursorTrace(cursorTraceIdRef.current ? "move" : "start", point);
+
+      if (cursorIdleTimerRef.current !== null) {
+        window.clearTimeout(cursorIdleTimerRef.current);
+      }
+      cursorIdleTimerRef.current = window.setTimeout(() => finishCursorTrace("end"), CURSOR_IDLE_END_MS);
+    };
+
+    const onPointerOut = (event: PointerEvent) => {
+      if (!event.relatedTarget) finishCursorTrace("end");
+    };
+
+    const onBlur = () => finishCursorTrace("cancel");
+
+    window.addEventListener("pointermove", onPointerMove, { passive: true });
+    window.addEventListener("pointerout", onPointerOut, { passive: true });
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerout", onPointerOut);
+      window.removeEventListener("blur", onBlur);
+      finishCursorTrace("cancel");
+    };
+  }, [gameState.roomId, me.id]);
 
   const guardTurn = () => {
     if (!isMyTurn) {
@@ -700,6 +772,8 @@ function isReservedCard(me: PlayerState, cardId: string) {
 function TraceItemVisual({ item, variant }: { item: TraceItem; variant: GameVariant }) {
   const traceTokenImages = tokenImagesFor(variant);
   switch (item.kind) {
+    case "cursor":
+      return <span className="remote-cursor-glyph" />;
     case "bank-gem":
     case "my-gem":
       return <img src={traceTokenImages[item.color]} alt="" />;
@@ -724,6 +798,7 @@ function RemoteTraceLayer({ traces, variant }: { traces: RemoteTrace[]; variant:
     <div className="remote-trace-layer" aria-hidden="true">
       {traces.map((trace) => {
         const points = trace.points.map((point) => `${(point.x * 100).toFixed(2)},${(point.y * 100).toFixed(2)}`).join(" ");
+        const traceKind = trace.item.kind === "cursor" ? "cursor" : trace.item.kind.includes("gem") ? "token" : "card";
         const style = {
           "--trace-color": TRACE_COLORS[trace.avatarId % TRACE_COLORS.length],
           "--trace-x": `${trace.x * 100}%`,
@@ -750,7 +825,7 @@ function RemoteTraceLayer({ traces, variant }: { traces: RemoteTrace[]; variant:
                 }
               />
             ))}
-            <div className={`remote-trace-figure ${trace.item.kind.includes("gem") ? "token" : "card"}`}>
+            <div className={`remote-trace-figure ${traceKind}`}>
               <span className="remote-trace-avatar">{AVATARS[trace.avatarId % AVATARS.length]}</span>
               <span className="remote-trace-object">
                 <TraceItemVisual item={trace.item} variant={variant} />

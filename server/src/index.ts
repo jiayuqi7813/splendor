@@ -128,12 +128,14 @@ function getActivePlayerId(room: GameRoom, socket: Socket): string | null {
 
 type TracePhase = "start" | "move" | "end" | "cancel";
 type TraceItemInput =
+  | { kind: "cursor" }
   | { kind: "bank-gem" | "my-gem"; color?: GemColor }
   | { kind: "market-card"; cardId?: string }
   | { kind: "reserved-card"; tier?: 1 | 2 | 3 }
   | { kind: "deck"; tier?: 1 | 2 | 3 };
 
 type PublicTraceItem =
+  | { kind: "cursor" }
   | { kind: "bank-gem" | "my-gem"; color: GemColor }
   | { kind: "market-card"; cardId: string; color: Card["color"]; prestige: number; tier: 1 | 2 | 3; image?: string; name?: string }
   | { kind: "reserved-card"; tier: 1 | 2 | 3 }
@@ -168,6 +170,9 @@ function findPublicMarketCard(roomId: string, cardId: string): Card | null {
 
 function sanitizeTraceItem(roomId: string, item: TraceItemInput | undefined): PublicTraceItem | null {
   if (!item || typeof item.kind !== "string") return null;
+  if (item.kind === "cursor") {
+    return { kind: "cursor" };
+  }
   if ((item.kind === "bank-gem" || item.kind === "my-gem") && item.color && ALL_COLORS.includes(item.color)) {
     return { kind: item.kind, color: item.color };
   }
@@ -300,12 +305,13 @@ io.on("connection", (socket) => {
       if (!room?.gameState || !playerId) return;
       const player = room.gameState.players.find((entry) => entry.id === playerId);
       if (!player) return;
-      const mayOperate = room.gameState.currentPlayerId === playerId || room.gameState.pendingDiscardPlayerId === playerId;
-      if (!mayOperate || !isTracePhase(payload.phase)) return;
+      if (!isTracePhase(payload.phase)) return;
       const x = clampUnit(payload.x);
       const y = clampUnit(payload.y);
       const item = sanitizeTraceItem(room.roomId, payload.item);
       if (x === null || y === null || !item) return;
+      const mayOperate = room.gameState.currentPlayerId === playerId || room.gameState.pendingDiscardPlayerId === playerId;
+      if (item.kind !== "cursor" && !mayOperate) return;
       const traceId = typeof payload.traceId === "string" ? payload.traceId.slice(0, 80) : "";
       if (!traceId) return;
 

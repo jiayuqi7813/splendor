@@ -117,6 +117,7 @@ export function createRoom(
       myPlayerId: "",
       winner: null,
       lastAction: null,
+      actionLog: [],
       pendingEvolutionPlayerId: null,
     },
     createdAt: Date.now(),

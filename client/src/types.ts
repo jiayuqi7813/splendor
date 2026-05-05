@@ -57,6 +57,13 @@ export interface TierState {
   deckCount: number;
 }
 
+export interface ActionLogEntry {
+  id: string;
+  text: string;
+  at: number;
+  playerId?: string | null;
+}
+
 export interface GameState {
   roomId: string;
   variant: GameVariant;
@@ -75,6 +82,7 @@ export interface GameState {
   myPlayerId: string;
   winner: PlayerState | null;
   lastAction: string | null;
+  actionLog?: ActionLogEntry[];
   pendingDiscardPlayerId?: string | null;
   pendingEvolutionPlayerId?: string | null;
   gameOverReason?: string | null;
@@ -100,6 +108,7 @@ export interface GameOverPayload {
 export type TracePhase = "start" | "move" | "end" | "cancel";
 
 export type TraceItem =
+  | { kind: "cursor" }
   | { kind: "bank-gem" | "my-gem"; color: GemColor }
   | { kind: "market-card"; cardId: string; color: BasicColor; prestige: number; tier: 1 | 2 | 3; image?: string; name?: string }
   | { kind: "reserved-card"; tier: 1 | 2 | 3 }

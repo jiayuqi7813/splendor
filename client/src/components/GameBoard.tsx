@@ -2,7 +2,7 @@ import { BookOpen, MessageCircle, Menu, PanelBottomOpen, RotateCcw, Settings, Us
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { socket } from "../socket";
 import { variantName } from "../types";
-import type { BasicColor, Card, GameState, GemColor, Gems } from "../types";
+import type { ActionLogEntry, BasicColor, Card, GameState, GemColor, Gems, PlayerState } from "../types";
 import { BoardDragProvider, useBoardDrag } from "./BoardDragProvider";
 import { CardSlot } from "./CardSlot";
 import { GemBank } from "./GemBank";
@@ -23,6 +23,94 @@ const tiers = [
 
 function totalTokens(gems: Gems) {
   return Object.values(gems).reduce((sum, amount) => sum + amount, 0);
+}
+
+function actionLogEntries(gameState: GameState): ActionLogEntry[] {
+  if (gameState.actionLog?.length) return gameState.actionLog;
+  if (!gameState.lastAction) return [];
+  return [{ id: "latest", text: gameState.lastAction, at: Date.now(), playerId: null }];
+}
+
+function formatActionTime(at: number) {
+  return new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(new Date(at));
+}
+
+function useTurnReminder(gameState: GameState, me: PlayerState, currentPlayer?: PlayerState) {
+  const previousPlayerRef = useRef<string | null>(gameState.currentPlayerId || null);
+  const audioRef = useRef<AudioContext | null>(null);
+  const titleRef = useRef(document.title);
+  const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    const primeReminder = () => {
+      const AudioCtor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtor && !audioRef.current) {
+        audioRef.current = new AudioCtor();
+      }
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission().catch(() => undefined);
+      }
+    };
+
+    window.addEventListener("pointerdown", primeReminder, { once: true, passive: true });
+    window.addEventListener("keydown", primeReminder, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", primeReminder);
+      window.removeEventListener("keydown", primeReminder);
+    };
+  }, []);
+
+  useEffect(() => {
+    const previous = previousPlayerRef.current;
+    const current = gameState.currentPlayerId || null;
+    previousPlayerRef.current = current;
+    if (!current || previous === current || current !== me.id) return;
+
+    const message = `${currentPlayer?.username ?? me.username}，轮到你行动了`;
+    setToast(message);
+    const toastTimer = window.setTimeout(() => setToast(""), 4600);
+
+    const audio = audioRef.current;
+    if (audio) {
+      const play = () => {
+        const now = audio.currentTime;
+        const gain = audio.createGain();
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(0.085, now + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.36);
+        gain.connect(audio.destination);
+
+        [523.25, 659.25].forEach((frequency, index) => {
+          const oscillator = audio.createOscillator();
+          oscillator.type = "sine";
+          oscillator.frequency.setValueAtTime(frequency, now + index * 0.1);
+          oscillator.connect(gain);
+          oscillator.start(now + index * 0.1);
+          oscillator.stop(now + 0.34 + index * 0.1);
+        });
+      };
+      if (audio.state === "suspended") audio.resume().then(play).catch(() => undefined);
+      else play();
+    }
+
+    if ("Notification" in window && Notification.permission === "granted" && document.visibilityState !== "visible") {
+      const notification = new Notification("轮到你了", { body: message, tag: `splendor-turn-${gameState.roomId}`, silent: false });
+      window.setTimeout(() => notification.close(), 5200);
+    }
+
+    document.title = `轮到你了 · ${titleRef.current}`;
+    const titleTimer = window.setTimeout(() => {
+      document.title = titleRef.current;
+    }, 5200);
+
+    return () => {
+      window.clearTimeout(toastTimer);
+      window.clearTimeout(titleTimer);
+      document.title = titleRef.current;
+    };
+  }, [currentPlayer?.username, gameState.currentPlayerId, gameState.roomId, me.id, me.username]);
+
+  return toast;
 }
 
 export function GameBoard({ gameState, pendingDiscardExcess }: GameBoardProps) {
@@ -76,11 +164,15 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
   const scoreLabel = gameState.variant === "pokemon" ? "奖杯" : "声望";
   const [myAreaOpen, setMyAreaOpen] = useState(false);
   const [opponentsOpen, setOpponentsOpen] = useState(false);
+  const [actionLogOpen, setActionLogOpen] = useState(false);
   const [dragAutoOpened, setDragAutoOpened] = useState(false);
   const wasDraggingRef = useRef(false);
   const suppressDrawerHeadClickUntilRef = useRef(0);
   const suppressOutsideClickUntilRef = useRef(0);
   const myTokenTotal = totalTokens(myPlayer.gems);
+  const logs = actionLogEntries(gameState);
+  const latestLog = logs[logs.length - 1];
+  const turnToast = useTurnReminder(gameState, myPlayer, currentPlayer);
 
   useEffect(() => {
     if (mustDiscard) {
@@ -210,7 +302,13 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
           >
             <PanelBottomOpen size={18} />
           </button>
-          <button type="button" aria-label="消息">
+          <button
+            type="button"
+            className={`drawer-toggle-button ${actionLogOpen ? "active" : ""}`}
+            aria-label={actionLogOpen ? "收起操作记录" : "查看操作记录"}
+            aria-pressed={actionLogOpen}
+            onClick={() => setActionLogOpen((open) => !open)}
+          >
             <MessageCircle size={18} />
           </button>
           <button type="button" aria-label="刷新桌面" onClick={() => window.location.reload()}>
@@ -227,6 +325,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
           <b>{resourceLabel} {myTokenTotal}</b>
           <b>{scoreLabel} {myPlayer.prestige}</b>
           <b>{gameState.variant === "pokemon" ? "保留" : "预留"} {myPlayer.reservedCards.length}/3</b>
+          {latestLog ? <span title={latestLog.text}>{latestLog.text}</span> : null}
         </div>
         <section className="tabletop-main-column" aria-label="公共桌面">
           <section className="market-column" aria-label={gameState.variant === "pokemon" ? "宝可梦市场" : "发展卡市场"}>
@@ -305,6 +404,29 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
         <OpponentPanel players={gameState.players} myPlayerId={gameState.myPlayerId} currentPlayerId={gameState.currentPlayerId} variant={gameState.variant} />
       </aside>
 
+      <aside className={`action-log-drawer ${actionLogOpen ? "open" : ""}`} aria-hidden={!actionLogOpen}>
+        <div className="action-log-head">
+          <strong>操作记录</strong>
+          <span>{logs.length} 条</span>
+        </div>
+        <div className="action-log-feed">
+          {logs.length ? (
+            logs.slice().reverse().map((entry) => {
+              const actor = gameState.players.find((player) => player.id === entry.playerId);
+              return (
+                <article key={entry.id} className={entry.id === latestLog?.id ? "current" : ""}>
+                  <time>{formatActionTime(entry.at)}</time>
+                  <p>{entry.text}</p>
+                  {actor ? <em>{actor.username}</em> : null}
+                </article>
+              );
+            })
+          ) : (
+            <p className="empty-log">游戏开始后会记录每一步操作。</p>
+          )}
+        </div>
+      </aside>
+
       <section className={`my-area-drawer ${myAreaOpen ? "open" : ""} ${dragAutoOpened ? "drag-hot-open" : ""}`} aria-label="我的宝石与行动抽屉">
         <div
           className="my-area-drawer-head"
@@ -330,6 +452,12 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
         <strong>{isMyTurn ? "轮到你了" : currentPlayer?.username ?? "当前玩家"}</strong>
         <span>{resourceLabel} {totalTokens(myPlayer.gems)}/10 · {scoreLabel} {myPlayer.prestige}</span>
       </div>
+      {turnToast ? (
+        <div className="turn-reminder-toast" role="status">
+          <strong>轮到你了</strong>
+          <span>{turnToast}</span>
+        </div>
+      ) : null}
     </main>
   );
 }
