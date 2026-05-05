@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/core";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { socket } from "../socket";
-import type { BasicColor, Card, GameState, GameVariant, GemColor, Gems, PlayerState, PlayerTracePayload, TraceItem, TracePhase } from "../types";
+import type { BasicColor, Card, GameState, GameVariant, GemColor, Gems, PlayerState, PlayerTracePayload, TraceItem, TracePhase, TracePointPayload } from "../types";
 import { AVATARS, BASIC_COLORS, cardImageUrl, colorLabelsFor, deckBackUrl, isHiddenCard, tokenImagesFor } from "../types";
 
 type DragPayload =
@@ -29,8 +29,9 @@ type DragPayload =
   | { kind: "deck"; tier: 1 | 2 | 3 };
 
 type StagedReserve = { card?: Card; fromDeck?: 1 | 2 | 3 } | null;
-type TracePoint = { x: number; y: number; at: number };
-type RemoteTrace = PlayerTracePayload & { points: TracePoint[]; finishing: boolean };
+type TracePoint = TracePointPayload;
+type RemoteTrace = PlayerTracePayload & { points: TracePoint[]; finishing: boolean; targetPoint: TracePoint; renderX: number; renderY: number };
+type RemoteClickEffect = { id: string; point: TracePoint; playerId: string; avatarId: number; renderX: number; renderY: number; at: number };
 type TraceItemInput =
   | { kind: "cursor" }
   | { kind: "bank-gem" | "my-gem"; color: GemColor }
@@ -89,11 +90,17 @@ interface BoardDragContextValue {
 
 const BoardDragContext = createContext<BoardDragContextValue | null>(null);
 const TRACE_THROTTLE_MS = 45;
-const CURSOR_TRACE_THROTTLE_MS = 70;
+const CURSOR_TRACE_THROTTLE_MS = 33;
 const CURSOR_IDLE_END_MS = 680;
 const CURSOR_BUFFER_POINT_LIMIT = 48;
 const TRACE_POINT_LIMIT = 56;
 const REMOTE_TRACE_LIMIT = 12;
+const REMOTE_CLICK_LIMIT = 18;
+const REMOTE_CLICK_EFFECT_MS = 720;
+const REMOTE_CURSOR_LERP = 0.34;
+const REMOTE_CURSOR_SNAP_DISTANCE = 0.00035;
+const TRACE_SURFACE_SELECTOR = "[data-trace-surface='game']";
+const CURSOR_ANCHOR_SELECTOR = "[data-cursor-anchor]";
 const TRACE_COLORS = [
   "oklch(58% 0.12 188)",
   "oklch(58% 0.17 28)",
@@ -175,11 +182,126 @@ function dragLabel(payload: DragPayload | null, labels: Record<GemColor, string>
   return `${payload.card.name ?? labels[payload.card.color]} ${payload.card.prestige} 分`;
 }
 
-function viewportPoint(clientX: number, clientY: number): TracePoint {
+function clampUnit(value: number) {
+  return Math.max(0, Math.min(1, value));
+}
+
+function viewportPosition(clientX: number, clientY: number) {
   return {
-    x: Math.max(0, Math.min(1, clientX / Math.max(window.innerWidth, 1))),
-    y: Math.max(0, Math.min(1, clientY / Math.max(window.innerHeight, 1))),
-    at: Date.now(),
+    x: clampUnit(clientX / Math.max(window.innerWidth, 1)),
+    y: clampUnit(clientY / Math.max(window.innerHeight, 1)),
+  };
+}
+
+function traceSurfaceElement() {
+  return document.querySelector<HTMLElement>(TRACE_SURFACE_SELECTOR);
+}
+
+function cursorAnchorFromId(anchorId: string | undefined) {
+  if (!anchorId) return null;
+  const escaped = typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(anchorId) : anchorId.replace(/["\\]/g, "\\$&");
+  return document.querySelector<HTMLElement>(`[data-cursor-anchor="${escaped}"]`);
+}
+
+function usableElementRect(element: HTMLElement | null) {
+  if (!element || !element.isConnected) return null;
+  const style = window.getComputedStyle(element);
+  if (style.display === "none" || style.visibility === "hidden" || style.pointerEvents === "none" || Number(style.opacity) === 0) return null;
+  const rect = element.getBoundingClientRect();
+  return rect.width > 1 && rect.height > 1 ? rect : null;
+}
+
+function cursorAnchorFromTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) return null;
+  const anchor = target.closest<HTMLElement>(CURSOR_ANCHOR_SELECTOR);
+  return usableElementRect(anchor) ? anchor : null;
+}
+
+function cursorAnchorFromPoint(clientX: number, clientY: number, target?: EventTarget | null) {
+  const targetAnchor = cursorAnchorFromTarget(target ?? null);
+  if (targetAnchor) return targetAnchor;
+  for (const element of document.elementsFromPoint(clientX, clientY)) {
+    const anchor = element.closest<HTMLElement>(CURSOR_ANCHOR_SELECTOR);
+    if (usableElementRect(anchor)) return anchor;
+  }
+  return null;
+}
+
+function unitPointInRect(clientX: number, clientY: number, rect: DOMRect) {
+  return {
+    x: clampUnit((clientX - rect.left) / Math.max(rect.width, 1)),
+    y: clampUnit((clientY - rect.top) / Math.max(rect.height, 1)),
+  };
+}
+
+function tracePointFromClient(clientX: number, clientY: number, target?: EventTarget | null): TracePoint {
+  const at = Date.now();
+  const surface = traceSurfaceElement();
+  const surfaceRect = usableElementRect(surface);
+  const surfacePoint = surfaceRect ? unitPointInRect(clientX, clientY, surfaceRect) : null;
+  const anchor = cursorAnchorFromPoint(clientX, clientY, target);
+  const anchorRect = usableElementRect(anchor);
+  if (anchor?.dataset.cursorAnchor && anchorRect) {
+    const anchorPoint = unitPointInRect(clientX, clientY, anchorRect);
+    return {
+      ...anchorPoint,
+      at,
+      space: "anchor",
+      anchorId: anchor.dataset.cursorAnchor,
+      ...(surfacePoint ? { surfaceX: surfacePoint.x, surfaceY: surfacePoint.y } : {}),
+    };
+  }
+  if (surfacePoint) {
+    return { ...surfacePoint, at, space: "surface" };
+  }
+  return { ...viewportPosition(clientX, clientY), at, space: "viewport" };
+}
+
+function tracePointFromPayload(payload: PlayerTracePayload): TracePoint {
+  return {
+    x: payload.x,
+    y: payload.y,
+    at: payload.at,
+    space: payload.space ?? "viewport",
+    anchorId: payload.anchorId,
+    surfaceX: payload.surfaceX,
+    surfaceY: payload.surfaceY,
+  };
+}
+
+function resolveSurfacePoint(x: number, y: number) {
+  const surfaceRect = usableElementRect(traceSurfaceElement());
+  if (!surfaceRect) return null;
+  return viewportPosition(surfaceRect.left + x * surfaceRect.width, surfaceRect.top + y * surfaceRect.height);
+}
+
+function resolveTracePoint(point: TracePoint) {
+  if (point.space === "anchor") {
+    if (point.anchorId) {
+      const anchorRect = usableElementRect(cursorAnchorFromId(point.anchorId));
+      if (anchorRect) {
+        return viewportPosition(anchorRect.left + point.x * anchorRect.width, anchorRect.top + point.y * anchorRect.height);
+      }
+    }
+    if (typeof point.surfaceX === "number" && typeof point.surfaceY === "number") {
+      return resolveSurfacePoint(point.surfaceX, point.surfaceY) ?? { x: point.surfaceX, y: point.surfaceY };
+    }
+  }
+  if (point.space === "surface") {
+    return resolveSurfacePoint(point.x, point.y) ?? { x: point.x, y: point.y };
+  }
+  return { x: point.x, y: point.y };
+}
+
+function serializeTracePoint(point: TracePoint) {
+  return {
+    x: point.x,
+    y: point.y,
+    at: point.at,
+    space: point.space,
+    anchorId: point.anchorId,
+    surfaceX: point.surfaceX,
+    surfaceY: point.surfaceY,
   };
 }
 
@@ -198,7 +320,7 @@ function clientPointFromActivator(event: Event): { x: number; y: number } | null
 
 function pointFromActivator(event: Event): TracePoint | null {
   const point = clientPointFromActivator(event);
-  return point ? viewportPoint(point.x, point.y) : null;
+  return point ? tracePointFromClient(point.x, point.y, event.target) : null;
 }
 
 function traceItemFromPayload(payload: DragPayload): TraceItemInput {
@@ -265,6 +387,7 @@ export function BoardDragProvider({
   const [stagedReserve, setStagedReserve] = useState<StagedReserve>(null);
   const [notice, setNotice] = useState("拖动宝石或卡牌来安排你的行动。双击目标区域确认。");
   const [remoteTraces, setRemoteTraces] = useState<RemoteTrace[]>([]);
+  const [remoteClickEffects, setRemoteClickEffects] = useState<RemoteClickEffect[]>([]);
   const activeDragRef = useRef<DragPayload | null>(null);
   const initialClientPointRef = useRef<{ x: number; y: number } | null>(null);
   const initialTracePointRef = useRef<TracePoint | null>(null);
@@ -277,6 +400,7 @@ export function BoardDragProvider({
   const lastCursorEmitRef = useRef(0);
   const cursorIdleTimerRef = useRef<number | null>(null);
   const removeTraceTimersRef = useRef<Record<string, number>>({});
+  const removeClickTimersRef = useRef<Record<string, number>>({});
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor));
   const isMyTurn = gameState.currentPlayerId === me.id;
@@ -311,9 +435,48 @@ export function BoardDragProvider({
       if (payload.playerId === me.id || (payload.roomId && payload.roomId !== gameState.roomId)) {
         return;
       }
-      const point = { x: payload.x, y: payload.y, at: payload.at };
+      const point = tracePointFromPayload(payload);
       const incomingTrail = payload.trail?.length ? payload.trail : [point];
       const displayPoints = payload.item.kind === "cursor" ? incomingTrail.slice(-1) : incomingTrail;
+      const resolvedPoint = resolveTracePoint(point);
+
+      if (payload.phase === "click") {
+        const clickId = `${payload.traceId}:click:${payload.at}:${Math.random().toString(36).slice(2, 6)}`;
+        setRemoteClickEffects((prev) => [
+          ...prev,
+          {
+            id: clickId,
+            point,
+            playerId: payload.playerId,
+            avatarId: payload.avatarId,
+            renderX: resolvedPoint.x,
+            renderY: resolvedPoint.y,
+            at: Date.now(),
+          },
+        ].slice(-REMOTE_CLICK_LIMIT));
+        removeClickTimersRef.current[clickId] = window.setTimeout(() => {
+          setRemoteClickEffects((prev) => prev.filter((effect) => effect.id !== clickId));
+          delete removeClickTimersRef.current[clickId];
+        }, REMOTE_CLICK_EFFECT_MS);
+
+        setRemoteTraces((prev) => {
+          const existing = prev.find((trace) => trace.traceId === payload.traceId);
+          if (!existing) return prev;
+          return prev.map((trace) =>
+            trace.traceId === payload.traceId
+              ? {
+                  ...trace,
+                  ...payload,
+                  points: displayPoints,
+                  targetPoint: point,
+                  finishing: false,
+                }
+              : trace,
+          );
+        });
+        return;
+      }
+
       setRemoteTraces((prev) => {
         const existing = prev.find((trace) => trace.traceId === payload.traceId);
         const nextTrace: RemoteTrace = existing
@@ -321,11 +484,17 @@ export function BoardDragProvider({
               ...existing,
               ...payload,
               points: payload.item.kind === "cursor" ? displayPoints : [...existing.points, ...displayPoints].slice(-TRACE_POINT_LIMIT),
+              targetPoint: point,
+              renderX: existing.renderX,
+              renderY: existing.renderY,
               finishing: payload.phase === "end" || payload.phase === "cancel",
             }
           : {
               ...payload,
               points: displayPoints.slice(-TRACE_POINT_LIMIT),
+              targetPoint: point,
+              renderX: resolvedPoint.x,
+              renderY: resolvedPoint.y,
               finishing: payload.phase === "end" || payload.phase === "cancel",
             };
         return [...prev.filter((trace) => trace.traceId !== payload.traceId), nextTrace].slice(-REMOTE_TRACE_LIMIT);
@@ -344,32 +513,77 @@ export function BoardDragProvider({
     return () => {
       socket.off("player_trace", onPlayerTrace);
       Object.values(removeTraceTimersRef.current).forEach((timer) => window.clearTimeout(timer));
+      Object.values(removeClickTimersRef.current).forEach((timer) => window.clearTimeout(timer));
       removeTraceTimersRef.current = {};
+      removeClickTimersRef.current = {};
     };
   }, [gameState.roomId, me.id]);
+
+  useEffect(() => {
+    if (!remoteTraces.length && !remoteClickEffects.length) return;
+    let frameId = 0;
+    const tick = () => {
+      setRemoteTraces((prev) => {
+        let changed = false;
+        const next = prev.map((trace) => {
+          const target = resolveTracePoint(trace.targetPoint);
+          const dx = target.x - trace.renderX;
+          const dy = target.y - trace.renderY;
+          if (Math.abs(dx) < REMOTE_CURSOR_SNAP_DISTANCE && Math.abs(dy) < REMOTE_CURSOR_SNAP_DISTANCE) {
+            if (trace.renderX === target.x && trace.renderY === target.y) return trace;
+            changed = true;
+            return { ...trace, renderX: target.x, renderY: target.y };
+          }
+          changed = true;
+          return {
+            ...trace,
+            renderX: trace.renderX + dx * REMOTE_CURSOR_LERP,
+            renderY: trace.renderY + dy * REMOTE_CURSOR_LERP,
+          };
+        });
+        return changed ? next : prev;
+      });
+      setRemoteClickEffects((prev) => {
+        let changed = false;
+        const next = prev.map((effect) => {
+          const target = resolveTracePoint(effect.point);
+          if (effect.renderX === target.x && effect.renderY === target.y) return effect;
+          changed = true;
+          return { ...effect, renderX: target.x, renderY: target.y };
+        });
+        return changed ? next : prev;
+      });
+      frameId = window.requestAnimationFrame(tick);
+    };
+    frameId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [remoteClickEffects.length, remoteTraces.length]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
       const now = Date.now();
       setRemoteTraces((prev) => prev.filter((trace) => now - trace.at < 3600));
+      setRemoteClickEffects((prev) => prev.filter((effect) => now - effect.at < REMOTE_CLICK_EFFECT_MS));
     }, 1400);
     return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    const emitCursorTrace = (phase: TracePhase, point: TracePoint) => {
-      if (!cursorTraceIdRef.current || phase === "start") {
-        cursorTraceIdRef.current = `${me.id}:cursor:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`;
+    const emitCursorTrace = (phase: TracePhase, point: TracePoint, traceIdOverride?: string) => {
+      const bindsCursor = phase !== "click";
+      let traceId = traceIdOverride ?? cursorTraceIdRef.current;
+      if (!traceId || phase === "start") {
+        traceId = `${me.id}:cursor:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`;
+        if (bindsCursor) cursorTraceIdRef.current = traceId;
       }
-      const trail = cursorBufferedPointsRef.current.length ? cursorBufferedPointsRef.current : [point];
-      cursorBufferedPointsRef.current = [];
+      const trail = phase === "click" ? [point] : cursorBufferedPointsRef.current.length ? cursorBufferedPointsRef.current : [point];
+      if (bindsCursor) cursorBufferedPointsRef.current = [];
       socket.emit("player_trace", {
         roomId: gameState.roomId,
-        traceId: cursorTraceIdRef.current,
+        traceId,
         phase,
-        x: point.x,
-        y: point.y,
-        trail,
+        ...serializeTracePoint(point),
+        trail: trail.map(serializeTracePoint),
         item: { kind: "cursor" } satisfies TraceItemInput,
       });
     };
@@ -392,7 +606,7 @@ export function BoardDragProvider({
     const onPointerMove = (event: PointerEvent) => {
       if (document.visibilityState !== "visible" || activeDragRef.current) return;
       const now = Date.now();
-      const point = viewportPoint(event.clientX, event.clientY);
+      const point = tracePointFromClient(event.clientX, event.clientY, event.target);
       latestCursorPointRef.current = point;
       cursorBufferedPointsRef.current = [...cursorBufferedPointsRef.current, point].slice(-CURSOR_BUFFER_POINT_LIMIT);
       if (now - lastCursorEmitRef.current < CURSOR_TRACE_THROTTLE_MS) return;
@@ -406,6 +620,13 @@ export function BoardDragProvider({
       cursorIdleTimerRef.current = window.setTimeout(() => finishCursorTrace("end"), CURSOR_IDLE_END_MS);
     };
 
+    const onClick = (event: MouseEvent) => {
+      if (document.visibilityState !== "visible" || activeDragRef.current) return;
+      const point = tracePointFromClient(event.clientX, event.clientY, event.target);
+      const traceId = cursorTraceIdRef.current || `${me.id}:cursor-click:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`;
+      emitCursorTrace("click", point, traceId);
+    };
+
     const onPointerOut = (event: PointerEvent) => {
       if (!event.relatedTarget) finishCursorTrace("end");
     };
@@ -414,10 +635,12 @@ export function BoardDragProvider({
 
     window.addEventListener("pointermove", onPointerMove, { passive: true });
     window.addEventListener("pointerout", onPointerOut, { passive: true });
+    window.addEventListener("click", onClick, { capture: true, passive: true });
     window.addEventListener("blur", onBlur);
     return () => {
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerout", onPointerOut);
+      window.removeEventListener("click", onClick, true);
       window.removeEventListener("blur", onBlur);
       finishCursorTrace("cancel");
     };
@@ -600,8 +823,7 @@ export function BoardDragProvider({
       roomId: gameState.roomId,
       traceId: traceIdRef.current,
       phase,
-      x: point.x,
-      y: point.y,
+      ...serializeTracePoint(point),
       item: traceItemFromPayload(payload),
       targetId,
     });
@@ -610,7 +832,7 @@ export function BoardDragProvider({
   const pointFromDragDelta = (event: DragMoveEvent | DragEndEvent | DragCancelEvent) => {
     const start = initialClientPointRef.current;
     if (!start) return latestTracePointRef.current ?? initialTracePointRef.current;
-    return viewportPoint(start.x + event.delta.x, start.y + event.delta.y);
+    return tracePointFromClient(start.x + event.delta.x, start.y + event.delta.y);
   };
 
   const onDragStart = (event: DragStartEvent) => {
@@ -621,7 +843,7 @@ export function BoardDragProvider({
     const startPoint = pointFromActivator(event.activatorEvent);
     initialTracePointRef.current = startPoint;
     latestTracePointRef.current = startPoint;
-    setActiveDragPoint(startPoint ? { x: startPoint.x, y: startPoint.y } : null);
+    setActiveDragPoint(startPoint ? resolveTracePoint(startPoint) : null);
     lastTraceEmitRef.current = 0;
     if (payload && startPoint) emitTrace("start", payload, startPoint);
   };
@@ -632,7 +854,7 @@ export function BoardDragProvider({
     const point = pointFromDragDelta(event);
     if (!point) return;
     latestTracePointRef.current = point;
-    setActiveDragPoint({ x: point.x, y: point.y });
+    setActiveDragPoint(resolveTracePoint(point));
     const now = Date.now();
     if (now - lastTraceEmitRef.current < TRACE_THROTTLE_MS) return;
     lastTraceEmitRef.current = now;
@@ -750,7 +972,7 @@ export function BoardDragProvider({
         onDragCancel={onDragCancel}
       >
         {children}
-        <RemoteTraceLayer traces={remoteTraces} variant={gameState.variant} />
+        <RemoteTraceLayer traces={remoteTraces} clickEffects={remoteClickEffects} variant={gameState.variant} />
         <DragOverlay>
           {activeDrag ? (
             <div className={`drag-overlay ${activeDrag.kind.includes("gem") ? "token" : "card"}`}>
@@ -811,19 +1033,20 @@ function TraceItemVisual({ item, variant }: { item: TraceItem; variant: GameVari
   }
 }
 
-function RemoteTraceLayer({ traces, variant }: { traces: RemoteTrace[]; variant: GameVariant }) {
-  if (!traces.length) return null;
+function RemoteTraceLayer({ traces, clickEffects, variant }: { traces: RemoteTrace[]; clickEffects: RemoteClickEffect[]; variant: GameVariant }) {
+  if (!traces.length && !clickEffects.length) return null;
   const labels = colorLabelsFor(variant);
 
   return (
     <div className="remote-trace-layer" aria-hidden="true">
       {traces.map((trace) => {
-        const points = trace.points.map((point) => `${(point.x * 100).toFixed(2)},${(point.y * 100).toFixed(2)}`).join(" ");
+        const resolvedPoints = trace.points.map(resolveTracePoint);
+        const points = resolvedPoints.map((point) => `${(point.x * 100).toFixed(2)},${(point.y * 100).toFixed(2)}`).join(" ");
         const traceKind = trace.item.kind === "cursor" ? "cursor" : trace.item.kind.includes("gem") ? "token" : "card";
         const style = {
           "--trace-color": traceColorFor(trace.playerId, trace.avatarId),
-          "--trace-x": `${trace.x * 100}%`,
-          "--trace-y": `${trace.y * 100}%`,
+          "--trace-x": `${trace.renderX * 100}%`,
+          "--trace-y": `${trace.renderY * 100}%`,
         } as CSSProperties;
 
         return (
@@ -834,9 +1057,9 @@ function RemoteTraceLayer({ traces, variant }: { traces: RemoteTrace[]; variant:
               </svg>
             ) : null}
             {trace.item.kind !== "cursor"
-              ? trace.points.slice(-5).map((point, index, visiblePoints) => (
+              ? resolvedPoints.slice(-5).map((point, index, visiblePoints) => (
                   <span
-                    key={`${point.at}-${index}`}
+                    key={`${trace.points[Math.max(0, trace.points.length - visiblePoints.length + index)]?.at ?? index}-${index}`}
                     className="remote-trace-dot"
                     style={
                       {
@@ -868,6 +1091,19 @@ function RemoteTraceLayer({ traces, variant }: { traces: RemoteTrace[]; variant:
           </div>
         );
       })}
+      {clickEffects.map((effect) => (
+        <span
+          key={effect.id}
+          className="remote-click-effect"
+          style={
+            {
+              "--trace-color": traceColorFor(effect.playerId, effect.avatarId),
+              "--trace-x": `${effect.renderX * 100}%`,
+              "--trace-y": `${effect.renderY * 100}%`,
+            } as CSSProperties
+          }
+        />
+      ))}
     </div>
   );
 }
@@ -894,7 +1130,7 @@ export function Draggable({
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id, data, disabled });
   const style: CSSProperties = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : {};
   return (
-    <div ref={setNodeRef} className={`${className ?? ""} ${isDragging ? "dragging" : ""}`} style={style} {...listeners} {...attributes}>
+    <div ref={setNodeRef} className={`${className ?? ""} ${isDragging ? "dragging" : ""}`} style={style} data-cursor-anchor={id} {...listeners} {...attributes}>
       {children}
     </div>
   );
@@ -918,6 +1154,7 @@ export function DropZone({
     <div
       ref={setNodeRef}
       className={`${className ?? ""} ${isOver ? "is-over" : ""}`}
+      data-cursor-anchor={id}
       onDoubleClick={onDoubleClick}
       role={onDoubleClick ? "button" : undefined}
       tabIndex={onDoubleClick ? 0 : undefined}

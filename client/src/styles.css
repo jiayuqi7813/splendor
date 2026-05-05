@@ -3382,6 +3382,38 @@ textarea {
   filter: drop-shadow(0 2px 1px oklch(0% 0 0 / 0.2)) drop-shadow(0 7px 14px oklch(35% 0.04 235 / 0.18));
 }
 
+.remote-click-effect {
+  position: absolute;
+  left: var(--trace-x);
+  top: var(--trace-y);
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  color: var(--trace-color);
+  background: currentColor;
+  opacity: 0.82;
+  transform: translate(-50%, -50%) scale(0.34);
+  animation: remote-click-core 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.remote-click-effect::before,
+.remote-click-effect::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border: 2px solid currentColor;
+  border-radius: inherit;
+  opacity: 0.68;
+  transform: scale(0.28);
+  animation: remote-click-ring 680ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.remote-click-effect::after {
+  inset: -18px;
+  opacity: 0.4;
+  animation-delay: 80ms;
+}
+
 .remote-trace-object img {
   width: 100%;
   height: 100%;
@@ -3442,6 +3474,25 @@ textarea {
   }
 }
 
+@keyframes remote-click-core {
+  45% {
+    opacity: 0.92;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.25);
+  }
+}
+
+@keyframes remote-click-ring {
+  to {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .remote-trace-path,
   .remote-trace-dot {
@@ -3449,9 +3500,22 @@ textarea {
   }
 
   .remote-trace-figure,
-  .remote-trace.finishing {
+  .remote-trace.finishing,
+  .remote-click-effect,
+  .remote-click-effect::before,
+  .remote-click-effect::after {
     animation: none;
     transition: none;
+  }
+
+  .remote-click-effect {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .remote-click-effect::before,
+  .remote-click-effect::after {
+    display: none;
   }
 }
 

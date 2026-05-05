@@ -105,7 +105,18 @@ export interface GameOverPayload {
   reason: string;
 }
 
-export type TracePhase = "start" | "move" | "end" | "cancel";
+export type TracePhase = "start" | "move" | "end" | "cancel" | "click";
+export type TraceSpace = "anchor" | "surface" | "viewport";
+
+export interface TracePointPayload {
+  x: number;
+  y: number;
+  at: number;
+  space?: TraceSpace;
+  anchorId?: string;
+  surfaceX?: number;
+  surfaceY?: number;
+}
 
 export type TraceItem =
   | { kind: "cursor" }
@@ -123,7 +134,11 @@ export interface PlayerTracePayload {
   avatarId: number;
   x: number;
   y: number;
-  trail?: Array<{ x: number; y: number; at: number }>;
+  space?: TraceSpace;
+  anchorId?: string;
+  surfaceX?: number;
+  surfaceY?: number;
+  trail?: TracePointPayload[];
   item: TraceItem;
   targetId?: string;
   at: number;

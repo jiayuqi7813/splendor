@@ -126,7 +126,8 @@ function getActivePlayerId(room: GameRoom, socket: Socket): string | null {
   return playerId;
 }
 
-type TracePhase = "start" | "move" | "end" | "cancel";
+type TracePhase = "start" | "move" | "end" | "cancel" | "click";
+type TraceSpace = "anchor" | "surface" | "viewport";
 type TraceItemInput =
   | { kind: "cursor" }
   | { kind: "bank-gem" | "my-gem"; color?: GemColor }
@@ -141,7 +142,24 @@ type PublicTraceItem =
   | { kind: "reserved-card"; tier: 1 | 2 | 3 }
   | { kind: "deck"; tier: 1 | 2 | 3 };
 
-type TracePointInput = { x?: unknown; y?: unknown; at?: unknown };
+type TracePointInput = {
+  x?: unknown;
+  y?: unknown;
+  at?: unknown;
+  space?: unknown;
+  anchorId?: unknown;
+  surfaceX?: unknown;
+  surfaceY?: unknown;
+};
+type PublicTracePoint = {
+  x: number;
+  y: number;
+  at: number;
+  space?: TraceSpace;
+  anchorId?: string;
+  surfaceX?: number;
+  surfaceY?: number;
+};
 
 function clampUnit(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
@@ -149,7 +167,17 @@ function clampUnit(value: unknown): number | null {
 }
 
 function isTracePhase(value: unknown): value is TracePhase {
-  return value === "start" || value === "move" || value === "end" || value === "cancel";
+  return value === "start" || value === "move" || value === "end" || value === "cancel" || value === "click";
+}
+
+function isTraceSpace(value: unknown): value is TraceSpace {
+  return value === "anchor" || value === "surface" || value === "viewport";
+}
+
+function sanitizeAnchorId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const anchorId = value.trim().slice(0, 120);
+  return /^[A-Za-z0-9:_-]+$/.test(anchorId) ? anchorId : undefined;
 }
 
 function isTier(value: unknown): value is 1 | 2 | 3 {
@@ -192,19 +220,53 @@ function sanitizeTraceItem(roomId: string, item: TraceItemInput | undefined): Pu
   return null;
 }
 
-function sanitizeTraceTrail(points: TracePointInput[] | undefined, fallback: { x: number; y: number }, now: number) {
-  if (!Array.isArray(points)) return [{ ...fallback, at: now }];
+function sanitizeTracePoint(point: TracePointInput, now: number, fallbackAt: number): PublicTracePoint | null {
+  const x = clampUnit(point.x);
+  const y = clampUnit(point.y);
+  if (x === null || y === null) return null;
+  const at = typeof point.at === "number" && Number.isFinite(point.at) ? Math.max(now - 1800, Math.min(now + 200, point.at)) : fallbackAt;
+  const space = isTraceSpace(point.space) ? point.space : undefined;
+  const anchorId = sanitizeAnchorId(point.anchorId);
+  const surfaceX = clampUnit(point.surfaceX);
+  const surfaceY = clampUnit(point.surfaceY);
+  const normalizedSpace = space === "anchor" && !anchorId ? (surfaceX !== null && surfaceY !== null ? "surface" : "viewport") : space;
+  const normalizedX = space === "anchor" && normalizedSpace === "surface" && surfaceX !== null ? surfaceX : x;
+  const normalizedY = space === "anchor" && normalizedSpace === "surface" && surfaceY !== null ? surfaceY : y;
+  return {
+    x: normalizedX,
+    y: normalizedY,
+    at,
+    ...(normalizedSpace ? { space: normalizedSpace } : {}),
+    ...(normalizedSpace === "anchor" && anchorId ? { anchorId } : {}),
+    ...(surfaceX !== null && surfaceY !== null ? { surfaceX, surfaceY } : {}),
+  };
+}
+
+function isSameTracePoint(left: PublicTracePoint, right: PublicTracePoint) {
+  return (
+    Math.abs(left.x - right.x) <= 0.0001 &&
+    Math.abs(left.y - right.y) <= 0.0001 &&
+    left.space === right.space &&
+    left.anchorId === right.anchorId &&
+    Math.abs((left.surfaceX ?? -1) - (right.surfaceX ?? -1)) <= 0.0001 &&
+    Math.abs((left.surfaceY ?? -1) - (right.surfaceY ?? -1)) <= 0.0001
+  );
+}
+
+function sanitizeTraceTrail(points: TracePointInput[] | undefined, fallback: PublicTracePoint, now: number) {
+  if (!Array.isArray(points)) return [fallback];
   const sanitized = points.slice(-48).flatMap((point, index) => {
     const x = clampUnit(point.x);
     const y = clampUnit(point.y);
     if (x === null || y === null) return [];
-    const at = typeof point.at === "number" && Number.isFinite(point.at) ? Math.max(now - 1800, Math.min(now + 200, point.at)) : now - (points.length - index) * 8;
-    return [{ x, y, at }];
+    const at = now - (points.length - index) * 8;
+    const sanitizedPoint = sanitizeTracePoint(point, now, at);
+    return sanitizedPoint ? [sanitizedPoint] : [];
   });
-  if (!sanitized.length) return [{ ...fallback, at: now }];
+  if (!sanitized.length) return [fallback];
   const last = sanitized[sanitized.length - 1];
-  if (Math.abs(last.x - fallback.x) > 0.0001 || Math.abs(last.y - fallback.y) > 0.0001) {
-    sanitized.push({ ...fallback, at: now });
+  if (!isSameTracePoint(last, fallback)) {
+    sanitized.push(fallback);
   }
   return sanitized;
 }
@@ -316,6 +378,10 @@ io.on("connection", (socket) => {
       phase: TracePhase;
       x: number;
       y: number;
+      space?: TraceSpace;
+      anchorId?: string;
+      surfaceX?: number;
+      surfaceY?: number;
       trail?: TracePointInput[];
       item?: TraceItemInput;
       targetId?: string;
@@ -326,17 +392,16 @@ io.on("connection", (socket) => {
       const player = room.gameState.players.find((entry) => entry.id === playerId);
       if (!player) return;
       if (!isTracePhase(payload.phase)) return;
-      const x = clampUnit(payload.x);
-      const y = clampUnit(payload.y);
+      const latestPayloadPoint = sanitizeTracePoint(payload, Date.now(), Date.now());
       const item = sanitizeTraceItem(room.roomId, payload.item);
-      if (x === null || y === null || !item) return;
+      if (!latestPayloadPoint || !item) return;
       const mayOperate = room.gameState.currentPlayerId === playerId || room.gameState.pendingDiscardPlayerId === playerId;
       if (item.kind !== "cursor" && !mayOperate) return;
       const traceId = typeof payload.traceId === "string" ? payload.traceId.slice(0, 80) : "";
       if (!traceId) return;
       const now = Date.now();
-      const trail = sanitizeTraceTrail(payload.trail, { x, y }, now);
-      const latestPoint = trail[trail.length - 1] ?? { x, y, at: now };
+      const latestPoint = sanitizeTracePoint(payload, now, now) ?? latestPayloadPoint;
+      const trail = sanitizeTraceTrail(payload.trail, latestPoint, now);
 
       socket.to(room.roomId).emit("player_trace", {
         roomId: room.roomId,
@@ -347,6 +412,10 @@ io.on("connection", (socket) => {
         avatarId: player.avatarId,
         x: latestPoint.x,
         y: latestPoint.y,
+        space: latestPoint.space,
+        anchorId: latestPoint.anchorId,
+        surfaceX: latestPoint.surfaceX,
+        surfaceY: latestPoint.surfaceY,
         trail,
         item,
         targetId: typeof payload.targetId === "string" ? payload.targetId.slice(0, 80) : undefined,

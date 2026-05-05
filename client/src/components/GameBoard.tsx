@@ -341,18 +341,19 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
       className={`game-shell tabletop-shell focus-table-shell ${workbenchMode ? "workbench-mode" : ""} ${gameState.variant === "pokemon" ? "pokemon-shell" : "classic-shell"} ${
         effectiveMyAreaOpen ? "my-drawer-open" : ""
       } ${opponentsOpen ? "opponents-drawer-open" : ""}`}
+      data-trace-surface="game"
     >
       <header className="game-topbar tabletop-topbar">
         <nav className="tabletop-utility tabletop-utility-left" aria-label="快捷入口">
-          <a href="#lobby" aria-label="打开大厅">
+          <a href="#lobby" aria-label="打开大厅" data-cursor-anchor="ui:lobby">
             <Menu size={19} />
           </a>
-          <a href="#rules" aria-label="查看规则">
+          <a href="#rules" aria-label="查看规则" data-cursor-anchor="ui:rules">
             <BookOpen size={19} />
           </a>
         </nav>
 
-        <div className="tabletop-title-stack">
+        <div className="tabletop-title-stack" data-cursor-anchor="ui:title-stack">
           <div className="brand-lockup" aria-label="璀璨宝石 Splendor">
             <span className="gem-logo" aria-hidden="true" />
             <strong>璀璨宝石 {gameState.variant === "pokemon" ? "宝可梦" : "Splendor"}</strong>
@@ -371,6 +372,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
             className={`drawer-toggle-button ${opponentsOpen ? "active" : ""}`}
             aria-label={opponentsOpen ? "收起其他玩家" : "展开其他玩家"}
             aria-pressed={opponentsOpen}
+            data-cursor-anchor="ui:opponents-toggle"
             onClick={() => setOpponentsOpen((open) => !open)}
           >
             <Users size={18} />
@@ -380,6 +382,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
             className={`drawer-toggle-button ${effectiveMyAreaOpen ? "active" : ""}`}
             aria-label={workbenchMode ? "我的区域已常驻显示" : effectiveMyAreaOpen ? "收起我的区域" : "展开我的区域"}
             aria-pressed={effectiveMyAreaOpen}
+            data-cursor-anchor="ui:my-area-toggle"
             onClick={() => {
               if (!workbenchMode) setMyAreaOpen((open) => !open);
             }}
@@ -391,21 +394,22 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
             className={`drawer-toggle-button ${actionLogOpen ? "active" : ""}`}
             aria-label={actionLogOpen ? "收起操作记录" : "查看操作记录"}
             aria-pressed={actionLogOpen}
+            data-cursor-anchor="ui:action-log-toggle"
             onClick={() => setActionLogOpen((open) => !open)}
           >
             <MessageCircle size={18} />
           </button>
-          <button type="button" aria-label="刷新桌面" onClick={() => window.location.reload()}>
+          <button type="button" aria-label="刷新桌面" data-cursor-anchor="ui:refresh" onClick={() => window.location.reload()}>
             <RotateCcw size={18} />
           </button>
-          <button type="button" aria-label="设置">
+          <button type="button" aria-label="设置" data-cursor-anchor="ui:settings">
             <Settings size={18} />
           </button>
         </nav>
       </header>
 
       <div className="tabletop-board" onClickCapture={closeMyAreaFromTable}>
-        <div className="player-corner-hud" aria-label={`我的${resourceLabel} ${myTokenTotal} 个，${scoreLabel} ${myPlayer.prestige} 分`}>
+        <div className="player-corner-hud" data-cursor-anchor="ui:player-hud" aria-label={`我的${resourceLabel} ${myTokenTotal} 个，${scoreLabel} ${myPlayer.prestige} 分`}>
           <b>{resourceLabel} {myTokenTotal}</b>
           <b>{scoreLabel} {myPlayer.prestige}</b>
           <b>{gameState.variant === "pokemon" ? "保留" : "预留"} {myPlayer.reservedCards.length}/3</b>
@@ -475,6 +479,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
         type="button"
         className={`opponent-drawer-tab ${opponentsOpen ? "open" : ""}`}
         aria-expanded={opponentsOpen}
+        data-cursor-anchor="ui:opponents-tab"
         onClick={() => setOpponentsOpen((open) => !open)}
       >
         <Users size={17} />
@@ -483,13 +488,13 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
       </button>
 
       <aside className={`opponent-drawer ${opponentsOpen ? "open" : ""}`} aria-hidden={!opponentsOpen}>
-        <button type="button" className="drawer-close opponent-drawer-close" aria-label="收起其他玩家" onClick={() => setOpponentsOpen(false)}>
+        <button type="button" className="drawer-close opponent-drawer-close" aria-label="收起其他玩家" data-cursor-anchor="ui:opponents-close" onClick={() => setOpponentsOpen(false)}>
           <X size={17} />
         </button>
         <OpponentPanel players={gameState.players} myPlayerId={gameState.myPlayerId} currentPlayerId={gameState.currentPlayerId} variant={gameState.variant} />
       </aside>
 
-      <aside className={`action-log-drawer ${actionLogOpen ? "open" : ""}`} aria-hidden={!actionLogOpen}>
+      <aside className={`action-log-drawer ${actionLogOpen ? "open" : ""}`} data-cursor-anchor="ui:action-log-drawer" aria-hidden={!actionLogOpen}>
         <div className="action-log-head">
           <strong>操作记录</strong>
           <span>{logs.length} 条</span>
@@ -512,7 +517,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
         </div>
       </aside>
 
-      <section className={`my-area-drawer ${effectiveMyAreaOpen ? "open" : ""} ${dragAutoOpened ? "drag-hot-open" : ""}`} aria-label="我的宝石与行动抽屉">
+      <section className={`my-area-drawer ${effectiveMyAreaOpen ? "open" : ""} ${dragAutoOpened ? "drag-hot-open" : ""}`} data-cursor-anchor="ui:my-area-drawer" aria-label="我的宝石与行动抽屉">
         <div
           className="my-area-drawer-head"
           onClick={toggleMyAreaFromHead}
