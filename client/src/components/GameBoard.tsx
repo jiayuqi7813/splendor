@@ -4,7 +4,7 @@ import type { BasicColor, Card, GameState, GemColor, Gems } from "../types";
 import { BoardDragProvider, useBoardDrag } from "./BoardDragProvider";
 import { CardSlot } from "./CardSlot";
 import { GemBank } from "./GemBank";
-import { MyAreaPanel } from "./MyAreaPanel";
+import { MyAreaPanel, MyGemsZone } from "./MyAreaPanel";
 import { NobleRow } from "./NobleRow";
 import { OpponentPanel } from "./OpponentPanel";
 
@@ -94,6 +94,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
       <div className="tabletop-board">
         <aside className="gem-pool-column">
           <GemBank bank={gameState.bank} onToggle={stageTakeGem} />
+          <MyGemsZone player={myPlayer} className="sidebar-my-gems" />
           <div className="turn-note">
             <Gem size={18} />
             <strong>{isMyTurn ? "轮到你了" : `等待 ${currentPlayer?.username ?? "玩家"}`}</strong>

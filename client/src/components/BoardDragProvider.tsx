@@ -499,7 +499,11 @@ export function BoardDragProvider({
     if (!payload || !overId) return;
 
     if (payload.kind === "bank-gem" && overId === "my-gems-zone") stageTakeGem(payload.color);
+    else if (payload.kind === "my-gem" && overId === "my-gems-zone") {
+      setNotice("已放回我的宝石区。");
+    }
     else if (payload.kind === "my-gem" && overId === "payment-zone") stagePaymentGem(payload.color);
+    else if (payload.kind === "my-gem" && overId === "selected-card-zone") stagePaymentGem(payload.color);
     else if (payload.kind === "my-gem" && overId === "discard-zone") stageDiscardGem(payload.color);
     else if (payload.kind === "my-gem" && overId.startsWith("card-drop:")) {
       const card = findCardById(gameState, me, overId.replace("card-drop:", ""));

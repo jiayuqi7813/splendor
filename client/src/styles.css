@@ -1852,7 +1852,7 @@ textarea {
 
 /* Tabletop drag-and-drop board */
 .tabletop-shell {
-  grid-template-rows: 56px minmax(0, 1fr) minmax(206px, 30vh);
+  grid-template-rows: 54px minmax(0, 1fr) minmax(238px, 36vh);
   min-height: 680px;
   background:
     radial-gradient(circle at 50% -18%, oklch(88% 0.045 250 / 0.46), transparent 38%),
@@ -1907,10 +1907,10 @@ textarea {
 
 .tabletop-board {
   display: grid;
-  grid-template-columns: minmax(204px, 15vw) minmax(700px, 1fr) minmax(240px, 18vw);
-  gap: 12px;
+  grid-template-columns: minmax(172px, 13vw) minmax(700px, 1fr) minmax(218px, 16vw);
+  gap: 10px;
   min-height: 0;
-  padding: 12px 16px 8px;
+  padding: 10px 12px 6px;
   overflow: hidden;
 }
 
@@ -1928,16 +1928,16 @@ textarea {
 
 .gem-pool-column {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  gap: 10px;
-  padding: 12px;
+  grid-template-rows: minmax(142px, 1fr) minmax(112px, 0.78fr) auto;
+  gap: 8px;
+  padding: 8px;
   overflow: hidden;
 }
 
 .gem-pool-column .bank-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  gap: 14px;
+  gap: 9px;
   min-height: 0;
   border: 0;
   border-radius: 0;
@@ -1947,13 +1947,13 @@ textarea {
 }
 
 .gem-pool-column .bank-panel h2 {
-  font-size: 1rem;
+  font-size: 0.88rem;
 }
 
 .gem-pool-column .bank-tokens {
-  grid-template-columns: repeat(2, minmax(74px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: center;
-  gap: 16px 12px;
+  gap: 5px 7px;
 }
 
 .draggable-token,
@@ -1970,36 +1970,54 @@ textarea {
 
 .gem-pool-column .bank-token {
   width: 100%;
-  min-height: 86px;
+  min-height: 46px;
 }
 
 .gem-pool-column .bank-token img {
-  width: clamp(58px, 7.5vh, 78px);
-  min-width: 58px;
+  width: clamp(42px, 6.4vh, 54px);
+  min-width: 40px;
+}
+
+.gem-pool-column .bank-token span {
+  right: clamp(-1px, 0.2vw, 3px);
+  bottom: -2px;
+  min-width: 19px;
+  height: 19px;
+  font-size: 0.74rem;
 }
 
 .turn-note {
   display: grid;
-  grid-template-columns: 24px 1fr;
-  gap: 6px 8px;
-  align-items: center;
+  grid-template-columns: 1fr;
+  gap: 3px;
+  align-items: start;
   border-radius: 8px;
   background: oklch(94% 0.02 188);
   color: var(--teal-deep);
-  padding: 10px;
+  min-height: 58px;
+  padding: 8px;
+}
+
+.turn-note svg {
+  display: none;
+}
+
+.turn-note strong {
+  font-size: 0.82rem;
+  line-height: 1.15;
 }
 
 .turn-note span {
-  grid-column: 2;
+  grid-column: auto;
   color: var(--ink-soft);
-  font-size: 0.78rem;
-  line-height: 1.35;
+  font-size: 0.64rem;
+  line-height: 1.28;
 }
 
 .market-column {
   display: grid;
-  grid-template-rows: minmax(104px, 25%) minmax(0, 1fr);
-  gap: 12px;
+  grid-template-rows: minmax(96px, 22%) minmax(0, 1fr);
+  gap: 10px;
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -2008,7 +2026,8 @@ textarea {
 
 .market-column .noble-panel {
   min-height: 0;
-  padding: 10px 14px;
+  gap: 6px;
+  padding: 8px 12px;
 }
 
 .panel-heading,
@@ -2050,44 +2069,65 @@ textarea {
 }
 
 .market-column .noble-list {
-  grid-template-columns: repeat(3, minmax(142px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(136px, 1fr));
+  gap: 8px;
   overflow: hidden;
 }
 
 .market-column .noble-tile {
   position: relative;
-  grid-template-columns: 62px 1fr;
-  min-height: 72px;
-  overflow: visible;
+  grid-template-columns: 54px minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.market-column .noble-tile > img {
+  min-height: 0;
+  height: 100%;
+  max-height: 66px;
 }
 
 .noble-crown {
   position: absolute;
-  top: -6px;
-  left: -5px;
+  top: 1px;
+  left: 2px;
   color: oklch(74% 0.15 78);
-  font-size: 1rem;
+  font-size: 0.86rem;
   font-weight: 900;
 }
 
 .market-column .noble-info {
-  padding: 6px 8px;
+  gap: 4px;
+  min-width: 0;
+  padding: 4px 6px;
+}
+
+.market-column .noble-info strong {
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .market-column .noble-info span {
-  grid-template-columns: repeat(3, minmax(0, auto));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
+  gap: 3px;
 }
 
 .market-column .noble-info em {
   display: grid;
-  grid-template-columns: 16px auto;
-  gap: 3px;
+  grid-template-columns: 13px auto;
+  gap: 2px;
   align-items: center;
+  min-width: 0;
   border-radius: 999px;
   background: var(--surface-soft);
-  padding: 2px 5px 2px 2px;
+  padding: 1px 4px 1px 1px;
+  font-size: 0.64rem;
+}
+
+.market-column .noble-info em img {
+  width: 13px;
+  height: 13px;
 }
 
 .market-column .noble-info em.met {
@@ -2379,11 +2419,11 @@ textarea {
 
 .my-area-panel {
   display: grid;
-  grid-template-columns: minmax(210px, 0.75fr) minmax(330px, 1.25fr) minmax(220px, 0.8fr) minmax(430px, 1.55fr);
-  grid-template-rows: 30px minmax(0, 1fr);
-  gap: 10px;
-  margin: 0 16px 12px;
-  padding: 10px 12px;
+  grid-template-columns: minmax(280px, 1fr) minmax(210px, 0.72fr) minmax(250px, 0.86fr) minmax(310px, 1.08fr);
+  grid-template-rows: 28px minmax(0, 1fr);
+  gap: 8px;
+  margin: 0 12px 10px;
+  padding: 8px 12px;
   overflow: hidden;
 }
 
@@ -2391,7 +2431,7 @@ textarea {
   grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -2424,21 +2464,33 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
-  padding: 9px;
+  padding: 8px;
   overflow: hidden;
 }
 
 .my-gems-zone {
   display: grid;
-  grid-template-rows: auto auto minmax(24px, 1fr);
-  gap: 8px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 5px;
 }
 
-.my-token-row,
+.sidebar-my-gems {
+  min-height: 0;
+}
+
+.my-token-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: minmax(30px, 1fr);
+  align-content: center;
+  gap: 6px 8px;
+  min-height: 0;
+}
+
 .payment-token-row {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 7px;
+  gap: 5px;
 }
 
 .my-token,
@@ -2446,16 +2498,25 @@ textarea {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 42px;
+  min-height: 38px;
   border-radius: 8px;
   background: var(--surface-soft);
 }
 
+.my-token {
+  min-height: 36px;
+}
+
 .my-token img,
 .payment-token-row img {
-  width: 32px;
-  height: 32px;
+  width: 29px;
+  height: 29px;
   border-radius: 999px;
+}
+
+.my-token img {
+  width: 25px;
+  height: 25px;
 }
 
 .my-token span,
@@ -2466,21 +2527,25 @@ textarea {
 .my-token span {
   position: absolute;
   right: 1px;
-  bottom: -4px;
-  min-width: 20px;
+  bottom: -3px;
+  min-width: 18px;
+  height: 18px;
   border-radius: 999px;
   background: var(--surface);
   color: var(--ink);
   box-shadow: var(--shadow-sm);
+  font-size: 0.76rem;
 }
 
 .staged-gem-row {
   display: flex;
   align-items: center;
   gap: 5px;
+  min-height: 18px;
   min-width: 0;
   color: var(--muted);
-  font-size: 0.76rem;
+  font-size: 0.7rem;
+  line-height: 1.1;
 }
 
 .staged-gem-row span {
@@ -2495,7 +2560,43 @@ textarea {
   border-radius: 999px;
 }
 
+.sidebar-my-gems .mini-section-head strong {
+  font-size: 0.86rem;
+}
+
+.sidebar-my-gems .mini-section-head button {
+  width: 26px;
+  height: 26px;
+}
+
+.sidebar-my-gems .my-token-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: minmax(32px, 1fr);
+  gap: 6px;
+}
+
+.sidebar-my-gems .my-token {
+  min-height: 32px;
+}
+
+.sidebar-my-gems .my-token img {
+  width: 25px;
+  height: 25px;
+}
+
+.sidebar-my-gems .my-token span {
+  right: 0;
+  bottom: 0;
+}
+
+.sidebar-my-gems .staged-gem-row {
+  min-height: 18px;
+  padding-top: 2px;
+}
+
 .purchased-zone {
+  grid-column: 1;
+  grid-row: 2;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 8px;
@@ -2570,6 +2671,8 @@ textarea {
 }
 
 .reserve-zone {
+  grid-column: 2;
+  grid-row: 2;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 8px;
@@ -2611,17 +2714,26 @@ textarea {
   min-height: 0;
 }
 
-.selected-card-zone,
-.payment-drop-zone {
+.selected-card-zone {
+  grid-column: 3;
+  grid-row: 2;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 8px;
 }
 
+.payment-drop-zone {
+  grid-column: 4;
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
 .selected-card-content {
   display: grid;
-  grid-template-columns: 88px minmax(0, 1fr);
-  gap: 10px;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 8px;
   min-height: 0;
 }
 
@@ -2653,8 +2765,13 @@ textarea {
 .selected-card-need {
   display: grid;
   align-content: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
+}
+
+.selected-card-need strong {
+  font-size: 0.82rem;
+  line-height: 1.25;
 }
 
 .selected-card-need span {
@@ -2700,7 +2817,7 @@ textarea {
 }
 
 .payment-token-row span {
-  min-height: 34px;
+  min-height: 30px;
   color: var(--muted);
 }
 
@@ -2710,29 +2827,42 @@ textarea {
 }
 
 .payment-token-row span img {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 
 .payment-need-row {
   display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
+  align-content: start;
+  min-height: 0;
 }
 
 .payment-need-row span {
   display: grid;
-  grid-template-columns: 18px 1fr auto;
+  grid-template-columns: 14px auto;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 3px;
+  min-width: 0;
+  min-height: 22px;
+  border-radius: 6px;
+  background: var(--surface-soft);
+  padding: 2px 4px;
   color: var(--ink-soft);
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   font-weight: 800;
 }
 
 .payment-need-row img {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
   border-radius: 999px;
+}
+
+.payment-need-row b {
+  display: none;
 }
 
 .payment-need-row .covered em {
@@ -2749,7 +2879,7 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 32px;
+  min-height: 28px;
   border-radius: 8px;
   background: var(--surface-soft);
   color: var(--ink-soft);
@@ -2799,10 +2929,22 @@ textarea {
   font-weight: 900;
 }
 
+.drag-overlay.token {
+  grid-template-rows: 58px auto;
+  width: 76px;
+  min-height: 88px;
+}
+
 .drag-overlay.token img {
   width: 58px;
   height: 58px;
   border-radius: 999px;
+  object-fit: cover;
+}
+
+.drag-overlay.token span {
+  white-space: nowrap;
+  writing-mode: horizontal-tb;
 }
 
 .drag-overlay.card img {
@@ -3042,6 +3184,21 @@ textarea {
     overflow: visible;
   }
 
+  .gem-pool-column {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: stretch;
+  }
+
+  .gem-pool-column .bank-panel,
+  .sidebar-my-gems {
+    min-height: 148px;
+  }
+
+  .turn-note {
+    grid-column: 1 / -1;
+  }
+
   .gem-pool-column .bank-tokens {
     grid-template-columns: repeat(6, minmax(58px, 1fr));
   }
@@ -3072,8 +3229,18 @@ textarea {
     overflow: visible;
   }
 
+  .purchased-zone,
+  .reserve-zone,
+  .selected-card-zone,
+  .payment-drop-zone {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
   .my-area-title,
   .selected-payment-zone,
+  .selected-card-zone,
+  .payment-drop-zone,
   .discard-drop-zone {
     grid-column: 1 / -1;
   }
@@ -3092,6 +3259,10 @@ textarea {
     padding: 10px;
   }
 
+  .gem-pool-column {
+    grid-template-columns: 1fr;
+  }
+
   .gem-pool-column .bank-tokens {
     grid-template-columns: repeat(3, minmax(58px, 1fr));
   }
@@ -3107,6 +3278,8 @@ textarea {
 
   .my-area-title,
   .selected-payment-zone,
+  .selected-card-zone,
+  .payment-drop-zone,
   .discard-drop-zone {
     grid-column: auto;
   }
@@ -3123,7 +3296,7 @@ textarea {
 
 @media (max-height: 760px) and (min-width: 1181px) {
   .tabletop-shell {
-    grid-template-rows: 54px minmax(0, 1fr) 194px;
+    grid-template-rows: 54px minmax(0, 1fr) 238px;
     min-height: 620px;
   }
 
@@ -3140,7 +3313,7 @@ textarea {
   }
 
   .my-area-panel {
-    grid-template-rows: 26px minmax(0, 1fr);
+    grid-template-rows: 28px minmax(0, 1fr);
     gap: 8px;
     padding-block: 8px;
   }
