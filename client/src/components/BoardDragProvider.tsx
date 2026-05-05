@@ -91,7 +91,8 @@ const BoardDragContext = createContext<BoardDragContextValue | null>(null);
 const TRACE_THROTTLE_MS = 45;
 const CURSOR_TRACE_THROTTLE_MS = 70;
 const CURSOR_IDLE_END_MS = 680;
-const TRACE_POINT_LIMIT = 12;
+const CURSOR_BUFFER_POINT_LIMIT = 48;
+const TRACE_POINT_LIMIT = 56;
 const REMOTE_TRACE_LIMIT = 12;
 const TRACE_COLORS = [
   "oklch(58% 0.12 188)",
@@ -223,6 +224,14 @@ function traceItemLabel(item: TraceItem, labels: Record<GemColor, string>) {
   }
 }
 
+function traceColorFor(playerId: string, avatarId: number) {
+  let hash = avatarId;
+  for (let index = 0; index < playerId.length; index += 1) {
+    hash = (hash * 31 + playerId.charCodeAt(index)) >>> 0;
+  }
+  return TRACE_COLORS[hash % TRACE_COLORS.length];
+}
+
 export function BoardDragProvider({
   gameState,
   me,
@@ -264,6 +273,7 @@ export function BoardDragProvider({
   const lastTraceEmitRef = useRef(0);
   const cursorTraceIdRef = useRef("");
   const latestCursorPointRef = useRef<TracePoint | null>(null);
+  const cursorBufferedPointsRef = useRef<TracePoint[]>([]);
   const lastCursorEmitRef = useRef(0);
   const cursorIdleTimerRef = useRef<number | null>(null);
   const removeTraceTimersRef = useRef<Record<string, number>>({});
@@ -302,18 +312,20 @@ export function BoardDragProvider({
         return;
       }
       const point = { x: payload.x, y: payload.y, at: payload.at };
+      const incomingTrail = payload.trail?.length ? payload.trail : [point];
+      const displayPoints = payload.item.kind === "cursor" ? incomingTrail.slice(-1) : incomingTrail;
       setRemoteTraces((prev) => {
         const existing = prev.find((trace) => trace.traceId === payload.traceId);
         const nextTrace: RemoteTrace = existing
           ? {
               ...existing,
               ...payload,
-              points: [...existing.points, point].slice(-TRACE_POINT_LIMIT),
+              points: payload.item.kind === "cursor" ? displayPoints : [...existing.points, ...displayPoints].slice(-TRACE_POINT_LIMIT),
               finishing: payload.phase === "end" || payload.phase === "cancel",
             }
           : {
               ...payload,
-              points: [point],
+              points: displayPoints.slice(-TRACE_POINT_LIMIT),
               finishing: payload.phase === "end" || payload.phase === "cancel",
             };
         return [...prev.filter((trace) => trace.traceId !== payload.traceId), nextTrace].slice(-REMOTE_TRACE_LIMIT);
@@ -349,12 +361,15 @@ export function BoardDragProvider({
       if (!cursorTraceIdRef.current || phase === "start") {
         cursorTraceIdRef.current = `${me.id}:cursor:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`;
       }
+      const trail = cursorBufferedPointsRef.current.length ? cursorBufferedPointsRef.current : [point];
+      cursorBufferedPointsRef.current = [];
       socket.emit("player_trace", {
         roomId: gameState.roomId,
         traceId: cursorTraceIdRef.current,
         phase,
         x: point.x,
         y: point.y,
+        trail,
         item: { kind: "cursor" } satisfies TraceItemInput,
       });
     };
@@ -370,16 +385,18 @@ export function BoardDragProvider({
       }
       cursorTraceIdRef.current = "";
       latestCursorPointRef.current = null;
+      cursorBufferedPointsRef.current = [];
       lastCursorEmitRef.current = 0;
     };
 
     const onPointerMove = (event: PointerEvent) => {
       if (document.visibilityState !== "visible" || activeDragRef.current) return;
       const now = Date.now();
-      if (now - lastCursorEmitRef.current < CURSOR_TRACE_THROTTLE_MS) return;
-
       const point = viewportPoint(event.clientX, event.clientY);
       latestCursorPointRef.current = point;
+      cursorBufferedPointsRef.current = [...cursorBufferedPointsRef.current, point].slice(-CURSOR_BUFFER_POINT_LIMIT);
+      if (now - lastCursorEmitRef.current < CURSOR_TRACE_THROTTLE_MS) return;
+
       lastCursorEmitRef.current = now;
       emitCursorTrace(cursorTraceIdRef.current ? "move" : "start", point);
 
@@ -773,7 +790,11 @@ function TraceItemVisual({ item, variant }: { item: TraceItem; variant: GameVari
   const traceTokenImages = tokenImagesFor(variant);
   switch (item.kind) {
     case "cursor":
-      return <span className="remote-cursor-glyph" />;
+      return (
+        <svg className="remote-cursor-glyph" viewBox="0 0 28 34" aria-hidden="true">
+          <path d="M5 3.5v25.2l6.8-6.2 4 8.4 4.5-2.1-4.2-8.2h8.8L5 3.5Z" />
+        </svg>
+      );
     case "bank-gem":
     case "my-gem":
       return <img src={traceTokenImages[item.color]} alt="" />;
@@ -800,41 +821,50 @@ function RemoteTraceLayer({ traces, variant }: { traces: RemoteTrace[]; variant:
         const points = trace.points.map((point) => `${(point.x * 100).toFixed(2)},${(point.y * 100).toFixed(2)}`).join(" ");
         const traceKind = trace.item.kind === "cursor" ? "cursor" : trace.item.kind.includes("gem") ? "token" : "card";
         const style = {
-          "--trace-color": TRACE_COLORS[trace.avatarId % TRACE_COLORS.length],
+          "--trace-color": traceColorFor(trace.playerId, trace.avatarId),
           "--trace-x": `${trace.x * 100}%`,
           "--trace-y": `${trace.y * 100}%`,
         } as CSSProperties;
 
         return (
           <div key={trace.traceId} className={`remote-trace ${trace.finishing ? "finishing" : ""}`} style={style}>
-            {trace.points.length > 1 ? (
+            {trace.item.kind !== "cursor" && trace.points.length > 1 ? (
               <svg className="remote-trace-path" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <polyline points={points} />
               </svg>
             ) : null}
-            {trace.points.slice(-5).map((point, index, visiblePoints) => (
-              <span
-                key={`${point.at}-${index}`}
-                className="remote-trace-dot"
-                style={
-                  {
-                    "--trace-dot-x": `${point.x * 100}%`,
-                    "--trace-dot-y": `${point.y * 100}%`,
-                    "--trace-dot-alpha": 0.24 + (index + 1) / visiblePoints.length / 2,
-                  } as CSSProperties
-                }
-              />
-            ))}
-            <div className={`remote-trace-figure ${traceKind}`}>
-              <span className="remote-trace-avatar">{AVATARS[trace.avatarId % AVATARS.length]}</span>
-              <span className="remote-trace-object">
+            {trace.item.kind !== "cursor"
+              ? trace.points.slice(-5).map((point, index, visiblePoints) => (
+                  <span
+                    key={`${point.at}-${index}`}
+                    className="remote-trace-dot"
+                    style={
+                      {
+                        "--trace-dot-x": `${point.x * 100}%`,
+                        "--trace-dot-y": `${point.y * 100}%`,
+                        "--trace-dot-alpha": 0.24 + (index + 1) / visiblePoints.length / 2,
+                      } as CSSProperties
+                    }
+                  />
+                ))
+              : null}
+            {trace.item.kind === "cursor" ? (
+              <div className="remote-cursor-pointer">
                 <TraceItemVisual item={trace.item} variant={variant} />
-              </span>
-              <span className="remote-trace-label">
                 <strong>{trace.username}</strong>
-                <em>{traceItemLabel(trace.item, labels)}</em>
-              </span>
-            </div>
+              </div>
+            ) : (
+              <div className={`remote-trace-figure ${traceKind}`}>
+                <span className="remote-trace-avatar">{AVATARS[trace.avatarId % AVATARS.length]}</span>
+                <span className="remote-trace-object">
+                  <TraceItemVisual item={trace.item} variant={variant} />
+                </span>
+                <span className="remote-trace-label">
+                  <strong>{trace.username}</strong>
+                  <em>{traceItemLabel(trace.item, labels)}</em>
+                </span>
+              </div>
+            )}
           </div>
         );
       })}

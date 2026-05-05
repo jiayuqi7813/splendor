@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Card, GameVariant, HiddenCard, TierState } from "../types";
 import { BACK_IMAGES, BASIC_COLORS, CARD_IMAGES, COLOR_LABELS, colorLabelsFor, deckBackUrl, tokenImagesFor, cardImageUrl } from "../types";
 import { Draggable, DropZone } from "./BoardDragProvider";
@@ -13,6 +13,7 @@ interface Props {
   selected?: boolean;
   variant?: GameVariant;
   deckKind?: "common" | "rare" | "legendary";
+  dealIndex?: number;
 }
 
 function isHidden(card: Card | HiddenCard | null | undefined): card is HiddenCard {
@@ -25,9 +26,27 @@ const deckLabels: Record<1 | 2 | 3, string> = {
   3: "LEVEL III",
 };
 
-export function CardSlot({ card, tier, deck, mode = "card", onClick, disabled, selected, variant = "classic", deckKind = "common" }: Props) {
+export function CardSlot({ card, tier, deck, mode = "card", onClick, disabled, selected, variant = "classic", deckKind = "common", dealIndex }: Props) {
   const labels = colorLabelsFor(variant);
   const tokenImages = tokenImagesFor(variant);
+  const [isDealing, setIsDealing] = useState(false);
+  const previousCardIdRef = useRef<string | null>(null);
+
+  const visibleCardId = card && !isHidden(card) ? card.id : null;
+  useEffect(() => {
+    const previousCardId = previousCardIdRef.current;
+    previousCardIdRef.current = visibleCardId;
+    if (!visibleCardId || !previousCardId || previousCardId === visibleCardId || dealIndex === undefined) return;
+
+    setIsDealing(false);
+    const frame = window.requestAnimationFrame(() => setIsDealing(true));
+    const timer = window.setTimeout(() => setIsDealing(false), 620);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
+  }, [dealIndex, visibleCardId]);
+
   if (mode === "deck") {
     const deckTier = tier ?? 1;
     const count = deck?.deckCount ?? 0;
@@ -73,8 +92,12 @@ export function CardSlot({ card, tier, deck, mode = "card", onClick, disabled, s
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className={`market-card ${selected ? "selected" : ""}`}
-        style={{ "--card-accent": `var(--gem-${card.color})` } as CSSProperties}
+        className={`market-card ${selected ? "selected" : ""} ${isDealing ? "dealing-from-deck" : ""} deal-slot-${Math.min(dealIndex ?? 0, 3)}`}
+        style={
+          {
+            "--card-accent": `var(--gem-${card.color})`,
+          } as CSSProperties
+        }
         aria-label={`${labels[card.color]}${variant === "pokemon" ? "宝可梦" : "发展卡"}，${card.prestige} 分`}
       >
         <img src={variant === "pokemon" ? cardImageUrl(card.id, card) : CARD_IMAGES(card.id)} alt="" />

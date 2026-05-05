@@ -141,6 +141,8 @@ type PublicTraceItem =
   | { kind: "reserved-card"; tier: 1 | 2 | 3 }
   | { kind: "deck"; tier: 1 | 2 | 3 };
 
+type TracePointInput = { x?: unknown; y?: unknown; at?: unknown };
+
 function clampUnit(value: unknown): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   return Math.max(0, Math.min(1, value));
@@ -188,6 +190,23 @@ function sanitizeTraceItem(roomId: string, item: TraceItemInput | undefined): Pu
     return { kind: "market-card", cardId: card.id, color: card.color, prestige: card.prestige, tier: card.tier, image: card.image, name: card.name };
   }
   return null;
+}
+
+function sanitizeTraceTrail(points: TracePointInput[] | undefined, fallback: { x: number; y: number }, now: number) {
+  if (!Array.isArray(points)) return [{ ...fallback, at: now }];
+  const sanitized = points.slice(-48).flatMap((point, index) => {
+    const x = clampUnit(point.x);
+    const y = clampUnit(point.y);
+    if (x === null || y === null) return [];
+    const at = typeof point.at === "number" && Number.isFinite(point.at) ? Math.max(now - 1800, Math.min(now + 200, point.at)) : now - (points.length - index) * 8;
+    return [{ x, y, at }];
+  });
+  if (!sanitized.length) return [{ ...fallback, at: now }];
+  const last = sanitized[sanitized.length - 1];
+  if (Math.abs(last.x - fallback.x) > 0.0001 || Math.abs(last.y - fallback.y) > 0.0001) {
+    sanitized.push({ ...fallback, at: now });
+  }
+  return sanitized;
 }
 
 io.on("connection", (socket) => {
@@ -297,6 +316,7 @@ io.on("connection", (socket) => {
       phase: TracePhase;
       x: number;
       y: number;
+      trail?: TracePointInput[];
       item?: TraceItemInput;
       targetId?: string;
     }) => {
@@ -314,6 +334,9 @@ io.on("connection", (socket) => {
       if (item.kind !== "cursor" && !mayOperate) return;
       const traceId = typeof payload.traceId === "string" ? payload.traceId.slice(0, 80) : "";
       if (!traceId) return;
+      const now = Date.now();
+      const trail = sanitizeTraceTrail(payload.trail, { x, y }, now);
+      const latestPoint = trail[trail.length - 1] ?? { x, y, at: now };
 
       socket.to(room.roomId).emit("player_trace", {
         roomId: room.roomId,
@@ -322,11 +345,12 @@ io.on("connection", (socket) => {
         playerId,
         username: player.username,
         avatarId: player.avatarId,
-        x,
-        y,
+        x: latestPoint.x,
+        y: latestPoint.y,
+        trail,
         item,
         targetId: typeof payload.targetId === "string" ? payload.targetId.slice(0, 80) : undefined,
-        at: Date.now(),
+        at: now,
       });
     }
   );

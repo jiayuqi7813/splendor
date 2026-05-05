@@ -1,5 +1,5 @@
 import { BookOpen, MessageCircle, Menu, PanelBottomOpen, RotateCcw, Settings, Users, X } from "lucide-react";
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import { socket } from "../socket";
 import { variantName } from "../types";
 import type { ActionLogEntry, BasicColor, Card, GameState, GemColor, Gems, PlayerState } from "../types";
@@ -113,6 +113,79 @@ function useTurnReminder(gameState: GameState, me: PlayerState, currentPlayer?: 
   return toast;
 }
 
+function elementFitsVertically(element: HTMLElement | null, tolerance = 2) {
+  if (!element) return false;
+  return element.scrollHeight <= element.clientHeight + tolerance;
+}
+
+function childFitsInside(parent: HTMLElement, child: HTMLElement, tolerance = 2) {
+  const parentRect = parent.getBoundingClientRect();
+  const childRect = child.getBoundingClientRect();
+  return childRect.top >= parentRect.top - tolerance && childRect.bottom <= parentRect.bottom + tolerance;
+}
+
+function useWorkbenchMode(
+  gameState: GameState,
+  refs: {
+    marketColumnRef: RefObject<HTMLElement | null>;
+    developmentMarketRef: RefObject<HTMLElement | null>;
+    marketTierListRef: RefObject<HTMLElement | null>;
+    publicBankStripRef: RefObject<HTMLElement | null>;
+  },
+) {
+  const [enabled, setEnabled] = useState(false);
+  const probeIdRef = useRef(0);
+
+  useEffect(() => {
+    const marketFullyVisible = () => {
+      const marketColumn = refs.marketColumnRef.current;
+      const developmentMarket = refs.developmentMarketRef.current;
+      const tierList = refs.marketTierListRef.current;
+      const publicBank = refs.publicBankStripRef.current;
+      if (!marketColumn || !developmentMarket || !tierList || !publicBank) return false;
+
+      const topPanel = marketColumn.querySelector<HTMLElement>(".noble-panel");
+      const tierRows = Array.from(tierList.querySelectorAll<HTMLElement>(".market-tier-row"));
+      return (
+        elementFitsVertically(marketColumn) &&
+        elementFitsVertically(topPanel) &&
+        elementFitsVertically(developmentMarket) &&
+        elementFitsVertically(tierList) &&
+        elementFitsVertically(publicBank) &&
+        tierRows.length === 3 &&
+        tierRows.every((row) => childFitsInside(tierList, row))
+      );
+    };
+
+    const runProbe = () => {
+      probeIdRef.current += 1;
+      const probeId = probeIdRef.current;
+      if (window.innerWidth < 1180) {
+        setEnabled(false);
+        return;
+      }
+
+      setEnabled(true);
+      const verify = () => {
+        if (probeId !== probeIdRef.current) return;
+        if (!marketFullyVisible()) setEnabled(false);
+      };
+      requestAnimationFrame(() => requestAnimationFrame(verify));
+      window.setTimeout(verify, 280);
+      window.setTimeout(verify, 780);
+    };
+
+    runProbe();
+    window.addEventListener("resize", runProbe);
+    return () => {
+      probeIdRef.current += 1;
+      window.removeEventListener("resize", runProbe);
+    };
+  }, [gameState.roomId, gameState.variant, gameState.lastAction, refs.marketColumnRef, refs.developmentMarketRef, refs.marketTierListRef, refs.publicBankStripRef]);
+
+  return enabled;
+}
+
 export function GameBoard({ gameState, pendingDiscardExcess }: GameBoardProps) {
   const myPlayer = gameState.players.find((player) => player.id === gameState.myPlayerId)!;
   const currentPlayer = gameState.players.find((player) => player.id === gameState.currentPlayerId);
@@ -166,6 +239,11 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
   const [opponentsOpen, setOpponentsOpen] = useState(false);
   const [actionLogOpen, setActionLogOpen] = useState(false);
   const [dragAutoOpened, setDragAutoOpened] = useState(false);
+  const marketColumnRef = useRef<HTMLElement | null>(null);
+  const developmentMarketRef = useRef<HTMLElement | null>(null);
+  const marketTierListRef = useRef<HTMLDivElement | null>(null);
+  const publicBankStripRef = useRef<HTMLElement | null>(null);
+  const workbenchMode = useWorkbenchMode(gameState, { marketColumnRef, developmentMarketRef, marketTierListRef, publicBankStripRef });
   const wasDraggingRef = useRef(false);
   const suppressDrawerHeadClickUntilRef = useRef(0);
   const suppressOutsideClickUntilRef = useRef(0);
@@ -173,6 +251,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
   const logs = actionLogEntries(gameState);
   const latestLog = logs[logs.length - 1];
   const turnToast = useTurnReminder(gameState, myPlayer, currentPlayer);
+  const effectiveMyAreaOpen = workbenchMode || myAreaOpen;
 
   useEffect(() => {
     if (mustDiscard) {
@@ -181,7 +260,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
   }, [mustDiscard]);
 
   useEffect(() => {
-    if (!myAreaOpen || dragAutoOpened) return;
+    if (workbenchMode || !myAreaOpen || dragAutoOpened) return;
 
     const closeOnOutsideClick = (event: MouseEvent) => {
       if (Date.now() < suppressOutsideClickUntilRef.current) return;
@@ -200,9 +279,10 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
     return () => {
       document.removeEventListener("click", closeOnOutsideClick, true);
     };
-  }, [dragAutoOpened, myAreaOpen]);
+  }, [dragAutoOpened, myAreaOpen, workbenchMode]);
 
   useEffect(() => {
+    if (workbenchMode) return;
     if (!activeDrag) {
       if (wasDraggingRef.current) {
         suppressDrawerHeadClickUntilRef.current = Date.now() + 250;
@@ -223,7 +303,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
       setMyAreaOpen(true);
       setDragAutoOpened(true);
     }
-  }, [activeDrag, activeDragPoint, dragAutoOpened, myAreaOpen]);
+  }, [activeDrag, activeDragPoint, dragAutoOpened, myAreaOpen, workbenchMode]);
 
   const handleSelectCard = (card: Card) => {
     setSelectedCard(card, "market");
@@ -235,6 +315,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
   };
 
   const closeMyAreaFromTable = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (workbenchMode) return;
     if (!myAreaOpen || dragAutoOpened) return;
     if (Date.now() < suppressOutsideClickUntilRef.current) return;
     suppressOutsideClickUntilRef.current = Date.now() + 320;
@@ -250,14 +331,15 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
   };
 
   const toggleMyAreaFromHead = () => {
+    if (workbenchMode) return;
     if (Date.now() < suppressDrawerHeadClickUntilRef.current) return;
     setMyAreaOpen((open) => !open);
   };
 
   return (
     <main
-      className={`game-shell tabletop-shell focus-table-shell ${gameState.variant === "pokemon" ? "pokemon-shell" : "classic-shell"} ${
-        myAreaOpen ? "my-drawer-open" : ""
+      className={`game-shell tabletop-shell focus-table-shell ${workbenchMode ? "workbench-mode" : ""} ${gameState.variant === "pokemon" ? "pokemon-shell" : "classic-shell"} ${
+        effectiveMyAreaOpen ? "my-drawer-open" : ""
       } ${opponentsOpen ? "opponents-drawer-open" : ""}`}
     >
       <header className="game-topbar tabletop-topbar">
@@ -295,10 +377,12 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
           </button>
           <button
             type="button"
-            className={`drawer-toggle-button ${myAreaOpen ? "active" : ""}`}
-            aria-label={myAreaOpen ? "收起我的区域" : "展开我的区域"}
-            aria-pressed={myAreaOpen}
-            onClick={() => setMyAreaOpen((open) => !open)}
+            className={`drawer-toggle-button ${effectiveMyAreaOpen ? "active" : ""}`}
+            aria-label={workbenchMode ? "我的区域已常驻显示" : effectiveMyAreaOpen ? "收起我的区域" : "展开我的区域"}
+            aria-pressed={effectiveMyAreaOpen}
+            onClick={() => {
+              if (!workbenchMode) setMyAreaOpen((open) => !open);
+            }}
           >
             <PanelBottomOpen size={18} />
           </button>
@@ -328,19 +412,19 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
           {latestLog ? <span title={latestLog.text}>{latestLog.text}</span> : null}
         </div>
         <section className="tabletop-main-column" aria-label="公共桌面">
-          <section className="market-column" aria-label={gameState.variant === "pokemon" ? "宝可梦市场" : "发展卡市场"}>
+          <section ref={marketColumnRef} className="market-column" aria-label={gameState.variant === "pokemon" ? "宝可梦市场" : "发展卡市场"}>
             {gameState.variant === "pokemon" ? (
               <PokemonSpecialRow gameState={gameState} onSelectCard={() => setMyAreaOpen(true)} />
             ) : (
               <NobleRow nobles={gameState.nobles} currentPlayer={myPlayer} />
             )}
 
-            <section className="development-market">
+            <section ref={developmentMarketRef} className="development-market">
               <div className="panel-heading slim">
                 <h2>{gameState.variant === "pokemon" ? "宝可梦市场" : "发展卡市场"}</h2>
                 <span>{gameState.variant === "pokemon" ? "点击或拖动选择，条件足够可直接捕捉" : "点击或拖动选择，条件足够可直接购买"}</span>
               </div>
-              <div className="market-tier-list">
+              <div ref={marketTierListRef} className="market-tier-list">
                 {tiers.map((row) => {
                   const tierState = gameState[row.key];
                   return (
@@ -358,12 +442,13 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
                       />
                       {tierState.faceUp.map((card, index) => (
                         <CardSlot
-                          key={card?.id ?? `${row.key}-${index}`}
+                          key={`${row.key}-${index}`}
                           card={card}
                           tier={row.tier}
                           selected={Boolean(card && selectedCard?.id === card.id)}
                           onClick={card ? () => handleSelectCard(card as Card) : undefined}
                           variant={gameState.variant}
+                          dealIndex={index}
                         />
                       ))}
                       <div className="market-drop-hint" aria-hidden="true">
@@ -376,7 +461,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
             </section>
           </section>
 
-          <section className="public-bank-strip" aria-label={gameState.variant === "pokemon" ? "公共精灵球池" : "公共宝石池"}>
+          <section ref={publicBankStripRef} className="public-bank-strip" aria-label={gameState.variant === "pokemon" ? "公共精灵球池" : "公共宝石池"}>
             <GemBank bank={gameState.bank} selected={stagedTakeGems} onToggle={handleStageTakeGem} variant={gameState.variant} compact />
             <div className="turn-note">
               <strong>{isMyTurn ? "你的回合" : `等待 ${currentPlayer?.username ?? "玩家"}`}</strong>
@@ -427,7 +512,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
         </div>
       </aside>
 
-      <section className={`my-area-drawer ${myAreaOpen ? "open" : ""} ${dragAutoOpened ? "drag-hot-open" : ""}`} aria-label="我的宝石与行动抽屉">
+      <section className={`my-area-drawer ${effectiveMyAreaOpen ? "open" : ""} ${dragAutoOpened ? "drag-hot-open" : ""}`} aria-label="我的宝石与行动抽屉">
         <div
           className="my-area-drawer-head"
           onClick={toggleMyAreaFromHead}
@@ -439,11 +524,11 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
           }}
           role="button"
           tabIndex={0}
-          aria-expanded={myAreaOpen}
+          aria-expanded={effectiveMyAreaOpen}
         >
           <MyGemsZone player={myPlayer} className="my-drawer-gems" variant={gameState.variant} />
         </div>
-        <div className="my-area-drawer-body" aria-hidden={!myAreaOpen}>
+        <div className="my-area-drawer-body" aria-hidden={!effectiveMyAreaOpen}>
           <MyAreaPanel player={myPlayer} variant={gameState.variant} />
         </div>
       </section>

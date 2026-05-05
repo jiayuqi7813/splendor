@@ -123,6 +123,7 @@ export interface PlayerTracePayload {
   avatarId: number;
   x: number;
   y: number;
+  trail?: Array<{ x: number; y: number; at: number }>;
   item: TraceItem;
   targetId?: string;
   at: number;
