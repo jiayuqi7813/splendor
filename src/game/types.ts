@@ -230,7 +230,7 @@ export function tokenImageUrl(color: GemColor, variant: GameVariant = "classic")
     brown: "token-onyx.png",
     gold: "token-gold.png",
   };
-  return `/assets/${names[color]}`;
+  return `/assets/splendor-base/${names[color]}`;
 }
 
 export function deckBackUrl(tier: 1 | 2 | 3, variant: GameVariant = "classic", deckKind: CardDeckKind = "common") {
@@ -238,7 +238,7 @@ export function deckBackUrl(tier: 1 | 2 | 3, variant: GameVariant = "classic", d
     const file = deckKind === "rare" ? "rare" : deckKind === "legendary" ? "legendary" : `stage${tier}`;
     return `/assets/pokemon-splendor/card-backs/${file}.webp`;
   }
-  return `/assets/card-back-tier${tier}.png`;
+  return `/assets/splendor-base/card-back-tier${tier}.png`;
 }
 
 export function isHiddenCard(card: ReservedCard): card is HiddenCard {

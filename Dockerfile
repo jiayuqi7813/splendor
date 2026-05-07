@@ -1,16 +1,26 @@
-FROM node:20-alpine AS builder
+ARG NODE_IMAGE=node:22-alpine
+
+FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
+
 COPY package*.json ./
 RUN npm ci
+
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine
+FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
-COPY --from=builder /app/.output ./.output
-COPY --from=builder /app/package*.json ./
-RUN npm ci --omit=dev
+
 ENV NODE_ENV=production
+ENV HOST=0.0.0.0
 ENV PORT=3000
+
+COPY package*.json ./
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+
+COPY --from=builder /app/.output ./.output
+
 EXPOSE 3000
+
 CMD ["node", ".output/server/index.mjs"]

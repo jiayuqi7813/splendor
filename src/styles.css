@@ -51,7 +51,7 @@ body,
 body {
   background:
     linear-gradient(180deg, oklch(23% 0.035 62 / 0.28), oklch(12% 0.025 52 / 0.36)),
-    url("/assets/tabletop-wood.jpg") center / cover fixed,
+    url("/assets/splendor-base/tabletop-wood.jpg") center / cover fixed,
     linear-gradient(180deg, oklch(100% 0.004 220), var(--page));
   color: var(--ink);
   overflow: hidden;
@@ -2043,7 +2043,7 @@ textarea {
   background:
     radial-gradient(circle at 50% -18%, oklch(86% 0.06 210 / 0.2), transparent 38%),
     linear-gradient(180deg, oklch(100% 0.006 220 / 0.52), oklch(20% 0.04 65 / 0.15)),
-    url("/assets/tabletop-wood.jpg") center / cover;
+    url("/assets/splendor-base/tabletop-wood.jpg") center / cover;
   box-shadow: inset 0 0 0 1px oklch(100% 0 0 / 0.1), inset 0 28px 80px oklch(0% 0 0 / 0.14);
 }
 
@@ -6665,7 +6665,7 @@ body {
     radial-gradient(ellipse at 52% 38%, rgba(255, 214, 148, 0.12), transparent 36rem),
     linear-gradient(90deg, rgba(20, 9, 4, 0.22), transparent 22%, transparent 78%, rgba(20, 9, 4, 0.26)),
     linear-gradient(180deg, rgba(9, 4, 2, 0.08), rgba(9, 4, 2, 0.24)),
-    url("/assets/tabletop-wood.jpg") center / cover fixed;
+    url("/assets/splendor-base/tabletop-wood.jpg") center / cover fixed;
   color: var(--arena-ink);
 }
 
