@@ -10,6 +10,8 @@ import {
   startRoomGame,
   subscribeToRoom,
   unsubscribeFromRoom,
+  publishIntent,
+  getSnapshot,
 } from "./gameStore";
 import type { SeatCredentials, SseEnvelope } from "../shared/protocol";
 
@@ -38,18 +40,28 @@ const badReconnect = reconnectRoom({ ...host, reconnectToken: "bad-token" });
 assert.equal(Boolean(badReconnect.error), true);
 
 const hostEvents: SseEnvelope[] = [];
-const firstSubscription = subscribeToRoom(host, (event) => hostEvents.push(event));
+const firstSubscription = subscribeToRoom(host, 0, (event: SseEnvelope) => hostEvents.push(event));
 assert.ok(firstSubscription.connectionId);
-assert.equal(hostEvents[0]?.type, "roomUpdated");
+assert.equal(hostEvents[0]?.type, "joined");
 
 const replacementEvents: SseEnvelope[] = [];
-const secondSubscription = subscribeToRoom(host, (event) => replacementEvents.push(event));
+const secondSubscription = subscribeToRoom(host, 0, (event: SseEnvelope) => replacementEvents.push(event));
 assert.ok(secondSubscription.connectionId);
 assert.equal(hostEvents.some((event) => event.type === "sessionReplaced"), true);
 
 const started = startRoomGame(host);
 assert.equal(started.error, undefined);
-assert.equal(replacementEvents.some((event) => event.type === "gameState"), true);
+assert.equal(replacementEvents.some((event) => event.type === "snapshot"), true);
+
+const intentEvents: SseEnvelope[] = [];
+const guestSubscription = subscribeToRoom(guest, 0, (event: SseEnvelope) => intentEvents.push(event));
+assert.ok(guestSubscription.connectionId);
+const intentResult = publishIntent(
+  started.gameState!.currentPlayerId === host.playerId ? host : guest,
+  { type: "hoverGem", color: "red", area: "bank" },
+);
+assert.equal(intentResult.error, undefined);
+assert.equal([...intentEvents, ...replacementEvents].some((event) => event.type === "intent"), true);
 
 const currentPlayerId = started.gameState!.currentPlayerId;
 const nonCurrent = currentPlayerId === host.playerId ? guest : host;
@@ -58,6 +70,12 @@ const rejected = sendGameCommand({
   command: { type: "takeGems", colors: ["red", "blue", "green"] },
 });
 assert.equal(Boolean(rejected.error), true);
+assert.equal(replacementEvents.some((event) => event.type === "error"), true);
+
+const snapshot = getSnapshot(host);
+assert.equal(snapshot.error, undefined);
+assert.equal(snapshot.seq! > 0, true);
+assert.ok(snapshot.room);
 
 unsubscribeFromRoom(host.roomId, host.playerId, secondSubscription.connectionId!);
 assert.equal(getRoom(host.roomId)?.players.find((player) => player.id === host.playerId)?.connected, false);

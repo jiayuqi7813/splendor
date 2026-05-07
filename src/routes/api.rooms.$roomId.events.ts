@@ -7,6 +7,7 @@ export const Route = createFileRoute("/api/rooms/$roomId/events")({
     handlers: {
       GET: async ({ request, params }) => {
         const url = new URL(request.url);
+        const after = Number(url.searchParams.get("after") ?? 0);
         const credentials = seatCredentialsSchema.safeParse({
           roomId: params.roomId,
           playerId: url.searchParams.get("playerId") ?? "",
@@ -20,15 +21,24 @@ export const Route = createFileRoute("/api/rooms/$roomId/events")({
         const encoder = new TextEncoder();
         let connectionId = "";
         let heartbeat: ReturnType<typeof setInterval> | null = null;
+        let closed = false;
+
+        const closeConnection = () => {
+          if (closed) return;
+          closed = true;
+          if (heartbeat) clearInterval(heartbeat);
+          if (connectionId) unsubscribeFromRoom(credentials.data.roomId, credentials.data.playerId, connectionId);
+        };
 
         const stream = new ReadableStream<Uint8Array>({
           start(controller) {
             const send = (event: SseEnvelope) => {
-              controller.enqueue(encoder.encode(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`));
+              const id = "seq" in event ? `id: ${event.seq}\n` : "";
+              controller.enqueue(encoder.encode(`${id}event: room\ndata: ${JSON.stringify(event)}\n\n`));
             };
-            const result = subscribeToRoom(credentials.data, send);
+            const result = subscribeToRoom(credentials.data, Number.isFinite(after) ? after : 0, send);
             if (result.error || !result.connectionId) {
-              send({ type: "error", message: result.error ?? "恢复房间失败。" });
+              send({ seq: 0, type: "error", message: result.error ?? "恢复房间失败。" });
               controller.close();
               return;
             }
@@ -36,15 +46,11 @@ export const Route = createFileRoute("/api/rooms/$roomId/events")({
             heartbeat = setInterval(() => send({ type: "heartbeat", at: Date.now() }), 25000);
           },
           cancel() {
-            if (heartbeat) clearInterval(heartbeat);
-            if (connectionId) unsubscribeFromRoom(credentials.data.roomId, credentials.data.playerId, connectionId);
+            closeConnection();
           },
         });
 
-        request.signal.addEventListener("abort", () => {
-          if (heartbeat) clearInterval(heartbeat);
-          if (connectionId) unsubscribeFromRoom(credentials.data.roomId, credentials.data.playerId, connectionId);
-        });
+        request.signal.addEventListener("abort", closeConnection);
 
         return new Response(stream, {
           headers: {

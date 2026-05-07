@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as HealthRouteImport } from './routes/health'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiRoomsRoomIdSnapshotRouteImport } from './routes/api.rooms.$roomId.snapshot'
+import { Route as ApiRoomsRoomIdIntentsRouteImport } from './routes/api.rooms.$roomId.intents'
 import { Route as ApiRoomsRoomIdEventsRouteImport } from './routes/api.rooms.$roomId.events'
 
 const HealthRoute = HealthRouteImport.update({
@@ -23,6 +25,16 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiRoomsRoomIdSnapshotRoute = ApiRoomsRoomIdSnapshotRouteImport.update({
+  id: '/api/rooms/$roomId/snapshot',
+  path: '/api/rooms/$roomId/snapshot',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiRoomsRoomIdIntentsRoute = ApiRoomsRoomIdIntentsRouteImport.update({
+  id: '/api/rooms/$roomId/intents',
+  path: '/api/rooms/$roomId/intents',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRoomsRoomIdEventsRoute = ApiRoomsRoomIdEventsRouteImport.update({
   id: '/api/rooms/$roomId/events',
   path: '/api/rooms/$roomId/events',
@@ -33,30 +45,54 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/health': typeof HealthRoute
   '/api/rooms/$roomId/events': typeof ApiRoomsRoomIdEventsRoute
+  '/api/rooms/$roomId/intents': typeof ApiRoomsRoomIdIntentsRoute
+  '/api/rooms/$roomId/snapshot': typeof ApiRoomsRoomIdSnapshotRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/health': typeof HealthRoute
   '/api/rooms/$roomId/events': typeof ApiRoomsRoomIdEventsRoute
+  '/api/rooms/$roomId/intents': typeof ApiRoomsRoomIdIntentsRoute
+  '/api/rooms/$roomId/snapshot': typeof ApiRoomsRoomIdSnapshotRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/health': typeof HealthRoute
   '/api/rooms/$roomId/events': typeof ApiRoomsRoomIdEventsRoute
+  '/api/rooms/$roomId/intents': typeof ApiRoomsRoomIdIntentsRoute
+  '/api/rooms/$roomId/snapshot': typeof ApiRoomsRoomIdSnapshotRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/health' | '/api/rooms/$roomId/events'
+  fullPaths:
+    | '/'
+    | '/health'
+    | '/api/rooms/$roomId/events'
+    | '/api/rooms/$roomId/intents'
+    | '/api/rooms/$roomId/snapshot'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/health' | '/api/rooms/$roomId/events'
-  id: '__root__' | '/' | '/health' | '/api/rooms/$roomId/events'
+  to:
+    | '/'
+    | '/health'
+    | '/api/rooms/$roomId/events'
+    | '/api/rooms/$roomId/intents'
+    | '/api/rooms/$roomId/snapshot'
+  id:
+    | '__root__'
+    | '/'
+    | '/health'
+    | '/api/rooms/$roomId/events'
+    | '/api/rooms/$roomId/intents'
+    | '/api/rooms/$roomId/snapshot'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HealthRoute: typeof HealthRoute
   ApiRoomsRoomIdEventsRoute: typeof ApiRoomsRoomIdEventsRoute
+  ApiRoomsRoomIdIntentsRoute: typeof ApiRoomsRoomIdIntentsRoute
+  ApiRoomsRoomIdSnapshotRoute: typeof ApiRoomsRoomIdSnapshotRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -75,6 +111,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/rooms/$roomId/snapshot': {
+      id: '/api/rooms/$roomId/snapshot'
+      path: '/api/rooms/$roomId/snapshot'
+      fullPath: '/api/rooms/$roomId/snapshot'
+      preLoaderRoute: typeof ApiRoomsRoomIdSnapshotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/rooms/$roomId/intents': {
+      id: '/api/rooms/$roomId/intents'
+      path: '/api/rooms/$roomId/intents'
+      fullPath: '/api/rooms/$roomId/intents'
+      preLoaderRoute: typeof ApiRoomsRoomIdIntentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/rooms/$roomId/events': {
       id: '/api/rooms/$roomId/events'
       path: '/api/rooms/$roomId/events'
@@ -89,6 +139,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HealthRoute: HealthRoute,
   ApiRoomsRoomIdEventsRoute: ApiRoomsRoomIdEventsRoute,
+  ApiRoomsRoomIdIntentsRoute: ApiRoomsRoomIdIntentsRoute,
+  ApiRoomsRoomIdSnapshotRoute: ApiRoomsRoomIdSnapshotRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

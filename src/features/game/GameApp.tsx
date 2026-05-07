@@ -1,12 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { GameBoard } from "~/components/GameBoard";
 import { GameOverModal } from "~/components/GameOverModal";
 import LobbyScreen from "~/components/LobbyScreen";
 import { WaitingRoom } from "~/components/WaitingRoom";
 import { clearSeatSession, readSeatSession, saveSeatSession, type StoredSeatSession } from "./reconnectSession";
 import { createRoomFn, joinRoomFn, reconnectRoomFn, sendGameCommandFn, startGameFn } from "./serverFns";
-import type { GameCommand, SeatResponse, SseEnvelope } from "~/shared/protocol";
+import type { GameCommand, RoomIntent, RoomIntentEvent, RoomStateEvent, SeatResponse, SseEnvelope } from "~/shared/protocol";
 import type { GameOverPayload, GameState, GameVariant, RoomState } from "~/types";
 
 type Screen = "lobby" | "waiting" | "game";
@@ -24,14 +24,18 @@ function gameQueryKey(roomId: string, playerId: string) {
   return ["gameState", roomId, playerId] as const;
 }
 
-function eventUrl(session: StoredSeatSession | null) {
-  if (!session) return "";
-  const params = new URLSearchParams({
-    playerId: session.playerId,
-    reconnectToken: session.reconnectToken,
-  });
-  return `/api/rooms/${encodeURIComponent(session.roomId)}/events?${params.toString()}`;
-}
+type DeferredStateUpdate = {
+  seq: number;
+  room?: RoomState;
+  state?: GameState;
+  timer: number;
+};
+
+type PendingDeferredSubmit = {
+  deferStateMs: number;
+  deadlineMs: number;
+  timer: number;
+};
 
 export function GameApp() {
   const queryClient = useQueryClient();
@@ -50,6 +54,13 @@ export function GameApp() {
   const [lobbyBusy, setLobbyBusy] = useState(false);
   const [restoringSession, setRestoringSession] = useState(false);
   const [activeSession, setActiveSession] = useState<StoredSeatSession | null>(null);
+  const [remoteIntent, setRemoteIntent] = useState<RoomIntentEvent | null>(null);
+  const seqRef = useRef(0);
+  const roomStateRef = useRef<RoomState | null>(null);
+  const gameStateRef = useRef<GameState | null>(null);
+  const deferredStateRef = useRef<DeferredStateUpdate | null>(null);
+  const pendingDeferredSubmitRef = useRef<PendingDeferredSubmit | null>(null);
+  const remoteIntentTimerRef = useRef<number | null>(null);
 
   const { data: roomState = null } = useQuery({
     queryKey: roomQueryKey(roomId, playerId),
@@ -100,11 +111,141 @@ export function GameApp() {
     setRoomId("");
     setPlayerId("");
     setGameOver(null);
+    setRemoteIntent(null);
     setDiscardExcess(0);
+    seqRef.current = 0;
+    roomStateRef.current = null;
+    gameStateRef.current = null;
+    window.clearTimeout(deferredStateRef.current?.timer);
+    window.clearTimeout(pendingDeferredSubmitRef.current?.timer);
+    window.clearTimeout(remoteIntentTimerRef.current ?? undefined);
+    deferredStateRef.current = null;
+    pendingDeferredSubmitRef.current = null;
     setLobbyBusy(false);
     setRestoringSession(false);
     setScreen("lobby");
     if (message) setError(message);
+  };
+
+  const applyAuthoritativeState = (seq: number, room?: RoomState, state?: GameState) => {
+    seqRef.current = Math.max(seqRef.current, seq);
+    if (room) {
+      roomStateRef.current = room;
+      queryClient.setQueryData(roomQueryKey(room.roomId, activeSession?.playerId ?? playerId), room);
+      setRoomId(room.roomId);
+      if (!room.started) setScreen("waiting");
+    }
+    if (state) {
+      gameStateRef.current = state;
+      queryClient.setQueryData(gameQueryKey(state.roomId, state.myPlayerId), state);
+      setRoomId(state.roomId);
+      setPlayerId(state.myPlayerId);
+      setScreen("game");
+      if (!state.pendingDiscardPlayerId) setDiscardExcess(0);
+    }
+  };
+
+  const scheduleDeferredState = (seq: number, room: RoomState | undefined, state: GameState | undefined, delayMs: number) => {
+    window.clearTimeout(deferredStateRef.current?.timer);
+    seqRef.current = Math.max(seqRef.current, seq);
+    deferredStateRef.current = {
+      seq,
+      room,
+      state,
+      timer: window.setTimeout(() => {
+        if (deferredStateRef.current?.seq !== seq) return;
+        applyAuthoritativeState(seq, room, state);
+        deferredStateRef.current = null;
+      }, Math.max(0, delayMs)),
+    };
+  };
+
+  const flushDeferredStateBefore = (nextSeq: number) => {
+    const deferred = deferredStateRef.current;
+    if (!deferred || nextSeq <= deferred.seq) return;
+    window.clearTimeout(deferred.timer);
+    deferredStateRef.current = null;
+    applyAuthoritativeState(deferred.seq, deferred.room, deferred.state);
+  };
+
+  const markPendingDeferredSubmit = (deferStateMs: number) => {
+    window.clearTimeout(pendingDeferredSubmitRef.current?.timer);
+    pendingDeferredSubmitRef.current = {
+      deferStateMs,
+      deadlineMs: performance.now() + deferStateMs,
+      timer: window.setTimeout(() => {
+        pendingDeferredSubmitRef.current = null;
+      }, Math.max(1800, deferStateMs + 900)),
+    };
+  };
+
+  const pendingDeferredDelay = (fallbackMs: number) => {
+    const pending = pendingDeferredSubmitRef.current;
+    if (!pending) return fallbackMs;
+    return Math.max(0, pending.deadlineMs - performance.now());
+  };
+
+  const clearPendingDeferredSubmit = () => {
+    window.clearTimeout(pendingDeferredSubmitRef.current?.timer);
+    pendingDeferredSubmitRef.current = null;
+  };
+
+  const consumePendingDeferredState = (event: RoomStateEvent) => {
+    const pending = pendingDeferredSubmitRef.current;
+    if (!pending || event.seq <= seqRef.current) return false;
+    const remainingMs = pendingDeferredDelay(pending.deferStateMs);
+    clearPendingDeferredSubmit();
+    scheduleDeferredState(event.seq, event.room, event.state, remainingMs);
+    return true;
+  };
+
+  const applyRoomEventSideEffects = (event: RoomStateEvent) => {
+    if (event.type === "actionRequired" && event.action?.type === "discard_tokens") {
+      setDiscardExcess(event.action.excess);
+    }
+    if (event.type === "gameOver" && event.payload) {
+      setGameOver(event.payload);
+      setScreen("game");
+    }
+    if (event.type === "error") setError(event.message);
+  };
+
+  const applyRoomEvent = (event: RoomStateEvent) => {
+    if (event.seq <= seqRef.current && !deferredStateRef.current) {
+      applyRoomEventSideEffects(event);
+      return;
+    }
+    flushDeferredStateBefore(event.seq);
+    if (consumePendingDeferredState(event)) return;
+    const shouldDefer = event.type === "action" || event.type === "gameOver";
+    if (shouldDefer) {
+      scheduleDeferredState(event.seq, event.room, event.state, 420);
+    } else {
+      applyAuthoritativeState(event.seq, event.room, event.state);
+    }
+    applyRoomEventSideEffects(event);
+  };
+
+  const handleRemoteIntent = (event: RoomIntentEvent) => {
+    if (event.playerId === playerId) return;
+    window.clearTimeout(remoteIntentTimerRef.current ?? undefined);
+    if (event.intent.type === "clear") {
+      setRemoteIntent(null);
+      return;
+    }
+    setRemoteIntent(event);
+    remoteIntentTimerRef.current = window.setTimeout(() => setRemoteIntent(null), 1800);
+  };
+
+  const refreshSnapshot = async (session: StoredSeatSession) => {
+    const params = new URLSearchParams({ playerId: session.playerId, reconnectToken: session.reconnectToken });
+    const response = await fetch(`/api/rooms/${encodeURIComponent(session.roomId)}/snapshot?${params.toString()}`);
+    const data = (await response.json().catch(() => ({}))) as { seq?: number; room?: RoomState; state?: GameState; error?: string };
+    if (!response.ok || data.error) throw new Error(data.error ?? "同步房间失败");
+    if (typeof data.seq === "number") {
+      flushDeferredStateBefore(data.seq);
+      applyAuthoritativeState(data.seq, data.room, data.state);
+    }
   };
 
   const applySeatResponse = (session: StoredSeatSession, response: SeatResponse) => {
@@ -166,29 +307,16 @@ export function GameApp() {
 
   useEffect(() => {
     if (!activeSession) return;
-    const source = new EventSource(eventUrl(activeSession));
+    const params = new URLSearchParams({
+      playerId: activeSession.playerId,
+      reconnectToken: activeSession.reconnectToken,
+      after: String(seqRef.current),
+    });
+    const source = new EventSource(`/api/rooms/${encodeURIComponent(activeSession.roomId)}/events?${params.toString()}`);
     const handleEnvelope = (envelope: SseEnvelope) => {
-      if (envelope.type === "roomUpdated") {
-        queryClient.setQueryData(roomQueryKey(activeSession.roomId, activeSession.playerId), envelope.room);
-        setRoomId(envelope.room.roomId);
-        if (!envelope.room.started) setScreen("waiting");
-      }
-      if (envelope.type === "gameState") {
-        queryClient.setQueryData(gameQueryKey(activeSession.roomId, activeSession.playerId), envelope.state);
-        setRoomId(envelope.state.roomId);
-        setPlayerId(envelope.state.myPlayerId);
-        setScreen("game");
-        if (!envelope.state.pendingDiscardPlayerId) setDiscardExcess(0);
-      }
-      if (envelope.type === "actionRequired" && envelope.action.type === "discard_tokens") {
-        setDiscardExcess(envelope.action.excess);
-      }
-      if (envelope.type === "gameOver") {
-        setGameOver(envelope.payload);
-        setScreen("game");
-      }
-      if (envelope.type === "error") {
-        setError(envelope.message);
+      if (envelope.type === "intent") handleRemoteIntent(envelope);
+      if (envelope.type === "snapshot" || envelope.type === "joined" || envelope.type === "action" || envelope.type === "error" || envelope.type === "gameOver" || envelope.type === "actionRequired") {
+        applyRoomEvent(envelope);
       }
       if (envelope.type === "sessionReplaced") {
         leaveSeatLocally("这个座位已在另一个窗口恢复连接，本窗口已退出桌局。");
@@ -201,9 +329,8 @@ export function GameApp() {
         setError("服务器推送数据解析失败。");
       }
     };
-    ["roomUpdated", "gameState", "actionRequired", "gameOver", "sessionReplaced", "error", "heartbeat"].forEach((type) => {
-      source.addEventListener(type, parseEvent);
-    });
+    source.addEventListener("open", () => void refreshSnapshot(activeSession).catch((err) => setError(err instanceof Error ? err.message : "同步房间失败")));
+    source.addEventListener("room", parseEvent);
     source.onerror = () => setError("实时连接中断，正在尝试自动恢复。");
     return () => source.close();
   }, [activeSession?.roomId, activeSession?.playerId, activeSession?.reconnectToken, queryClient]);
@@ -283,15 +410,34 @@ export function GameApp() {
       setError("玩家连接状态不存在，请重新进入房间。");
       return;
     }
-    const response = await sendGameCommandFn({
-      data: {
-        roomId: session.roomId,
-        playerId: session.playerId,
-        reconnectToken: session.reconnectToken,
-        command,
-      },
-    });
-    if (!response.ok) setError(response.error);
+    markPendingDeferredSubmit(420);
+    try {
+      const response = await sendGameCommandFn({
+        data: {
+          roomId: session.roomId,
+          playerId: session.playerId,
+          reconnectToken: session.reconnectToken,
+          command,
+        },
+      });
+      if (!response.ok) {
+        clearPendingDeferredSubmit();
+        setError(response.error);
+      }
+    } catch {
+      clearPendingDeferredSubmit();
+      setError("行动提交失败。");
+    }
+  };
+
+  const publishIntent = async (intent: RoomIntent) => {
+    const session = readSeatSession();
+    if (!session) return;
+    await fetch(`/api/rooms/${encodeURIComponent(session.roomId)}/intents`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId: session.playerId, reconnectToken: session.reconnectToken, intent }),
+    }).catch(() => undefined);
   };
 
   const resetToLobby = () => {
@@ -333,7 +479,7 @@ export function GameApp() {
   if (screen === "game" && gameState && myPlayer) {
     return (
       <>
-        <GameBoard gameState={gameState} pendingDiscardExcess={discardExcess || null} onCommand={sendCommand} />
+        <GameBoard gameState={gameState} pendingDiscardExcess={discardExcess || null} onCommand={sendCommand} onIntent={publishIntent} remoteIntent={remoteIntent} />
         {gameOver ? <GameOverModal payload={gameOver} onReturnToLobby={resetToLobby} /> : null}
       </>
     );

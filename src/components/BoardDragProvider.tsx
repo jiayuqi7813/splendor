@@ -17,6 +17,7 @@ import {
   type CollisionDetection,
 } from "@dnd-kit/core";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import type { RoomIntent, RoomIntentEvent } from "../shared/protocol";
 import type { BasicColor, Card, GameState, GameVariant, GemColor, Gems, PlayerState, PlayerTracePayload, TraceItem, TracePhase, TracePointPayload } from "../types";
 import { AVATARS, BASIC_COLORS, cardImageUrl, colorLabelsFor, deckBackUrl, isHiddenCard, tokenImagesFor } from "../types";
 
@@ -85,6 +86,7 @@ interface BoardDragContextValue {
   canHandleEvolution: boolean;
   confirmEvolution: (targetCardId: string) => void;
   skipEvolution: () => void;
+  remoteIntent: RoomIntentEvent | null;
 }
 
 const BoardDragContext = createContext<BoardDragContextValue | null>(null);
@@ -363,6 +365,8 @@ export function BoardDragProvider({
   onBuyCard,
   onDiscardTokens,
   onEvolvePokemon,
+  onIntent,
+  remoteIntent,
   children,
 }: {
   gameState: GameState;
@@ -374,6 +378,8 @@ export function BoardDragProvider({
   onBuyCard: (cardId: string, goldSubstitutions: Partial<Record<BasicColor, number>>) => void;
   onDiscardTokens: (tokens: Partial<Gems>) => void;
   onEvolvePokemon: (targetCardId: string | null, skip?: boolean) => void;
+  onIntent?: (intent: RoomIntent) => void;
+  remoteIntent?: RoomIntentEvent | null;
   children: ReactNode;
 }) {
   const [activeDrag, setActiveDrag] = useState<DragPayload | null>(null);
@@ -400,6 +406,8 @@ export function BoardDragProvider({
   const cursorIdleTimerRef = useRef<number | null>(null);
   const removeTraceTimersRef = useRef<Record<string, number>>({});
   const removeClickTimersRef = useRef<Record<string, number>>({});
+  const lastIntentEmitRef = useRef(0);
+  const lastIntentKeyRef = useRef("");
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor));
   const isMyTurn = gameState.currentPlayerId === me.id;
@@ -605,8 +613,99 @@ export function BoardDragProvider({
     onEvolvePokemon(null, true);
   };
 
-  const emitTrace = (_phase: TracePhase, _payload: DragPayload, _point: TracePoint, _targetId?: string) => {
-    return;
+  const canShareIntent = (intent: RoomIntent) => {
+    if (intent.type === "clear") return true;
+    return isMyTurn || mustDiscard || canHandleEvolution;
+  };
+
+  const publishIntent = (intent: RoomIntent, force = false) => {
+    if (!onIntent || !canShareIntent(intent)) return;
+    const key = JSON.stringify(intent);
+    const now = Date.now();
+    if (!force && key === lastIntentKeyRef.current && now - lastIntentEmitRef.current < 160) return;
+    if (!force && now - lastIntentEmitRef.current < 70) return;
+    lastIntentKeyRef.current = key;
+    lastIntentEmitRef.current = now;
+    onIntent(intent);
+  };
+
+  const cardSourceFromPayload = (payload: DragPayload): Extract<RoomIntent, { type: "hoverCard" }>["source"] => {
+    if (payload.kind === "market-card") return { type: "market", cardId: payload.card.id };
+    if (payload.kind === "reserved-card") return { type: "reserved", cardId: payload.card.id };
+    if (payload.kind === "deck") return { type: "deck", tier: payload.tier };
+    return undefined;
+  };
+
+  const intentSourceForTarget = (targetId?: string) => {
+    if (!targetId) return activeDragRef.current ? cardSourceFromPayload(activeDragRef.current) : undefined;
+    if (targetId.startsWith("card-drop:")) {
+      const cardId = targetId.replace("card-drop:", "");
+      return isReservedCard(me, cardId) ? ({ type: "reserved", cardId } as const) : ({ type: "market", cardId } as const);
+    }
+    return selectedCard ? ({ type: selectedCardSource === "reserved" ? "reserved" : "market", cardId: selectedCard.id } as const) : undefined;
+  };
+
+  const paymentIntentFor = (targetId: string | undefined, gem?: GemColor): RoomIntent | null => {
+    const source = intentSourceForTarget(targetId);
+    if (!source || source.type === "deck") return null;
+    const card = findCardById(gameState, me, source.cardId);
+    return { type: "paymentTarget", source, gem, valid: Boolean(createPaymentPlan(me, card)?.canBuy) };
+  };
+
+  const emitTrace = (phase: TracePhase, payload: DragPayload, point: TracePoint, targetId?: string) => {
+    if (phase === "end" || phase === "cancel") {
+      publishIntent({ type: "clear" }, true);
+      return;
+    }
+
+    if (payload.kind === "bank-gem") {
+      if (targetId === "my-gems-zone") {
+        const colors = [...stagedTakeGems, payload.color];
+        const selection = validateTakeSelection(colors, gameState.bank, colorLabels);
+        publishIntent({ type: "gemSelection", colors, valid: selection.valid, ...(selection.valid ? {} : { invalidPoint: { x: point.x, y: point.y } }) });
+      } else {
+        publishIntent({ type: "hoverGem", color: payload.color, area: "bank" });
+      }
+      return;
+    }
+
+    if (payload.kind === "my-gem") {
+      if (targetId === "discard-zone") {
+        const tokens = incrementGem(stagedDiscard, payload.color);
+        publishIntent({ type: "discardSelection", tokens, valid: totalGems(me.gems) - totalGems(tokens) <= 10 });
+        return;
+      }
+      if (targetId === "payment-zone" || targetId === "selected-card-zone" || targetId?.startsWith("card-drop:")) {
+        const paymentIntent = paymentIntentFor(targetId, payload.color);
+        if (paymentIntent) publishIntent(paymentIntent);
+        return;
+      }
+      publishIntent({ type: "hoverGem", color: payload.color, area: "mine" });
+      return;
+    }
+
+    if (payload.kind === "market-card" && targetId === "reserve-zone") {
+      publishIntent({ type: "reserveTarget", source: cardSourceFromPayload(payload), valid: me.reservedCards.length < 3 });
+      return;
+    }
+    if (payload.kind === "deck" && targetId === "reserve-zone") {
+      publishIntent({ type: "reserveTarget", source: cardSourceFromPayload(payload), valid: me.reservedCards.length < 3 });
+      return;
+    }
+
+    if ((payload.kind === "market-card" || payload.kind === "reserved-card") && (targetId === "selected-card-zone" || targetId?.startsWith("card-drop:"))) {
+      publishIntent(paymentIntentFor(targetId, undefined) ?? { type: "hoverCard", source: cardSourceFromPayload(payload) });
+      return;
+    }
+
+    if (gameState.variant === "pokemon" && (payload.kind === "market-card" || payload.kind === "reserved-card") && canHandleEvolution) {
+      publishIntent({ type: "evolutionTarget", cardId: payload.card.id, valid: availableEvolutions.some((card) => card.id === payload.card.id) });
+      return;
+    }
+
+    if (payload.kind === "market-card" || payload.kind === "reserved-card" || payload.kind === "deck") {
+      publishIntent({ type: "hoverCard", source: cardSourceFromPayload(payload) });
+    }
   };
 
   const pointFromDragDelta = (event: DragMoveEvent | DragEndEvent | DragCancelEvent) => {
@@ -733,6 +832,7 @@ export function BoardDragProvider({
     canHandleEvolution,
     confirmEvolution,
     skipEvolution,
+    remoteIntent: remoteIntent ?? null,
   };
 
   return (
@@ -753,6 +853,7 @@ export function BoardDragProvider({
       >
         {children}
         <RemoteTraceLayer traces={remoteTraces} clickEffects={remoteClickEffects} variant={gameState.variant} />
+        <RemoteIntentLayer event={remoteIntent ?? null} gameState={gameState} />
         <DragOverlay>
           {activeDrag ? (
             <div className={`drag-overlay ${activeDrag.kind.includes("gem") ? "token" : "card"}`}>
@@ -884,6 +985,48 @@ function RemoteTraceLayer({ traces, clickEffects, variant }: { traces: RemoteTra
           }
         />
       ))}
+    </div>
+  );
+}
+
+function intentLabel(intent: RoomIntent, variant: GameVariant, labels: Record<GemColor, string>) {
+  const tokenText = variant === "pokemon" ? "精灵球" : "宝石";
+  const cardText = variant === "pokemon" ? "宝可梦" : "卡牌";
+  switch (intent.type) {
+    case "hoverGem":
+      return intent.color ? `正在查看${labels[intent.color]}` : `正在查看${tokenText}`;
+    case "gemSelection":
+      return intent.valid ? `准备拿取 ${intent.colors.map((color) => labels[color]).join("、")}` : "正在尝试拿取组合";
+    case "hoverCard":
+      return `正在查看${cardText}`;
+    case "paymentTarget":
+      return intent.valid ? `准备支付购买${cardText}` : `正在核对支付${cardText}`;
+    case "reserveTarget":
+      return intent.valid === false ? "预留目标不可用" : `准备预留${cardText}`;
+    case "discardSelection":
+      return intent.valid ? `正在选择弃置${tokenText}` : "弃置数量还不够";
+    case "evolutionTarget":
+      return intent.valid ? "正在选择进化目标" : "正在查看进化目标";
+    case "clear":
+      return "";
+  }
+}
+
+function RemoteIntentLayer({ event, gameState }: { event: RoomIntentEvent | null; gameState: GameState }) {
+  if (!event || event.intent.type === "clear") return null;
+  const player = gameState.players.find((item) => item.id === event.playerId);
+  const labels = colorLabelsFor(gameState.variant);
+  const color = traceColorFor(event.playerId, player?.avatarId ?? 0);
+  const text = intentLabel(event.intent, gameState.variant, labels);
+  const intentKind = event.intent.type.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+
+  return (
+    <div className={`remote-intent-layer remote-intent-${intentKind}`} aria-hidden="true">
+      <div className="remote-intent-pill" style={{ "--intent-color": color } as CSSProperties}>
+        <span className="remote-intent-avatar">{AVATARS[(player?.avatarId ?? 0) % AVATARS.length]}</span>
+        <strong>{player?.username ?? "其他玩家"}</strong>
+        <em>{text}</em>
+      </div>
     </div>
   );
 }

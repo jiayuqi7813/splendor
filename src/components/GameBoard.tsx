@@ -1,6 +1,7 @@
 import { BookOpen, MessageCircle, Menu, PanelBottomOpen, RotateCcw, Settings, Users, X } from "lucide-react";
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
-import type { GameCommand } from "../shared/protocol";
+import { canShowTutorialKind, selectTutorialStep, type TutorialCounts, type TutorialStep } from "../features/game/tutorial";
+import type { GameCommand, RoomIntent, RoomIntentEvent } from "../shared/protocol";
 import { variantName } from "../types";
 import type { ActionLogEntry, BasicColor, Card, GameState, GemColor, Gems, PlayerState } from "../types";
 import { BoardDragProvider, useBoardDrag } from "./BoardDragProvider";
@@ -14,6 +15,8 @@ interface GameBoardProps {
   gameState: GameState;
   pendingDiscardExcess: number | null;
   onCommand: (command: GameCommand) => void;
+  onIntent?: (intent: RoomIntent) => void;
+  remoteIntent?: RoomIntentEvent | null;
 }
 
 const tiers = [
@@ -187,7 +190,7 @@ function useWorkbenchMode(
   return enabled;
 }
 
-export function GameBoard({ gameState, pendingDiscardExcess, onCommand }: GameBoardProps) {
+export function GameBoard({ gameState, pendingDiscardExcess, onCommand, onIntent, remoteIntent }: GameBoardProps) {
   const myPlayer = gameState.players.find((player) => player.id === gameState.myPlayerId)!;
   const currentPlayer = gameState.players.find((player) => player.id === gameState.currentPlayerId);
 
@@ -222,6 +225,8 @@ export function GameBoard({ gameState, pendingDiscardExcess, onCommand }: GameBo
       onBuyCard={buyCard}
       onDiscardTokens={discardTokens}
       onEvolvePokemon={evolvePokemon}
+      onIntent={onIntent}
+      remoteIntent={remoteIntent}
     >
       <GameTableContents gameState={gameState} />
     </BoardDragProvider>
@@ -229,7 +234,7 @@ export function GameBoard({ gameState, pendingDiscardExcess, onCommand }: GameBo
 }
 
 function GameTableContents({ gameState }: { gameState: GameState }) {
-  const { activeDrag, activeDragPoint, selectedCard, setSelectedCard, stageTakeGem, stageReserveDeck, stagedTakeGems, isMyTurn, mustDiscard } = useBoardDrag();
+  const { activeDrag, activeDragPoint, selectedCard, setSelectedCard, stageTakeGem, stageReserveDeck, stagedTakeGems, isMyTurn, mustDiscard, remoteIntent } = useBoardDrag();
   const myPlayer = gameState.players.find((player) => player.id === gameState.myPlayerId)!;
   const currentPlayer = gameState.players.find((player) => player.id === gameState.currentPlayerId);
   const opponents = gameState.players.filter((player) => player.id !== gameState.myPlayerId);
@@ -339,7 +344,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
 
   return (
     <main
-      className={`game-shell tabletop-shell focus-table-shell ${workbenchMode ? "workbench-mode" : ""} ${gameState.variant === "pokemon" ? "pokemon-shell" : "classic-shell"} ${
+      className={`game-shell tabletop-shell focus-table-shell ${workbenchMode ? "workbench-mode" : ""} ${remoteIntent ? `remote-intent-active remote-intent-${remoteIntent.intent.type}` : ""} ${gameState.variant === "pokemon" ? "pokemon-shell" : "classic-shell"} ${
         effectiveMyAreaOpen ? "my-drawer-open" : ""
       } ${opponentsOpen ? "opponents-drawer-open" : ""}`}
       data-trace-surface="game"
@@ -549,8 +554,102 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
           <span>{turnToast}</span>
         </div>
       ) : null}
+      <TutorialLayer gameState={gameState} playerId={myPlayer.id} />
     </main>
   );
+}
+
+const tutorialStorageKey = (roomId: string, playerId: string) => `splendor:tutorial:${roomId}:${playerId}`;
+const tutorialDisabledKey = (playerId: string) => `splendor:tutorial-disabled:${playerId}`;
+
+function readTutorialCounts(roomId: string, playerId: string): TutorialCounts {
+  try {
+    return JSON.parse(window.localStorage.getItem(tutorialStorageKey(roomId, playerId)) ?? "{}") as TutorialCounts;
+  } catch {
+    return {};
+  }
+}
+
+function writeTutorialCounts(roomId: string, playerId: string, counts: TutorialCounts) {
+  window.localStorage.setItem(tutorialStorageKey(roomId, playerId), JSON.stringify(counts));
+}
+
+function TutorialLayer({ gameState, playerId }: { gameState: GameState; playerId: string }) {
+  const [counts, setCounts] = useState<TutorialCounts>(() => (typeof window === "undefined" ? {} : readTutorialCounts(gameState.roomId, playerId)));
+  const [disabled, setDisabled] = useState(() => (typeof window === "undefined" ? false : window.localStorage.getItem(tutorialDisabledKey(playerId)) === "1"));
+  const [dismissedKey, setDismissedKey] = useState("");
+  const lastShownKeyRef = useRef("");
+  const step = disabled ? undefined : selectTutorialStep(gameState, playerId, counts);
+
+  useEffect(() => {
+    setCounts(readTutorialCounts(gameState.roomId, playerId));
+    setDismissedKey("");
+    lastShownKeyRef.current = "";
+  }, [gameState.roomId, playerId]);
+
+  useEffect(() => {
+    if (!step || step.key === dismissedKey || lastShownKeyRef.current === step.key || !canShowTutorialKind(step.kind, counts)) return;
+    const nextCounts = { ...counts, [step.kind]: (counts[step.kind] ?? 0) + 1 };
+    lastShownKeyRef.current = step.key;
+    setCounts(nextCounts);
+    writeTutorialCounts(gameState.roomId, playerId, nextCounts);
+  }, [counts, dismissedKey, gameState.roomId, playerId, step]);
+
+  if (!step || step.key === dismissedKey) return null;
+
+  const targets = step.targetSelectors ?? [step.targetSelector];
+  return (
+    <div className="tutorial-layer" data-tutorial-kind={step.kind} role="status">
+      <div className="tutorial-scrim" />
+      {targets.map((selector) => (
+        <span key={selector} className="tutorial-target-chip">{selectorLabel(selector, step)}</span>
+      ))}
+      <article className="tutorial-bubble">
+        <strong>{tutorialTitle(step)}</strong>
+        <p>{step.text}</p>
+        <div>
+          <button type="button" onClick={() => setDismissedKey(step.key)}>知道了</button>
+          <button
+            type="button"
+            onClick={() => {
+              window.localStorage.setItem(tutorialDisabledKey(playerId), "1");
+              setDisabled(true);
+            }}
+          >
+            关闭提示
+          </button>
+        </div>
+      </article>
+    </div>
+  );
+}
+
+function selectorLabel(selector: string, step: TutorialStep) {
+  if (selector.includes("bank")) return "公共资源";
+  if (selector.includes("development")) return "市场";
+  if (selector.includes("purchase")) return "购买区";
+  if (selector.includes("reserve")) return "预留区";
+  if (selector.includes("discard")) return "弃置区";
+  if (selector.includes("evolution")) return "进化";
+  if (selector.includes("my")) return "我的区域";
+  return tutorialTitle(step);
+}
+
+function tutorialTitle(step: TutorialStep) {
+  switch (step.kind) {
+    case "takeGems":
+      return "拿取资源";
+    case "buyCard":
+      return "购买 / 捕捉";
+    case "reserveCard":
+      return "预留";
+    case "discardTokens":
+      return "弃置";
+    case "evolvePokemon":
+      return "进化";
+    case "turnOverview":
+      return "本回合行动";
+  }
 }
 
 function PokemonSpecialRow({ gameState, onSelectCard }: { gameState: GameState; onSelectCard: () => void }) {

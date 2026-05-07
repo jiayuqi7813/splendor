@@ -59,11 +59,39 @@ export const sendGameCommandInputSchema = seatCredentialsSchema.extend({
   command: gameCommandSchema,
 });
 
+const cardIntentSourceSchema = z.union([
+  z.object({ type: z.literal("market"), cardId: z.string().min(1) }),
+  z.object({ type: z.literal("reserved"), cardId: z.string().min(1) }),
+  z.object({ type: z.literal("deck"), tier: z.union([z.literal(1), z.literal(2), z.literal(3)]) }),
+]);
+
+const intentPointSchema = z.object({
+  x: z.number().min(0).max(1),
+  y: z.number().min(0).max(1),
+});
+
+export const roomIntentSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("hoverGem"), color: gemColorSchema.optional(), area: z.enum(["bank", "mine", "discard", "payment"]).optional() }),
+  z.object({ type: z.literal("gemSelection"), colors: z.array(gemColorSchema).max(10), valid: z.boolean(), invalidPoint: intentPointSchema.optional() }),
+  z.object({ type: z.literal("hoverCard"), source: cardIntentSourceSchema.optional() }),
+  z.object({ type: z.literal("paymentTarget"), source: cardIntentSourceSchema, gem: gemColorSchema.optional(), valid: z.boolean() }),
+  z.object({ type: z.literal("reserveTarget"), source: cardIntentSourceSchema.optional(), valid: z.boolean().optional() }),
+  z.object({ type: z.literal("discardSelection"), tokens: z.record(gemColorSchema, z.number().int().min(0)).optional(), valid: z.boolean().optional() }),
+  z.object({ type: z.literal("evolutionTarget"), cardId: z.string().min(1).optional(), valid: z.boolean().optional() }),
+  z.object({ type: z.literal("clear") }),
+]);
+
+export const publishRoomIntentInputSchema = seatCredentialsSchema.extend({
+  intent: roomIntentSchema,
+});
+
 export type SeatCredentials = z.infer<typeof seatCredentialsSchema>;
 export type CreateRoomInput = z.infer<typeof createRoomInputSchema>;
 export type JoinRoomInput = z.infer<typeof joinRoomInputSchema>;
 export type GameCommand = z.infer<typeof gameCommandSchema>;
 export type SendGameCommandInput = z.infer<typeof sendGameCommandInputSchema>;
+export type RoomIntent = z.infer<typeof roomIntentSchema>;
+export type PublishRoomIntentInput = z.infer<typeof publishRoomIntentInputSchema>;
 
 export type SeatResponse = {
   roomId?: string;
@@ -76,13 +104,28 @@ export type SeatResponse = {
 
 export type GameCommandResult = { ok: true } | { ok: false; error: string };
 
+export type RoomStateEvent = {
+  seq: number;
+  type: "snapshot" | "joined" | "action" | "error" | "gameOver" | "actionRequired";
+  message: string;
+  room?: RoomState;
+  state?: GameState;
+  action?: { type: "discard_tokens"; excess: number };
+  payload?: GameOverPayload;
+  command?: GameCommand;
+};
+
+export type RoomIntentEvent = {
+  seq: number;
+  type: "intent";
+  playerId: string;
+  intent: RoomIntent;
+};
+
 export type SseEnvelope =
-  | { type: "roomUpdated"; room: RoomState }
-  | { type: "gameState"; state: GameState }
-  | { type: "actionRequired"; action: { type: "discard_tokens"; excess: number } }
-  | { type: "gameOver"; payload: GameOverPayload }
+  | RoomStateEvent
+  | RoomIntentEvent
   | { type: "sessionReplaced" }
-  | { type: "error"; message: string }
   | { type: "heartbeat"; at: number };
 
 export type GoldSubstitutions = Partial<Record<BasicColor, number>>;
