@@ -2,16 +2,35 @@
   "name": "splendor-online",
   "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "server",
-    "client"
-  ],
+  "type": "module",
+  "sideEffects": false,
   "scripts": {
-    "dev": "concurrently \"npm run dev --workspace=server\" \"npm run dev --workspace=client\"",
-    "build": "npm run build --workspace=client && npm run build --workspace=server",
-    "start": "node server/dist/index.js"
+    "dev": "vite dev",
+    "build": "vite build && tsc --noEmit",
+    "preview": "vite preview",
+    "start": "node .output/server/index.mjs",
+    "test": "tsx src/server/gameEngine.test.ts && tsx src/server/protocol.test.ts && tsx src/server/gameStore.test.ts"
+  },
+  "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@tanstack/react-query": "^5.100.9",
+    "@tanstack/react-router": "^1.169.2",
+    "@tanstack/react-start": "^1.167.65",
+    "lucide-react": "^1.14.0",
+    "nitro": "^3.0.260311-beta",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
-    "concurrently": "latest"
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/node": "^22.5.4",
+    "@types/react": "^19.0.8",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "tailwindcss": "^4.2.2",
+    "tsx": "^4.20.6",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.0"
   }
 }
