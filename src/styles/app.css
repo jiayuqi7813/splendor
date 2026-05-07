@@ -3574,8 +3574,8 @@ textarea {
 
 .tutorial-bubble {
   position: absolute;
-  left: clamp(16px, 5vw, 72px);
-  bottom: clamp(88px, 12vh, 150px);
+  top: 86px;
+  right: clamp(16px, 4vw, 56px);
   width: min(380px, calc(100vw - 32px));
   border: 1px solid oklch(91% 0.08 82 / 0.74);
   border-radius: 10px;

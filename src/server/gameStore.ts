@@ -304,12 +304,13 @@ function gameOverPayload(room: ManagedRoom): GameOverPayload | null {
 }
 
 function eventForPlayer(record: RoomEventRecord, playerId: string): SseEnvelope {
+  const shouldIncludeState = record.state && record.state.phase !== "waiting";
   return {
     seq: record.seq,
     type: record.type,
     message: record.message,
     ...(record.room ? { room: record.room } : {}),
-    ...(record.state ? { state: getPlayerView(record.state, playerId) } : {}),
+    ...(shouldIncludeState ? { state: getPlayerView(record.state!, playerId) } : {}),
     ...(record.command ? { command: record.command } : {}),
     ...(record.payload ? { payload: record.payload } : {}),
   };
@@ -499,7 +500,7 @@ export function getSnapshot(credentials: SeatCredentials): { seq?: number; room?
   return {
     seq: result.room.seq,
     room: toRoomState(result.room),
-    state: result.room.gameState ? getPlayerView(result.room.gameState, credentials.playerId) : undefined,
+    state: result.room.gameState && result.room.gameState.phase !== "waiting" ? getPlayerView(result.room.gameState, credentials.playerId) : undefined,
   };
 }
 
