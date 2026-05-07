@@ -7417,6 +7417,8 @@ body {
 }
 
 .my-drawer-gems {
+  position: relative;
+  z-index: 2;
   min-height: 0;
   height: 100%;
   border: 0;
@@ -7467,10 +7469,12 @@ body {
   position: absolute;
   right: 9px;
   bottom: 8px;
+  z-index: 3;
   display: flex;
   align-items: center;
   max-width: 50%;
   gap: 4px;
+  pointer-events: auto;
 }
 
 .my-drawer-gems .staged-gem-row > span {

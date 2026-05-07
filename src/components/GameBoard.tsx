@@ -261,6 +261,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
   const marketTierListRef = useRef<HTMLDivElement | null>(null);
   const publicBankStripRef = useRef<HTMLElement | null>(null);
   const workbenchMode = false;
+  const persistentArenaMode = true;
   const wasDraggingRef = useRef(false);
   const suppressDrawerHeadClickUntilRef = useRef(0);
   const suppressOutsideClickUntilRef = useRef(0);
@@ -277,7 +278,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
   }, [mustDiscard]);
 
   useEffect(() => {
-    if (workbenchMode || !myAreaOpen || dragAutoOpened) return;
+    if (persistentArenaMode || workbenchMode || !myAreaOpen || dragAutoOpened) return;
 
     const closeOnOutsideClick = (event: MouseEvent) => {
       if (Date.now() < suppressOutsideClickUntilRef.current) return;
@@ -296,7 +297,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
     return () => {
       document.removeEventListener("click", closeOnOutsideClick, true);
     };
-  }, [dragAutoOpened, myAreaOpen, workbenchMode]);
+  }, [dragAutoOpened, myAreaOpen, persistentArenaMode, workbenchMode]);
 
   useEffect(() => {
     if (workbenchMode) return;
@@ -332,6 +333,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
   };
 
   const closeMyAreaFromTable = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (persistentArenaMode) return;
     if (workbenchMode) return;
     if (!myAreaOpen || dragAutoOpened) return;
     if (Date.now() < suppressOutsideClickUntilRef.current) return;
