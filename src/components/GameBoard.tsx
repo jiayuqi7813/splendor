@@ -1,7 +1,7 @@
 import { BookOpen, MessageCircle, Menu, PanelBottomOpen, RotateCcw, Settings, Users, X } from "lucide-react";
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import type { GameCommand, RoomIntent, RoomIntentEvent } from "../shared/protocol";
-import { variantName } from "../types";
+import { AVATARS, BASIC_COLORS, cardImageUrl, colorLabelsFor, deckBackUrl, tokenImagesFor, variantName } from "../types";
 import type { ActionLogEntry, BasicColor, Card, GameState, GemColor, Gems, PlayerState } from "../types";
 import { BoardDragProvider, useBoardDrag } from "./BoardDragProvider";
 import { CardSlot } from "./CardSlot";
@@ -26,6 +26,18 @@ const tiers = [
 
 function totalTokens(gems: Gems) {
   return Object.values(gems).reduce((sum, amount) => sum + amount, 0);
+}
+
+function purchasedByColor(player: PlayerState) {
+  return BASIC_COLORS.reduce<Record<BasicColor, Card[]>>((groups, color) => {
+    groups[color] = player.purchasedCards.filter((card) => card.color === color);
+    return groups;
+  }, {} as Record<BasicColor, Card[]>);
+}
+
+function tokenSlotColors(gems: Gems): GemColor[] {
+  const order: GemColor[] = ["white", "blue", "green", "red", "brown", "gold"];
+  return order.flatMap((color) => Array.from({ length: gems[color] }, () => color));
 }
 
 function actionLogEntries(gameState: GameState): ActionLogEntry[] {
@@ -240,15 +252,15 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
   const roundText = gameState.players.reduce((max, player) => Math.max(max, player.turnsTaken ?? 0), 0) + 1;
   const resourceLabel = gameState.variant === "pokemon" ? "精灵球" : "宝石";
   const scoreLabel = gameState.variant === "pokemon" ? "奖杯" : "声望";
-  const [myAreaOpen, setMyAreaOpen] = useState(false);
-  const [opponentsOpen, setOpponentsOpen] = useState(false);
+  const [myAreaOpen, setMyAreaOpen] = useState(true);
+  const [opponentsOpen, setOpponentsOpen] = useState(true);
   const [actionLogOpen, setActionLogOpen] = useState(false);
   const [dragAutoOpened, setDragAutoOpened] = useState(false);
   const marketColumnRef = useRef<HTMLElement | null>(null);
   const developmentMarketRef = useRef<HTMLElement | null>(null);
   const marketTierListRef = useRef<HTMLDivElement | null>(null);
   const publicBankStripRef = useRef<HTMLElement | null>(null);
-  const workbenchMode = useWorkbenchMode(gameState, { marketColumnRef, developmentMarketRef, marketTierListRef, publicBankStripRef });
+  const workbenchMode = false;
   const wasDraggingRef = useRef(false);
   const suppressDrawerHeadClickUntilRef = useRef(0);
   const suppressOutsideClickUntilRef = useRef(0);
@@ -345,7 +357,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
     <main
       className={`game-shell tabletop-shell focus-table-shell ${workbenchMode ? "workbench-mode" : ""} ${remoteIntent ? `remote-intent-active remote-intent-${remoteIntent.intent.type}` : ""} ${gameState.variant === "pokemon" ? "pokemon-shell" : "classic-shell"} ${
         effectiveMyAreaOpen ? "my-drawer-open" : ""
-      } ${opponentsOpen ? "opponents-drawer-open" : ""}`}
+      } ${opponentsOpen ? "opponents-drawer-open" : ""} player-count-${gameState.players.length}`}
       data-trace-surface="game"
     >
       <header className="game-topbar tabletop-topbar">
@@ -412,6 +424,8 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
           </button>
         </nav>
       </header>
+
+      <ArenaOpponentSeats gameState={gameState} myPlayerId={myPlayer.id} />
 
       <div className="tabletop-board" onClickCapture={closeMyAreaFromTable}>
         <div className="player-corner-hud" data-cursor-anchor="ui:player-hud" aria-label={`我的${resourceLabel} ${myTokenTotal} 个，${scoreLabel} ${myPlayer.prestige} 分`}>
@@ -488,7 +502,7 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
         onClick={() => setOpponentsOpen((open) => !open)}
       >
         <Users size={17} />
-        <span>其他玩家</span>
+        <span>玩家区</span>
         <strong>{opponents.length}</strong>
       </button>
 
@@ -536,6 +550,17 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
           tabIndex={0}
           aria-expanded={effectiveMyAreaOpen}
         >
+          <div className={`arena-self-identity ${isMyTurn ? "current" : ""}`}>
+            <span className="arena-seat-avatar">{AVATARS[myPlayer.avatarId % AVATARS.length]}</span>
+            <span className="arena-seat-name">
+              <strong>{myPlayer.username}</strong>
+              <em>{isMyTurn ? "你的回合" : "在线"}</em>
+            </span>
+            <span className="arena-seat-score">
+              <b>{myPlayer.prestige}</b>
+              <small>{scoreLabel}</small>
+            </span>
+          </div>
           <MyGemsZone player={myPlayer} className="my-drawer-gems" variant={gameState.variant} />
         </div>
         <div className="my-area-drawer-body" aria-hidden={!effectiveMyAreaOpen}>
@@ -554,6 +579,110 @@ function GameTableContents({ gameState }: { gameState: GameState }) {
         </div>
       ) : null}
     </main>
+  );
+}
+
+function opponentSeatPositions(count: number) {
+  if (count <= 1) return ["left"] as const;
+  if (count === 2) return ["left", "right"] as const;
+  return ["left", "right", "bottom-peer"] as const;
+}
+
+function ArenaOpponentSeats({ gameState, myPlayerId }: { gameState: GameState; myPlayerId: string }) {
+  const opponents = gameState.players.filter((player) => player.id !== myPlayerId);
+  const positions = opponentSeatPositions(opponents.length);
+  return (
+    <aside className={`arena-opponent-seats opponent-count-${opponents.length}`} aria-label="桌边玩家区">
+      {opponents.map((player, index) => (
+        <ArenaPlayerSeat
+          key={player.id}
+          player={player}
+          position={positions[index] ?? "top"}
+          current={player.id === gameState.currentPlayerId}
+          variant={gameState.variant}
+        />
+      ))}
+    </aside>
+  );
+}
+
+function ArenaPlayerSeat({ player, position, current, variant }: { player: PlayerState; position: string; current: boolean; variant: GameState["variant"] }) {
+  const tokenImages = tokenImagesFor(variant);
+  const labels = colorLabelsFor(variant);
+  const slots = tokenSlotColors(player.gems);
+  const overflow = Math.max(0, slots.length - 10);
+  const groups = purchasedByColor(player);
+  const bonusTotal = BASIC_COLORS.reduce((sum, color) => sum + player.bonuses[color], 0);
+  const latestCard = player.purchasedCards[player.purchasedCards.length - 1];
+
+  return (
+    <article className={`arena-seat arena-seat-${position} ${current ? "current" : ""} ${player.connected === false ? "offline" : ""}`}>
+      <header className="arena-seat-head">
+        <span className="arena-seat-avatar">{latestCard ? <img src={cardImageUrl(latestCard.id, latestCard)} alt="" /> : AVATARS[player.avatarId % AVATARS.length]}</span>
+        <span className="arena-seat-name">
+          <strong>{player.username}</strong>
+          <em>{player.connected === false ? "离线" : current ? "行动中" : "在线"}</em>
+        </span>
+        <span className="arena-seat-score">
+          <b>{player.prestige}</b>
+          <small>{variant === "pokemon" ? "奖杯" : "声望"}</small>
+        </span>
+      </header>
+
+      <div className="arena-token-slots" aria-label={`${player.username} 的资源槽`}>
+        {Array.from({ length: 10 }, (_, index) => {
+          const color = slots[index];
+          return (
+            <span key={index} className={`arena-token-slot ${color ? "filled" : ""}`}>
+              {color ? <img src={tokenImages[color]} alt={labels[color]} /> : null}
+            </span>
+          );
+        })}
+        {overflow ? <strong className="arena-token-overflow">+{overflow}</strong> : null}
+      </div>
+
+      <div className="arena-seat-meta">
+        <span>
+          <b>{bonusTotal}</b>
+          加成
+        </span>
+        <span>
+          <b>{player.reservedCards.length}</b>
+          {variant === "pokemon" ? "保留" : "预留"}
+        </span>
+        <span>
+          <b>{player.purchasedCards.length}</b>
+          {variant === "pokemon" ? "捕捉" : "已购"}
+        </span>
+      </div>
+
+      <div className="arena-card-zones">
+        <div className="arena-reserve-stack" aria-label={`${player.username} 的预留`}>
+          {Array.from({ length: 3 }, (_, index) => {
+            const card = player.reservedCards[index];
+            return (
+              <span key={index} className={card ? "has-card" : ""}>
+                {card ? <img src={deckBackUrl(card.tier ?? 1, variant, card.deckKind ?? "common")} alt="" /> : null}
+              </span>
+            );
+          })}
+        </div>
+        <div className="arena-bonus-stacks" aria-label={`${player.username} 的已购列`}>
+          {BASIC_COLORS.map((color) => {
+            const cards = groups[color];
+            return (
+              <span key={color} className={`arena-bonus-stack stack-${color}`}>
+                <i style={{ background: `var(--gem-${color})` }} />
+                <b>{cards.length}</b>
+                {cards.slice(-2).map((card) => (
+                  <img key={card.id} src={cardImageUrl(card.id, card)} alt="" />
+                ))}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    </article>
   );
 }
 

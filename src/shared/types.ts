@@ -223,14 +223,14 @@ export function tokenImageUrl(color: GemColor, variant: GameVariant = "classic")
     return `/assets/pokemon-splendor/tokens/${names[color]}.webp`;
   }
   const names: Record<GemColor, string> = {
-    white: "WhiteToken",
-    blue: "BlueToken",
-    green: "GreenToken",
-    red: "RedToken",
-    brown: "BrownToken",
-    gold: "GoldToken",
+    white: "token-diamond.png",
+    blue: "token-sapphire.png",
+    green: "token-emerald.png",
+    red: "token-ruby.png",
+    brown: "token-onyx.png",
+    gold: "token-gold.png",
   };
-  return `${BASE_IMAGE_URL}/tokens/${names[color]}.jpg`;
+  return `/assets/${names[color]}`;
 }
 
 export function deckBackUrl(tier: 1 | 2 | 3, variant: GameVariant = "classic", deckKind: CardDeckKind = "common") {
@@ -238,8 +238,7 @@ export function deckBackUrl(tier: 1 | 2 | 3, variant: GameVariant = "classic", d
     const file = deckKind === "rare" ? "rare" : deckKind === "legendary" ? "legendary" : `stage${tier}`;
     return `/assets/pokemon-splendor/card-backs/${file}.webp`;
   }
-  const file = tier === 1 ? "GreenCard.jpg" : tier === 2 ? "YellowCard.jpg" : "BlueCard.jpg";
-  return `${BASE_IMAGE_URL}/${file}`;
+  return `/assets/card-back-tier${tier}.png`;
 }
 
 export function isHiddenCard(card: ReservedCard): card is HiddenCard {
