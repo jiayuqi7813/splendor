@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Noble, PlayerState } from "../types";
-import { BASIC_COLORS, COLOR_LABELS, nobleImageUrl, TOKEN_IMAGES } from "../types";
+import type { Noble, PlayerState } from "~/game/types";
+import { BASIC_COLORS, COLOR_LABELS, nobleImageUrl, TOKEN_IMAGES } from "~/game/types";
 
 interface NobleRowProps {
   nobles: Noble[];

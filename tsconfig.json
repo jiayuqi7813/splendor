@@ -1,6 +1,5 @@
 {
-  "include": ["**/*.ts", "**/*.tsx", "**/*.d.ts"],
-  "exclude": ["client", "server", "node_modules", ".output"],
+  "include": ["src", "vite.config.ts"],
   "compilerOptions": {
     "strict": true,
     "esModuleInterop": true,
@@ -15,8 +14,10 @@
     "allowJs": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": ["./src/*"],
+      "@/*": ["./src/*"]
     },
+    "types": ["vite/client", "node"],
     "noEmit": true
   }
 }

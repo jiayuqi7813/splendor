@@ -1,6 +1,6 @@
 import { CheckCircle2, RotateCcw, ShoppingCart, Sparkles } from "lucide-react";
-import type { BasicColor, Gems } from "../types";
-import { BASIC_COLORS, cardImageUrl } from "../types";
+import type { BasicColor, Gems } from "~/game/types";
+import { BASIC_COLORS, cardImageUrl } from "~/game/types";
 import { DropZone, useBoardDrag } from "./BoardDragProvider";
 
 function paymentCount(gems: Partial<Gems>, color: keyof Gems) {

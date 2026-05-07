@@ -1,8 +1,8 @@
 import { BookOpen, MessageCircle, Menu, PanelBottomOpen, RotateCcw, Settings, Users, X } from "lucide-react";
 import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
-import type { GameCommand, RoomIntent, RoomIntentEvent } from "../shared/protocol";
-import { AVATARS, BASIC_COLORS, cardImageUrl, colorLabelsFor, deckBackUrl, tokenImagesFor, variantName } from "../types";
-import type { ActionLogEntry, BasicColor, Card, GameState, GemColor, Gems, PlayerState } from "../types";
+import type { GameCommand, RoomIntent, RoomIntentEvent } from "~/game/protocol";
+import { AVATARS, BASIC_COLORS, cardImageUrl, colorLabelsFor, deckBackUrl, tokenImagesFor, variantName } from "~/game/types";
+import type { ActionLogEntry, BasicColor, Card, GameState, GemColor, Gems, PlayerState } from "~/game/types";
 import { BoardDragProvider, useBoardDrag } from "./BoardDragProvider";
 import { CardSlot } from "./CardSlot";
 import { GemBank } from "./GemBank";

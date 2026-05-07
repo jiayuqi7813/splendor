@@ -1,5 +1,5 @@
-import type { Card, HiddenCard, PlayerState } from "../types";
-import { BASIC_COLORS, COLOR_SHORT_LABELS, TOKEN_IMAGES, AVATARS, cardImageUrl, isHiddenCard } from "../types";
+import type { Card, HiddenCard, PlayerState } from "~/game/types";
+import { BASIC_COLORS, COLOR_SHORT_LABELS, TOKEN_IMAGES, AVATARS, cardImageUrl, isHiddenCard } from "~/game/types";
 
 interface PlayerPanelProps {
   player: PlayerState;

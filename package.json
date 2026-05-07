@@ -9,7 +9,7 @@
     "build": "vite build && tsc --noEmit",
     "preview": "vite preview",
     "start": "node .output/server/index.mjs",
-    "test": "tsx src/server/gameEngine.test.ts && tsx src/server/protocol.test.ts && tsx src/server/gameStore.test.ts"
+    "test": "tsx src/game/rules.test.ts && tsx src/game/protocol.test.ts && tsx src/server/roomStore.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

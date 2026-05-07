@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import type { Card, GameVariant, HiddenCard, TierState } from "../types";
-import { BACK_IMAGES, BASIC_COLORS, CARD_IMAGES, COLOR_LABELS, colorLabelsFor, deckBackUrl, tokenImagesFor, cardImageUrl } from "../types";
+import type { Card, GameVariant, HiddenCard, TierState } from "~/game/types";
+import { BACK_IMAGES, BASIC_COLORS, CARD_IMAGES, COLOR_LABELS, colorLabelsFor, deckBackUrl, tokenImagesFor, cardImageUrl } from "~/game/types";
 import { Draggable, DropZone } from "./BoardDragProvider";
 
 interface Props {

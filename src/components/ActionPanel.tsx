@@ -1,7 +1,7 @@
 import { Bookmark, CircleCheck, Hand, ShoppingCart } from "lucide-react";
 import { useMemo, useState } from "react";
-import type { BasicColor, Card, GameState, GemColor, Gems, PlayerState } from "../types";
-import { BASIC_COLORS, COLOR_LABELS, TOKEN_IMAGES } from "../types";
+import type { BasicColor, Card, GameState, GemColor, Gems, PlayerState } from "~/game/types";
+import { BASIC_COLORS, COLOR_LABELS, TOKEN_IMAGES } from "~/game/types";
 
 interface Props {
   gameState: GameState;

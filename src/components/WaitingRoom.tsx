@@ -1,7 +1,7 @@
 import { Copy, Play } from "lucide-react";
 import { useMemo, useState } from "react";
-import { AVATARS, variantName } from "../types";
-import type { RoomState } from "../types";
+import { AVATARS, variantName } from "~/game/types";
+import type { RoomState } from "~/game/types";
 
 interface WaitingRoomProps {
   roomState: RoomState;

@@ -17,9 +17,9 @@ import {
   type CollisionDetection,
 } from "@dnd-kit/core";
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import type { RoomIntent, RoomIntentEvent } from "../shared/protocol";
-import type { BasicColor, Card, GameState, GameVariant, GemColor, Gems, PlayerState, PlayerTracePayload, TraceItem, TracePhase, TracePointPayload } from "../types";
-import { AVATARS, BASIC_COLORS, cardImageUrl, colorLabelsFor, deckBackUrl, isHiddenCard, tokenImagesFor } from "../types";
+import type { RoomIntent, RoomIntentEvent } from "~/game/protocol";
+import type { BasicColor, Card, GameState, GameVariant, GemColor, Gems, PlayerState, PlayerTracePayload, TraceItem, TracePhase, TracePointPayload } from "~/game/types";
+import { AVATARS, BASIC_COLORS, cardImageUrl, colorLabelsFor, deckBackUrl, isHiddenCard, tokenImagesFor } from "~/game/types";
 
 type DragPayload =
   | { kind: "bank-gem"; color: GemColor }

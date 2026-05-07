@@ -1,7 +1,7 @@
 import { ChevronDown, ChevronUp, Crown, WifiOff } from "lucide-react";
 import { useState, type CSSProperties } from "react";
-import type { BasicColor, GameVariant, PlayerState } from "../types";
-import { AVATARS, BASIC_COLORS, colorLabelsFor, tokenImagesFor, cardImageUrl, deckBackUrl, nobleImageUrl } from "../types";
+import type { BasicColor, GameVariant, PlayerState } from "~/game/types";
+import { AVATARS, BASIC_COLORS, colorLabelsFor, tokenImagesFor, cardImageUrl, deckBackUrl, nobleImageUrl } from "~/game/types";
 
 interface OpponentPanelProps {
   players: PlayerState[];

@@ -1,5 +1,5 @@
-import type { GameVariant, GemColor, Gems } from "../types";
-import { colorLabelsFor, tokenImagesFor } from "../types";
+import type { GameVariant, GemColor, Gems } from "~/game/types";
+import { colorLabelsFor, tokenImagesFor } from "~/game/types";
 import { Draggable } from "./BoardDragProvider";
 
 interface GemBankProps {

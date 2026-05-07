@@ -1,7 +1,7 @@
 import { DoorOpen, Plus } from "lucide-react";
 import { useRef, useState, type FormEvent } from "react";
-import { AVATARS } from "../types";
-import type { GameVariant } from "../types";
+import { AVATARS } from "~/game/types";
+import type { GameVariant } from "~/game/types";
 
 interface LobbyScreenProps {
   username?: string;

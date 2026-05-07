@@ -1,6 +1,6 @@
 import { Bookmark, CheckCircle2, RotateCcw } from "lucide-react";
 import type { CSSProperties } from "react";
-import type { BasicColor, Card, GameVariant, GemColor, PlayerState, ReservedCard } from "../types";
+import type { BasicColor, Card, GameVariant, GemColor, PlayerState, ReservedCard } from "~/game/types";
 import {
   BASIC_COLORS,
   cardImageUrl,
@@ -9,7 +9,7 @@ import {
   isHiddenCard,
   nobleImageUrl,
   tokenImagesFor,
-} from "../types";
+} from "~/game/types";
 import { Draggable, DropZone, useBoardDrag } from "./BoardDragProvider";
 import { PaymentDropZone } from "./PaymentDropZone";
 

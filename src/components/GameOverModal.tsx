@@ -1,6 +1,6 @@
 import { RotateCcw } from "lucide-react";
-import { AVATARS } from "../types";
-import type { GameOverPayload } from "../types";
+import { AVATARS } from "~/game/types";
+import type { GameOverPayload } from "~/game/types";
 
 interface Props {
   payload: GameOverPayload;
