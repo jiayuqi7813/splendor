@@ -8,6 +8,7 @@ export type PlayerId = 'p1' | 'p2' | 'p3' | 'p4'
 export type AiDifficultyId = 'idiot' | 'beginner' | 'casual' | 'standard' | 'hard' | 'expert' | 'nightmare' | 'oracleDebug'
 export type Tier = 1 | 2 | 3
 export type PokemonSpecialDeck = 'rare' | 'legendary'
+export type PokemonSpecialSet = 'primary' | 'alternate'
 export type CardSource =
   | { type: 'market'; tier: Tier; index: number }
   | { type: 'reserve'; index: number }
@@ -41,6 +42,7 @@ export interface CardDefinition {
   ability?: CardAbility
   name?: string
   deckKind?: 'common' | PokemonSpecialDeck
+  pokemonSpecialSet?: PokemonSpecialSet
   goldCost?: number
   bonusColors?: GemType[]
   evolvesFrom?: string
@@ -132,6 +134,7 @@ export interface GameState {
   market: Record<Tier, Array<number | null>>
   royalCards: number[]
   pokemonSpecial?: {
+    set: PokemonSpecialSet
     rareDeck: number[]
     rareFaceUp: number | null
     legendaryDeck: number[]

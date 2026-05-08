@@ -1,6 +1,6 @@
 import { cardsByTier, classicCardsByTier, classicNobleCards, duelRoyalCards, getCard, pokemonCardsByTier, pokemonLegendaryCards, pokemonRareCards } from './cards'
 import { MARKET_SIZES, SPIRAL_CELL_IDS, TOKEN_LABELS } from './data/static'
-import { GEM_TYPES, TOKEN_TYPES, type BoardCell, type CardAbility, type CardSource, type Cost, type GameAction, type GameState, type GemType, type PlayerId, type PurchasedCard, type Tier, type Token, type TokenType, type TurnResume, type VictoryReason } from './types'
+import { GEM_TYPES, TOKEN_TYPES, type BoardCell, type CardAbility, type CardSource, type Cost, type GameAction, type GameState, type GemType, type PlayerId, type PokemonSpecialSet, type PurchasedCard, type Tier, type Token, type TokenType, type TurnResume, type VictoryReason } from './types'
 
 const DEFAULT_PLAYER_ORDER: PlayerId[] = ['p1', 'p2']
 const PLAYER_NAMES: Record<PlayerId, string> = {
@@ -129,9 +129,14 @@ function makeMarket(decks: Record<Tier, number[]>, gameType: GameState['gameType
   }
 }
 
-export function createInitialGame(roomId: string, options: { gameType?: GameState['gameType']; playerCount?: 2 | 3 | 4 } = {}): GameState {
+function resolvePokemonSpecialSet(value: unknown): PokemonSpecialSet {
+  return value === 'alternate' ? 'alternate' : 'primary'
+}
+
+export function createInitialGame(roomId: string, options: { gameType?: GameState['gameType']; playerCount?: 2 | 3 | 4; pokemonSpecialSet?: PokemonSpecialSet } = {}): GameState {
   const gameType = options.gameType ?? 'duel'
   const playerCount = options.playerCount ?? (gameType === 'classic' || gameType === 'pokemon' ? 4 : 2)
+  const pokemonSpecialSet = resolvePokemonSpecialSet(options.pokemonSpecialSet)
   const order = (playerCount === 4 ? ['p1', 'p2', 'p3', 'p4'] : ['p1', 'p2']) as PlayerId[]
   const firstPlayer = order[Math.floor(Math.random() * order.length)]
   const deckSource = gameType === 'pokemon' ? pokemonCardsByTier : gameType === 'classic' ? classicCardsByTier : cardsByTier
@@ -155,9 +160,10 @@ export function createInitialGame(roomId: string, options: { gameType?: GameStat
     royalCards: gameType === 'classic' ? shuffle(classicNobleCards()).slice(0, playerCount + 1) : gameType === 'pokemon' ? [] : duelRoyalCards(),
     pokemonSpecial: gameType === 'pokemon'
       ? (() => {
-          const rareDeck = shuffle(pokemonRareCards())
-          const legendaryDeck = shuffle(pokemonLegendaryCards())
+          const rareDeck = shuffle(pokemonRareCards(pokemonSpecialSet))
+          const legendaryDeck = shuffle(pokemonLegendaryCards(pokemonSpecialSet))
           return {
+            set: pokemonSpecialSet,
             rareFaceUp: draw(rareDeck),
             rareDeck,
             legendaryFaceUp: draw(legendaryDeck),
@@ -518,7 +524,7 @@ function removeSourceCard(state: GameState, playerId: PlayerId, source: CardSour
     assertRule(state.gameType === 'pokemon' && state.pokemonSpecial, '当前没有宝可梦特殊牌。')
     if (source.deck === 'rare') {
       const cardId = state.pokemonSpecial.rareFaceUp
-      assertRule(cardId, '稀有牌不存在。')
+      assertRule(cardId, '神话牌不存在。')
       state.pokemonSpecial.rareFaceUp = draw(state.pokemonSpecial.rareDeck)
       return cardId
     }
@@ -732,7 +738,7 @@ function reserveCardAction(state: GameState, action: Extract<GameAction, { type:
   assertRule(!turnActions(state).mandatoryDone, '本回合既定行动已经完成。')
   const player = state.players[action.playerId]
   assertRule(player.reserve.length < 3, '最多只能保留 3 张牌。')
-  assertRule(!(state.gameType === 'pokemon' && action.source.type === 'pokemonSpecial'), '稀有和传说宝可梦不能保留。')
+  assertRule(!(state.gameType === 'pokemon' && action.source.type === 'pokemonSpecial'), '神话和传说宝可梦不能保留。')
   const cardId = removeSourceCard(state, action.playerId, action.source)
   takeGoldForReserve(state, action.playerId, action.goldCellId)
   player.reserve.push(cardId)

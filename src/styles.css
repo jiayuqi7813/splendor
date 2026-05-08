@@ -174,6 +174,15 @@ button:not(:disabled):active {
   white-space: normal;
 }
 
+.compactGamePicker {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 8px;
+}
+
+.compactGamePicker button {
+  min-height: 36px;
+}
+
 .homeGamePicker .selectedGameType {
   color: #111a14;
   border-color: rgba(177, 255, 217, 0.66);
@@ -2351,7 +2360,8 @@ button:not(:disabled):active {
   --player-card-height: calc(var(--player-card-width) / var(--classic-card-ratio));
   --market-card-width: 68px;
   --market-card-height: calc(var(--market-card-width) / var(--classic-card-ratio));
-  --purchased-stack-step: 16px;
+  --pokemon-purchased-stack-step: clamp(22px, calc(var(--market-card-height) / 4.15), 28px);
+  --purchased-stack-step: var(--pokemon-purchased-stack-step);
   --pokemon-purchased-gap: 5px;
   --pokemon-purchased-width: calc(var(--market-card-width) * 5 + var(--pokemon-purchased-gap) * 4);
   --pokemon-token-column-gap: 10px;
@@ -3543,7 +3553,7 @@ button:not(:disabled):active {
 }
 
 .pokemonShell .purchasedCardStack {
-  --purchased-stack-step: 16px;
+  --purchased-stack-step: var(--pokemon-purchased-stack-step, 27px);
 }
 
 .splendorFourShell .playerPrivilegeSlots {
@@ -3582,7 +3592,7 @@ button:not(:disabled):active {
 }
 
 .pokemonShell .purchasedCardStack {
-  --purchased-stack-step: 16px;
+  --purchased-stack-step: var(--pokemon-purchased-stack-step, 27px);
 }
 
 .purchasedCardItem {
@@ -7120,6 +7130,7 @@ button:not(:disabled):active {
   --player-card-height: calc(var(--player-card-width) / var(--classic-card-ratio));
   --market-card-width: 84px;
   --market-card-height: calc(var(--market-card-width) / var(--classic-card-ratio));
+  --pokemon-purchased-stack-step: clamp(22px, calc(var(--market-card-height) / 4.15), 28px);
   --pokemon-purchased-gap: 5px;
   --pokemon-purchased-width: calc(var(--market-card-width) * 5 + var(--pokemon-purchased-gap) * 4);
   --splendor-purchased-width: var(--pokemon-purchased-width);
@@ -7181,7 +7192,7 @@ button:not(:disabled):active {
 }
 
 .pokemonShell .splendorSeat > .playerPanel .purchasedCardStack {
-  --purchased-stack-step: 16px;
+  --purchased-stack-step: var(--pokemon-purchased-stack-step, 27px);
 }
 
 .splendorFourShell .splendorSeat > .playerPanel .purchasedCardItem,

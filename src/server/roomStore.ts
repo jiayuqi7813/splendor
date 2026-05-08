@@ -1,5 +1,5 @@
 import { applyAction, createInitialGame, RuleError, startGameIfReady } from '@/game/rules'
-import type { AnyGameAction, AnyGameState, GameAction, GameState, PlayerId, PublicRoomEvent, PublicRoomStateEvent, RoomFeedItem, RoomFeedKind, RoomIntent } from '@/game/types'
+import type { AnyGameAction, AnyGameState, GameAction, GameState, PlayerId, PokemonSpecialSet, PublicRoomEvent, PublicRoomStateEvent, RoomFeedItem, RoomFeedKind, RoomIntent } from '@/game/types'
 import { chooseAiAction, isDifficultyId } from '@/game/ai'
 import type { AiMemory, DifficultyId } from '@/game/ai'
 
@@ -207,11 +207,12 @@ function sanitizeCursorIntent(intent: Extract<RoomIntent, { type: 'cursorMove' }
 class RoomStore {
   private rooms = new Map<string, Room>()
 
-  createRoom(options?: { gameType?: unknown; playerCount?: unknown }): JoinResult {
+  createRoom(options?: { gameType?: unknown; playerCount?: unknown; pokemonSpecialSet?: unknown }): JoinResult {
     this.cleanup()
     const id = randomId(8)
     const gameType = options?.gameType === 'classic' || options?.gameType === 'pokemon' ? options.gameType : 'duel'
-    const state = createInitialGame(id, { gameType, playerCount: gameType === 'classic' || gameType === 'pokemon' ? 4 : 2 })
+    const pokemonSpecialSet: PokemonSpecialSet = options?.pokemonSpecialSet === 'alternate' ? 'alternate' : 'primary'
+    const state = createInitialGame(id, { gameType, playerCount: gameType === 'classic' || gameType === 'pokemon' ? 4 : 2, pokemonSpecialSet })
     state.feed = []
     const room: Room = {
       id,
@@ -415,7 +416,7 @@ class RoomStore {
     if (!room.state.playerOrder.every((id) => room.seats[id])) throw new RuleError('需要所有玩家都在房间内才能开启新一局。')
 
     const previousState = room.state
-    const nextState = createInitialGame(room.id, { gameType: previousState.gameType, playerCount: previousState.playerOrder.length === 4 ? 4 : 2 })
+    const nextState = createInitialGame(room.id, { gameType: previousState.gameType, playerCount: previousState.playerOrder.length === 4 ? 4 : 2, pokemonSpecialSet: previousState.pokemonSpecial?.set })
     for (const playerId of previousState.playerOrder) {
       nextState.players[playerId].name = previousState.players[playerId].name
       nextState.players[playerId].connected = previousState.players[playerId].connected

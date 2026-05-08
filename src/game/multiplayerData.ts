@@ -2,6 +2,7 @@ export type GemColor = "white" | "blue" | "green" | "red" | "brown" | "gold";
 export type BasicColor = Exclude<GemColor, "gold">;
 export type GameVariant = "classic" | "pokemon";
 export type CardDeckKind = "common" | "rare" | "legendary";
+export type PokemonSpecialSet = "primary" | "alternate";
 export type Gems = Record<GemColor, number>;
 export type Costs = Record<BasicColor, number>;
 
@@ -13,6 +14,7 @@ export interface Card {
   cost: Costs;
   variant?: GameVariant;
   deckKind?: CardDeckKind;
+  pokemonSpecialSet?: PokemonSpecialSet;
   name?: string;
   image?: string;
   goldCost?: number;
@@ -511,6 +513,7 @@ const special = (
   id: string,
   name: string,
   deckKind: Exclude<CardDeckKind, "common">,
+  pokemonSpecialSet: PokemonSpecialSet,
   prestige: number,
   image: string,
   goldCost: number,
@@ -524,6 +527,7 @@ const special = (
   cost,
   variant: "pokemon",
   deckKind,
+  pokemonSpecialSet,
   name,
   image,
   goldCost,
@@ -533,6 +537,7 @@ const special = (
 function pokemonSourceToSpecialCard(
   source: PokemonSourceCard,
   deckKind: Exclude<CardDeckKind, "common">,
+  pokemonSpecialSet: PokemonSpecialSet,
   idPrefix: "pk-r" | "pk-l",
   index: number,
 ): Card {
@@ -540,6 +545,7 @@ function pokemonSourceToSpecialCard(
     `${idPrefix}${String(index + 1).padStart(2, "0")}`,
     source.name,
     deckKind,
+    pokemonSpecialSet,
     source.stats.prestige,
     source.image,
     source.stats.goldCost ?? 1,
@@ -567,14 +573,24 @@ const pokemonPrintedLegendarySources: PokemonSourceCard[] = [
   { id: "pk-l-src-01", name: "小智的皮卡丘", image: assetPath("cards/legendary", "legendary-001"), stats: pc(0, ["green", "green"], c(2, 3, 0, 0, 0), undefined, 1) },
 ];
 
-const legendarySpecialNames = new Set(["超梦", "火焰鸟", "闪电鸟", "急冻鸟"]);
+function isPokemonLegendarySpecial(source: PokemonSourceCard): boolean {
+  return source.stats.prestige === 0;
+}
+
+function isPokemonMythicalSpecial(source: PokemonSourceCard): boolean {
+  return source.stats.prestige > 0;
+}
+
+const primaryLegendarySpecialNames = new Set(["小智的皮卡丘", "伊布", "百变怪", "卡比兽", "拉普拉斯"]);
 
 export const POKEMON_RARE_CARDS: Card[] = [
-  ...pokemonPrintedRareSources,
-  ...pokemonEmbeddedSpecialSources.filter((source) => !legendarySpecialNames.has(source.name)),
-].map((source, index) => pokemonSourceToSpecialCard(source, "rare", "pk-r", index));
+  ...pokemonPrintedRareSources.map((source) => ({ source, set: "primary" as const })),
+  ...pokemonEmbeddedSpecialSources.filter(isPokemonMythicalSpecial).map((source) => ({ source, set: "alternate" as const })),
+].map(({ source, set }, index) => pokemonSourceToSpecialCard(source, "rare", set, "pk-r", index));
 
 export const POKEMON_LEGENDARY_CARDS: Card[] = [
-  ...pokemonPrintedLegendarySources,
-  ...pokemonEmbeddedSpecialSources.filter((source) => legendarySpecialNames.has(source.name)),
-].map((source, index) => pokemonSourceToSpecialCard(source, "legendary", "pk-l", index));
+  ...[
+    ...pokemonPrintedLegendarySources,
+    ...pokemonEmbeddedSpecialSources.filter(isPokemonLegendarySpecial),
+  ].map((source) => ({ source, set: primaryLegendarySpecialNames.has(source.name) ? "primary" as const : "alternate" as const })),
+].map(({ source, set }, index) => pokemonSourceToSpecialCard(source, "legendary", set, "pk-l", index));

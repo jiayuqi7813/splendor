@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Gem, Link as LinkIcon, Loader2, Sparkles, UsersRound } from 'lucide-react'
 import { useState, type CSSProperties } from 'react'
 import { appPath } from '@/utils/paths'
+import type { PokemonSpecialSet } from '@/game/types'
 
 export const Route = createFileRoute('/')({
   component: Home,
@@ -19,6 +20,7 @@ function Home() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [gameType, setGameType] = useState<'duel' | 'classic' | 'pokemon'>('classic')
+  const [pokemonSpecialSet, setPokemonSpecialSet] = useState<PokemonSpecialSet>('primary')
 
   async function createRoom() {
     setBusy(true)
@@ -27,7 +29,7 @@ function Home() {
       const response = await fetch(appPath('/api/rooms'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ gameType }),
+        body: JSON.stringify({ gameType, pokemonSpecialSet: gameType === 'pokemon' ? pokemonSpecialSet : undefined }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.error ?? '创建房间失败')
@@ -63,6 +65,16 @@ function Home() {
             对决
           </button>
         </div>
+        {gameType === 'pokemon' && (
+          <div className="homeGamePicker compactGamePicker" role="radiogroup" aria-label="选择宝可梦特殊牌组">
+            <button className={pokemonSpecialSet === 'primary' ? 'selectedGameType' : ''} type="button" onClick={() => setPokemonSpecialSet('primary')}>
+              套组 A
+            </button>
+            <button className={pokemonSpecialSet === 'alternate' ? 'selectedGameType' : ''} type="button" onClick={() => setPokemonSpecialSet('alternate')}>
+              套组 B
+            </button>
+          </div>
+        )}
         <button className="primaryButton" onClick={createRoom} disabled={busy}>
           {busy ? <Loader2 className="spin" size={18} /> : <LinkIcon size={18} />}
           创建房间链接

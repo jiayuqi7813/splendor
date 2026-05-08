@@ -1,6 +1,6 @@
 import { CARD_DEFINITIONS } from './data/cards.generated'
 import { DEVELOPMENT_CARDS, NOBLES, POKEMON_DEVELOPMENT_CARDS, POKEMON_LEGACY_SPECIAL_CARD_IDS, POKEMON_LEGENDARY_CARDS, POKEMON_RARE_CARDS, type BasicColor, type Card, type Costs } from './multiplayerData'
-import type { CardDefinition, Cost, GemType } from './types'
+import type { CardDefinition, Cost, GemType, PokemonSpecialSet } from './types'
 
 const CLASSIC_COLOR_TO_DUEL: Record<BasicColor, GemType> = {
   white: 'diamond',
@@ -100,6 +100,7 @@ function pokemonDefinition(card: Card, index: number): CardDefinition {
     cost: classicCost(card.cost),
     name: card.name,
     deckKind: card.deckKind ?? 'common',
+    pokemonSpecialSet: card.pokemonSpecialSet,
     goldCost: card.goldCost,
     bonusColors,
     evolvesFrom: card.evolvesFrom,
@@ -166,12 +167,12 @@ export function pokemonCardsByTier(tier: 1 | 2 | 3): number[] {
   return POKEMON_CARD_DEFINITIONS.filter((card) => card.deckKind === 'common' && card.tier === tier).map((card) => card.cardId)
 }
 
-export function pokemonRareCards(): number[] {
-  return POKEMON_CARD_DEFINITIONS.filter((card) => card.deckKind === 'rare').map((card) => card.cardId)
+export function pokemonRareCards(set: PokemonSpecialSet = 'primary'): number[] {
+  return POKEMON_CARD_DEFINITIONS.filter((card) => card.deckKind === 'rare' && card.pokemonSpecialSet === set).map((card) => card.cardId)
 }
 
-export function pokemonLegendaryCards(): number[] {
-  return POKEMON_CARD_DEFINITIONS.filter((card) => card.deckKind === 'legendary').map((card) => card.cardId)
+export function pokemonLegendaryCards(set: PokemonSpecialSet = 'primary'): number[] {
+  return POKEMON_CARD_DEFINITIONS.filter((card) => card.deckKind === 'legendary' && card.pokemonSpecialSet === set).map((card) => card.cardId)
 }
 
 export function royalCards(): number[] {

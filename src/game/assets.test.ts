@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { DEVELOPMENT_CARDS, NOBLES, POKEMON_DEVELOPMENT_CARDS, POKEMON_LEGENDARY_CARDS, POKEMON_RARE_CARDS } from './multiplayerData'
-import { getCard } from './cards'
+import { getCard, pokemonLegendaryCards, pokemonRareCards } from './cards'
 import { CARD_ATLASES } from './data/cards.generated'
 import type { CardDefinition } from './types'
 import type { Costs } from './multiplayerData'
@@ -104,16 +104,26 @@ describe('project-local generated assets', () => {
     expect(readdirSync(pokemonAssetDir('card-backs')).filter((file) => file.endsWith('.webp'))).toHaveLength(5)
     expect(existsSync(pokemonAssetDir('ATTRIBUTION.md'))).toBe(true)
     expect(POKEMON_DEVELOPMENT_CARDS).toHaveLength(80)
-    expect(POKEMON_RARE_CARDS).toHaveLength(15)
-    expect(POKEMON_LEGENDARY_CARDS).toHaveLength(5)
+    expect(POKEMON_RARE_CARDS).toHaveLength(10)
+    expect(POKEMON_LEGENDARY_CARDS).toHaveLength(10)
+    expect(pokemonRareCards('primary')).toHaveLength(5)
+    expect(pokemonLegendaryCards('primary')).toHaveLength(5)
+    expect(pokemonRareCards('alternate')).toHaveLength(5)
+    expect(pokemonLegendaryCards('alternate')).toHaveLength(5)
     expect(POKEMON_DEVELOPMENT_CARDS.filter((card) => card.tier === 1)).toHaveLength(35)
     expect(POKEMON_DEVELOPMENT_CARDS.filter((card) => card.tier === 2)).toHaveLength(30)
     expect(POKEMON_DEVELOPMENT_CARDS.filter((card) => card.tier === 3)).toHaveLength(15)
     expect(POKEMON_DEVELOPMENT_CARDS.every((card) => !card.goldCost && !card.bonusColors)).toBe(true)
-    expect(POKEMON_RARE_CARDS.every((card) => card.deckKind === 'rare' && card.goldCost && (card.bonusColors?.length ?? 0) > 1)).toBe(true)
-    expect(POKEMON_LEGENDARY_CARDS.every((card) => card.deckKind === 'legendary' && card.goldCost && (card.bonusColors?.length ?? 0) > 1)).toBe(true)
+    expect(POKEMON_RARE_CARDS.every((card) => card.deckKind === 'rare' && card.prestige > 0 && card.goldCost && (card.bonusColors?.length ?? 0) > 1)).toBe(true)
+    expect(POKEMON_LEGENDARY_CARDS.every((card) => card.deckKind === 'legendary' && card.prestige === 0 && card.goldCost && (card.bonusColors?.length ?? 0) > 1)).toBe(true)
     expect(POKEMON_LEGENDARY_CARDS.map((card) => card.name)).not.toContain('小拳石')
     expect(POKEMON_LEGENDARY_CARDS.map((card) => card.name)).not.toContain('隆隆石')
+    expect(POKEMON_RARE_CARDS.map((card) => card.name)).toEqual(expect.arrayContaining(['超梦', '梦幻', '火焰鸟', '闪电鸟', '急冻鸟']))
+    expect(POKEMON_LEGENDARY_CARDS.map((card) => card.name)).toEqual(expect.arrayContaining(['伊布', '百变怪', '卡比兽', '拉普拉斯', '化石翼龙']))
+    expect(pokemonRareCards('primary').map((cardId) => getCard(cardId).name)).toEqual(['美洛耶塔', '凯路迪欧', '蒂安希', '比克提尼', '捷拉奥拉'])
+    expect(pokemonRareCards('alternate').map((cardId) => getCard(cardId).name)).toEqual(['超梦', '梦幻', '火焰鸟', '闪电鸟', '急冻鸟'])
+    expect(pokemonLegendaryCards('primary').map((cardId) => getCard(cardId).name)).toEqual(['小智的皮卡丘', '伊布', '百变怪', '卡比兽', '拉普拉斯'])
+    expect(pokemonLegendaryCards('alternate').map((cardId) => getCard(cardId).name)).toEqual(['化石翼龙', '小刚的大岩蛇', '火箭队的果然翁', '小刚的可达鸭', '火箭队的喵喵'])
     expect(POKEMON_DEVELOPMENT_CARDS.find((card) => card.name === '大针蜂')?.tier).toBe(3)
     expect(POKEMON_DEVELOPMENT_CARDS.find((card) => card.name === '喷火龙')?.tier).toBe(3)
     for (const cardId of [30001, 30041, 30071, 30101, 30201]) {

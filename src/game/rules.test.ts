@@ -1107,10 +1107,23 @@ describe('rules engine', () => {
     expect(state.market[1]).toHaveLength(4)
     expect(state.market[2]).toHaveLength(4)
     expect(state.market[3]).toHaveLength(4)
+    expect(state.pokemonSpecial?.set).toBe('primary')
     expect(state.pokemonSpecial?.rareFaceUp).toBeTruthy()
     expect(state.pokemonSpecial?.legendaryFaceUp).toBeTruthy()
     expect(state.pokemonSpecial?.rareDeck).toHaveLength(pokemonRareCards().length - 1)
     expect(state.pokemonSpecial?.legendaryDeck).toHaveLength(pokemonLegendaryCards().length - 1)
+  })
+
+  it('can start Pokemon Splendor with the alternate special card set', () => {
+    const state = createInitialGame('pokemon-alternate-specials', { gameType: 'pokemon', playerCount: 4, pokemonSpecialSet: 'alternate' })
+    const rareCards = [state.pokemonSpecial!.rareFaceUp!, ...state.pokemonSpecial!.rareDeck].map(getCard)
+    const legendaryCards = [state.pokemonSpecial!.legendaryFaceUp!, ...state.pokemonSpecial!.legendaryDeck].map(getCard)
+
+    expect(state.pokemonSpecial?.set).toBe('alternate')
+    expect(rareCards).toHaveLength(5)
+    expect(legendaryCards).toHaveLength(5)
+    expect(rareCards.every((card) => card.deckKind === 'rare' && card.pokemonSpecialSet === 'alternate' && card.points > 0)).toBe(true)
+    expect(legendaryCards.every((card) => card.deckKind === 'legendary' && card.pokemonSpecialSet === 'alternate' && card.points === 0)).toBe(true)
   })
 
   it('requires Pokemon players to manually end the turn after a mandatory action', () => {
