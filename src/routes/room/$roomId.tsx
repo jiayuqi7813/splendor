@@ -52,6 +52,9 @@ const CURSOR_TRACK_FADE_MS = 2400
 const CURSOR_LAYER_TICK_MS = 1400
 const REMOTE_CURSOR_CLICK_MS = 720
 const REMOTE_CURSOR_CLICK_LIMIT = 18
+const CARD_PEEK_VERTICAL_MARGIN = 16
+const CARD_PEEK_CARD_HEIGHT = 360
+const CARD_PEEK_NOBLE_HEIGHT = 260
 const REMOTE_CURSOR_COLORS: Record<PlayerId, string> = {
   p1: '#f6c75e',
   p2: '#74c0fc',
@@ -79,6 +82,16 @@ type ChatPanelPosition = {
 type ChatPanelSize = {
   width: number
   height: number
+}
+
+type CardPeekKind = 'modern' | 'classic' | 'classicNoble'
+
+type CardPeek = {
+  cardId: number
+  kind: CardPeekKind
+  variant?: GameType
+  side: 'left' | 'right'
+  top: number
 }
 
 function readRoomMachineFromLocation(): string {
@@ -148,6 +161,7 @@ function Room() {
   const [tutorialStep, setTutorialStep] = useState<TutorialStep>()
   const [boardFocusOpen, setBoardFocusOpen] = useState(false)
   const [isMobileBoardLayout, setIsMobileBoardLayout] = useState(false)
+  const [cardPeek, setCardPeek] = useState<CardPeek>()
   const seqRef = useRef(0)
   const roomMachineRef = useRef(readRoomMachineFromLocation())
   const stateRef = useRef<any>(undefined)
@@ -178,6 +192,7 @@ function Room() {
   const classicCommittedDraftTimersRef = useRef<Partial<Record<PlayerId, number>>>({})
   const remoteGoldSettleTimerRef = useRef<number | undefined>(undefined)
   const remoteGoldFrameRef = useRef<number | undefined>(undefined)
+  const rightButtonPeekRef = useRef(false)
   const remoteClassicTokenSettleTimerRef = useRef<number | undefined>(undefined)
   const remoteClassicTokenFrameRef = useRef<number | undefined>(undefined)
   const remotePrivilegeSettleTimerRef = useRef<number | undefined>(undefined)
@@ -248,6 +263,50 @@ function Room() {
   function roomApiPath(path: string): string {
     return appPath(withRoomMachine(path, roomMachineRef.current))
   }
+
+  useEffect(() => {
+    const preventContextMenu = (event: MouseEvent) => {
+      event.preventDefault()
+    }
+    const updatePeekFromPointer = (event: PointerEvent) => {
+      setCardPeek(cardPeekAtPoint(event.clientX, event.clientY))
+    }
+    const clearPeek = () => {
+      rightButtonPeekRef.current = false
+      setCardPeek(undefined)
+    }
+    const handlePointerDown = (event: PointerEvent) => {
+      if (event.button !== 2) return
+      event.preventDefault()
+      rightButtonPeekRef.current = true
+      updatePeekFromPointer(event)
+    }
+    const handlePointerMove = (event: PointerEvent) => {
+      if (!rightButtonPeekRef.current) return
+      if ((event.buttons & 2) === 0) {
+        clearPeek()
+        return
+      }
+      updatePeekFromPointer(event)
+    }
+    const handlePointerUp = (event: PointerEvent) => {
+      if (event.button === 2 || (event.buttons & 2) === 0) clearPeek()
+    }
+    document.addEventListener('contextmenu', preventContextMenu, { capture: true })
+    document.addEventListener('pointerdown', handlePointerDown, { capture: true })
+    document.addEventListener('pointermove', handlePointerMove, { capture: true })
+    document.addEventListener('pointerup', handlePointerUp, { capture: true })
+    document.addEventListener('pointercancel', clearPeek, { capture: true })
+    window.addEventListener('blur', clearPeek)
+    return () => {
+      document.removeEventListener('contextmenu', preventContextMenu, { capture: true })
+      document.removeEventListener('pointerdown', handlePointerDown, { capture: true })
+      document.removeEventListener('pointermove', handlePointerMove, { capture: true })
+      document.removeEventListener('pointerup', handlePointerUp, { capture: true })
+      document.removeEventListener('pointercancel', clearPeek, { capture: true })
+      window.removeEventListener('blur', clearPeek)
+    }
+  }, [])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -2304,6 +2363,7 @@ function Room() {
   }
 
   function beginCardCarry(event: ReactPointerEvent<HTMLElement>, cardId: number, source: CardSource) {
+    if (event.button !== 0) return
     if (isInteractionLocked() || !isMyTurn || currentPending || !state || !playerId) return
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
@@ -3388,6 +3448,7 @@ function Room() {
         {tokenCarry?.kind === 'gold' && <FloatingGoldToken carry={tokenCarry} />}
         {classicTokenCarry && <FloatingClassicToken carry={classicTokenCarry} />}
         {cardCarry && <FloatingCardCarry carry={cardCarry} />}
+        <CardPeekOverlay peek={cardPeek} />
         {remoteClassicTokenAnchor && <RemoteClassicToken anchor={remoteClassicTokenAnchor} />}
         {flyingTokens.map((flight) => (
           <FlyingTakenToken flight={flight} key={flight.id} />
@@ -3815,6 +3876,7 @@ function Room() {
 	      {tokenCarry?.kind === 'gold' && <FloatingGoldToken carry={tokenCarry} />}
 	      {tokenSlotCarry && <FloatingTokenSlotCarry carry={tokenSlotCarry} />}
 	      {cardCarry && <FloatingCardCarry carry={cardCarry} />}
+	      <CardPeekOverlay peek={cardPeek} />
 	      {privilegeCarry && <FloatingPrivilegeCarry carry={privilegeCarry} />}
 	      {flyingTokens.map((flight) => (
 	        <FlyingTakenToken flight={flight} key={flight.id} />
@@ -5341,6 +5403,38 @@ function sourceKey(source: CardSource): string {
   if (source.type === 'deck') return `deck:${source.tier}`
   if (source.type === 'pokemonSpecial') return `pokemon:${source.deck}`
   return `reserve:${source.index}`
+}
+
+function cardPeekAtPoint(clientX: number, clientY: number): CardPeek | undefined {
+  const target = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>('[data-card-peek-id]')
+  if (!target) return undefined
+  const cardId = Number(target.dataset.cardPeekId)
+  const kind = target.dataset.cardPeekKind as CardPeekKind | undefined
+  if (!Number.isFinite(cardId) || (kind !== 'modern' && kind !== 'classic' && kind !== 'classicNoble')) return undefined
+  const height = kind === 'classicNoble' ? CARD_PEEK_NOBLE_HEIGHT : CARD_PEEK_CARD_HEIGHT
+  const top = Math.max(CARD_PEEK_VERTICAL_MARGIN, Math.min(window.innerHeight - height - CARD_PEEK_VERTICAL_MARGIN, clientY - height / 2))
+  return {
+    cardId,
+    kind,
+    variant: target.dataset.cardPeekVariant as GameType | undefined,
+    side: clientX < window.innerWidth / 2 ? 'right' : 'left',
+    top,
+  }
+}
+
+function CardPeekOverlay({ peek }: { peek?: CardPeek }) {
+  if (!peek) return null
+  return (
+    <div className={`cardPeekOverlay ${peek.side === 'left' ? 'cardPeekLeft' : 'cardPeekRight'} ${peek.kind === 'classicNoble' ? 'cardPeekNoble' : ''}`} style={{ top: peek.top } as CSSProperties} aria-hidden="true">
+      {peek.kind === 'modern' ? (
+        <CardView cardId={peek.cardId} />
+      ) : peek.kind === 'classicNoble' ? (
+        <ClassicNobleView cardId={peek.cardId} />
+      ) : (
+        <ClassicCardView cardId={peek.cardId} variant={peek.variant} />
+      )}
+    </div>
+  )
 }
 
 function sourceMotionKey(source: CardSource, playerId?: PlayerId): string {

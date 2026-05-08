@@ -7,10 +7,10 @@ export function CardView({ cardId, small = false, wildColor }: { cardId: number;
   const card = getCard(cardId)
   const atlas = CARD_ATLASES[card.atlas]
   if (!atlas) {
-    return <div className={small ? 'cardMini' : 'card'} title={`卡牌资源错误：${cardId}`} />
+    return <div className={small ? 'cardMini' : 'card'} data-card-peek-id={cardId} data-card-peek-kind="modern" title={`卡牌资源错误：${cardId}`} />
   }
   return (
-    <div className={small ? 'cardMini' : 'card'} title={describeCard(card, wildColor)}>
+    <div className={small ? 'cardMini' : 'card'} data-card-peek-id={cardId} data-card-peek-kind="modern" title={describeCard(card, wildColor)}>
       <div
         className="cardArt"
         style={{

@@ -90,6 +90,41 @@ button:disabled {
   cursor: default !important;
 }
 
+.cardPeekOverlay {
+  position: fixed;
+  z-index: 10000;
+  width: 260px;
+  height: 360px;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 22px 30px rgba(0, 0, 0, 0.56));
+}
+
+.cardPeekOverlay.cardPeekLeft {
+  left: 24px;
+}
+
+.cardPeekOverlay.cardPeekRight {
+  right: 24px;
+}
+
+.cardPeekOverlay.cardPeekNoble {
+  width: 260px;
+  height: 260px;
+}
+
+.cardPeekOverlay .card,
+.cardPeekOverlay .classicCard {
+  width: 100%;
+  height: 100%;
+}
+
+.cardPeekOverlay .cardArt {
+  width: 100%;
+  height: 100%;
+}
+
 button:not(:disabled):active {
   transform: translateY(1px) scale(0.99);
 }

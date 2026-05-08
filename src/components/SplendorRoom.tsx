@@ -1092,7 +1092,13 @@ export function ClassicCardView({ cardId, horizontal = false, variant = 'classic
   const card = splendorCard(cardId, variant)
   const definition = getCard(cardId)
   return (
-    <div className={`card classicCard ${horizontal ? 'classicCardHorizontal' : ''}`} title={card ? `${card.prestige} 分` : undefined}>
+    <div
+      className={`card classicCard ${horizontal ? 'classicCardHorizontal' : ''}`}
+      data-card-peek-id={cardId}
+      data-card-peek-kind="classic"
+      data-card-peek-variant={variant}
+      title={card ? `${card.prestige} 分` : undefined}
+    >
       <ClassicAtlasArt cardId={definition.cardId} />
     </div>
   )
@@ -1101,7 +1107,7 @@ export function ClassicCardView({ cardId, horizontal = false, variant = 'classic
 export function ClassicNobleView({ cardId }: { cardId: number }) {
   const noble = CLASSIC_NOBLE_BY_ID.get(cardId)
   return (
-    <div className="card classicCard classicNobleCard" title={noble ? `${noble.prestige} 分贵族` : undefined}>
+    <div className="card classicCard classicNobleCard" data-card-peek-id={cardId} data-card-peek-kind="classicNoble" title={noble ? `${noble.prestige} 分贵族` : undefined}>
       <ClassicAtlasArt cardId={cardId} />
     </div>
   )
