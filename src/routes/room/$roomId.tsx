@@ -864,7 +864,7 @@ function Room() {
         scheduleDeferredState(update.seq, update.state, classicDiscardAnimation.duration)
         return
       }
-      const skipClassicTakeAnimation = update.action?.type === 'takeClassicBankTokens' ? consumeClassicDraftCommitted(update.action.playerId) : false
+      const skipClassicTakeAnimation = update.action?.type === 'takeClassicBankTokens' ? isClassicDraftCommitted(update.action.playerId) : false
       const classicTakeAnimation =
         isClassicShellGame(currentState) && update.action?.type === 'takeClassicBankTokens' && !skipClassicTakeAnimation
           ? createClassicBankTakeTransitionAnimation(currentState, update.state, update.action)
@@ -1694,17 +1694,18 @@ function Room() {
     classicCommittedDraftPlayersRef.current.add(playerId)
     window.clearTimeout(classicCommittedDraftTimersRef.current[playerId])
     classicCommittedDraftTimersRef.current[playerId] = window.setTimeout(() => {
-      classicCommittedDraftPlayersRef.current.delete(playerId)
-      classicCommittedDraftTimersRef.current[playerId] = undefined
+      clearClassicDraftCommitted(playerId)
     }, 3500)
   }
 
-  function consumeClassicDraftCommitted(playerId: PlayerId): boolean {
-    if (!classicCommittedDraftPlayersRef.current.has(playerId)) return false
+  function clearClassicDraftCommitted(playerId: PlayerId) {
     classicCommittedDraftPlayersRef.current.delete(playerId)
     window.clearTimeout(classicCommittedDraftTimersRef.current[playerId])
     classicCommittedDraftTimersRef.current[playerId] = undefined
-    return true
+  }
+
+  function isClassicDraftCommitted(playerId: PlayerId): boolean {
+    return classicCommittedDraftPlayersRef.current.has(playerId)
   }
 
   function setRemoteClassicTokenDrafts(next: Partial<Record<PlayerId, ClassicTokenDraft>>) {
@@ -1752,6 +1753,7 @@ function Room() {
             hoverSlotIndex: event.intent.hoverSlotIndex,
           }
         : undefined
+      if (nextDraft?.tokenTypes.length) clearClassicDraftCommitted(event.playerId)
       setRemoteClassicTokenDrafts({ ...remoteClassicTokenDraftsRef.current, [event.playerId]: nextDraft })
       if (nextDraft && nextDraft.tokenTypes.length > (previous?.tokenTypes.length ?? 0)) {
         const draftIndex = nextDraft.tokenTypes.length - 1
@@ -2418,6 +2420,7 @@ function Room() {
 
   function beginClassicBankTokenCarry(event: ReactPointerEvent<HTMLElement>, tokenType: GemType) {
     if (!state || !playerId || !canTakeClassicDraftToken(state, playerId, classicTokenDraftRef.current, tokenType) || isInteractionLocked()) return
+    clearClassicDraftCommitted(playerId)
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     const target = event.currentTarget.querySelector<HTMLElement>('.splendorStackedToken:last-of-type, .tokenImage') ?? event.currentTarget
@@ -2751,6 +2754,7 @@ function Room() {
 
   function takeClassicDraftToken(tokenType: GemType, carry?: ClassicTokenCarry) {
     if (!state || !playerId || !canTakeClassicDraftToken(state, playerId, classicTokenDraftRef.current, tokenType)) return
+    clearClassicDraftCommitted(playerId)
     const currentDraft = classicTokenDraftRef.current
     const nextDraft: ClassicTokenDraft = currentDraft
       ? { playerId, tokenTypes: [...currentDraft.tokenTypes, tokenType], initialCounts: currentDraft.initialCounts }
@@ -3265,7 +3269,7 @@ function Room() {
         : []
     const classicDraftViews: Partial<Record<PlayerId, ClassicTokenDraftView>> = {}
     for (const id of ALL_PLAYER_IDS) {
-      const remoteDraft = remoteClassicTokenDrafts[id]
+      const remoteDraft = isClassicDraftCommitted(id) ? undefined : remoteClassicTokenDrafts[id]
       if (remoteDraft) {
         classicDraftViews[id] = {
           tokenTypes: remoteDraft.tokenTypes,
@@ -3276,18 +3280,19 @@ function Room() {
         }
       }
     }
-    if (classicTokenDraft && isPlayerId(playerId)) {
+    const localClassicTokenDraft = classicTokenDraft && isPlayerId(playerId) && !isClassicDraftCommitted(playerId) ? classicTokenDraft : undefined
+    if (localClassicTokenDraft && isPlayerId(playerId)) {
       classicDraftViews[playerId] = {
-        tokenTypes: classicTokenDraft.tokenTypes,
-        confirmable: isClassicDraftConfirmable(classicTokenDraft),
+        tokenTypes: localClassicTokenDraft.tokenTypes,
+        confirmable: isClassicDraftConfirmable(localClassicTokenDraft),
         controllable: true,
-        hoverTokenType: classicTokenDraft.hoverTokenType,
-        hoverSlotIndex: classicTokenDraft.hoverSlotIndex,
+        hoverTokenType: localClassicTokenDraft.hoverTokenType,
+        hoverSlotIndex: localClassicTokenDraft.hoverSlotIndex,
       }
     }
     const bankDraftTokenTypes = [
-      ...(classicTokenDraft?.tokenTypes ?? []),
-      ...ALL_PLAYER_IDS.flatMap((id) => remoteClassicTokenDrafts[id]?.tokenTypes ?? []),
+      ...(localClassicTokenDraft?.tokenTypes ?? []),
+      ...ALL_PLAYER_IDS.flatMap((id) => (isClassicDraftCommitted(id) ? [] : remoteClassicTokenDrafts[id]?.tokenTypes ?? [])),
       ...classicBankMotionTokenTypes,
     ]
     const aiSeatControls =
@@ -3350,7 +3355,7 @@ function Room() {
           revealingReserveIndices={Object.fromEntries(state.playerOrder.map((id) => [id, revealingReserveIndicesFor(id)])) as Partial<Record<PlayerId, number[]>>}
           hiddenReserveIndices={classicHiddenReserveIndices}
           bankDraftTokenTypes={bankDraftTokenTypes}
-          disabledBankTokenTypes={disabledClassicBankTokenTypes(state, playerId, classicTokenDraft)}
+          disabledBankTokenTypes={disabledClassicBankTokenTypes(state, playerId, localClassicTokenDraft)}
           hiddenBankTokenType={classicTokenCarry?.mode === 'bank' ? classicTokenCarry.tokenType : remoteClassicTokenAnchor?.tokenType ?? (tokenCarry?.classic || remoteGoldAnchor?.classic ? 'gold' : undefined)}
           introBankCounts={state.status === 'waiting' || pendingIntroSeq !== undefined || introAnimation ? (classicIntroBankCounts ?? emptyRouteBankCounts()) : undefined}
           hiddenTokenSlotKeys={[...spendingTokenSlotKeys, ...classicDraftMotionSlotKeys]}
