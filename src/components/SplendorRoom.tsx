@@ -245,16 +245,6 @@ export function SplendorRoom({
           <span key={label}>{label}</span>
         ))}
         <span>{displayPlayerName(viewer)}</span>
-        {state.gameType === 'pokemon' && state.status === 'playing' && (
-          <button
-            className={`hudTextButton endTurnButton ${canEndTurn ? 'activeHudTextButton' : ''}`}
-            onClick={canEndTurn ? onEndTurn : undefined}
-            disabled={!canEndTurn}
-            type="button"
-          >
-            结束回合
-          </button>
-        )}
         <strong>{turnLabel}</strong>
       </aside>
       <nav className="roomOps" aria-label="房间操作">
@@ -313,10 +303,10 @@ export function SplendorRoom({
       <section className="splendorTableLayout" aria-label="四人璀璨宝石桌面" style={{ '--splendor-table-scale': tableScale } as CSSProperties}>
         <div className="splendorTableScaler">
           <section className="splendorCenterAnchor">
-          <SplendorSeat className="splendorSeatLeft" state={state} playerId={order.left} viewerId={playerId} busy={busy} classicDraft={classicDrafts[order.left]} aiControl={aiSeatControls[order.left]} purchaseTarget={purchaseTargetForPanel(purchaseTarget, order.left, playerId)} remotePurchaseTarget={purchaseTargetForPanel(remotePurchaseTarget, order.left)} revealingReserveIndices={revealingReserveIndices[order.left] ?? []} hiddenReserveIndices={hiddenReserveIndices[order.left] ?? []} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={reserveIndexFromRemoteHover(remoteHoverCardSourceKey, order.left, playerId)} onMoveSeat={onMoveSeat} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onReservePointerDown={onCardPointerDown} onReservePointerEnter={(_, index) => onCardPointerEnter?.({ type: 'reserve', index })} onReservePointerLeave={onCardPointerLeave} onReservePointerMove={onCardPointerMove} onReservePointerUp={onCardPointerUp} onReservePointerCancel={onCardPointerCancel} />
-          <SplendorSeat className="splendorSeatRight" state={state} playerId={order.right} viewerId={playerId} busy={busy} classicDraft={classicDrafts[order.right]} aiControl={aiSeatControls[order.right]} purchaseTarget={purchaseTargetForPanel(purchaseTarget, order.right, playerId)} remotePurchaseTarget={purchaseTargetForPanel(remotePurchaseTarget, order.right)} revealingReserveIndices={revealingReserveIndices[order.right] ?? []} hiddenReserveIndices={hiddenReserveIndices[order.right] ?? []} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={reserveIndexFromRemoteHover(remoteHoverCardSourceKey, order.right, playerId)} onMoveSeat={onMoveSeat} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onReservePointerDown={onCardPointerDown} onReservePointerEnter={(_, index) => onCardPointerEnter?.({ type: 'reserve', index })} onReservePointerLeave={onCardPointerLeave} onReservePointerMove={onCardPointerMove} onReservePointerUp={onCardPointerUp} onReservePointerCancel={onCardPointerCancel} />
-          <SplendorSeat className="splendorSeatBottomLeft" state={state} playerId={order.bottomLeft} viewerId={playerId} busy={busy} classicDraft={classicDrafts[order.bottomLeft]} aiControl={aiSeatControls[order.bottomLeft]} purchaseTarget={purchaseTargetForPanel(purchaseTarget, order.bottomLeft, playerId)} remotePurchaseTarget={purchaseTargetForPanel(remotePurchaseTarget, order.bottomLeft)} revealingReserveIndices={revealingReserveIndices[order.bottomLeft] ?? []} hiddenReserveIndices={hiddenReserveIndices[order.bottomLeft] ?? []} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={reserveIndexFromRemoteHover(remoteHoverCardSourceKey, order.bottomLeft, playerId)} onMoveSeat={onMoveSeat} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onReservePointerDown={onCardPointerDown} onReservePointerEnter={(_, index) => onCardPointerEnter?.({ type: 'reserve', index })} onReservePointerLeave={onCardPointerLeave} onReservePointerMove={onCardPointerMove} onReservePointerUp={onCardPointerUp} onReservePointerCancel={onCardPointerCancel} />
-          <SplendorSeat className="splendorSeatBottomRight" state={state} playerId={order.bottomRight} viewerId={playerId} busy={busy} classicDraft={classicDrafts[order.bottomRight]} aiControl={aiSeatControls[order.bottomRight]} purchaseTarget={purchaseTargetForPanel(purchaseTarget, order.bottomRight, playerId)} remotePurchaseTarget={purchaseTargetForPanel(remotePurchaseTarget, order.bottomRight)} revealingReserveIndices={revealingReserveIndices[order.bottomRight] ?? []} hiddenReserveIndices={hiddenReserveIndices[order.bottomRight] ?? []} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={reserveIndexFromRemoteHover(remoteHoverCardSourceKey, order.bottomRight, playerId)} onMoveSeat={onMoveSeat} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onReservePointerDown={onCardPointerDown} onReservePointerEnter={(_, index) => onCardPointerEnter?.({ type: 'reserve', index })} onReservePointerLeave={onCardPointerLeave} onReservePointerMove={onCardPointerMove} onReservePointerUp={onCardPointerUp} onReservePointerCancel={onCardPointerCancel} />
+          <SplendorSeat className="splendorSeatLeft" state={state} playerId={order.left} viewerId={playerId} busy={busy} classicDraft={classicDrafts[order.left]} aiControl={aiSeatControls[order.left]} purchaseTarget={purchaseTargetForPanel(purchaseTarget, order.left, playerId)} remotePurchaseTarget={purchaseTargetForPanel(remotePurchaseTarget, order.left)} canEndTurn={canEndTurn} revealingReserveIndices={revealingReserveIndices[order.left] ?? []} hiddenReserveIndices={hiddenReserveIndices[order.left] ?? []} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={reserveIndexFromRemoteHover(remoteHoverCardSourceKey, order.left, playerId)} onMoveSeat={onMoveSeat} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onEndTurn={onEndTurn} onReservePointerDown={onCardPointerDown} onReservePointerEnter={(_, index) => onCardPointerEnter?.({ type: 'reserve', index })} onReservePointerLeave={onCardPointerLeave} onReservePointerMove={onCardPointerMove} onReservePointerUp={onCardPointerUp} onReservePointerCancel={onCardPointerCancel} />
+          <SplendorSeat className="splendorSeatRight" state={state} playerId={order.right} viewerId={playerId} busy={busy} classicDraft={classicDrafts[order.right]} aiControl={aiSeatControls[order.right]} purchaseTarget={purchaseTargetForPanel(purchaseTarget, order.right, playerId)} remotePurchaseTarget={purchaseTargetForPanel(remotePurchaseTarget, order.right)} canEndTurn={canEndTurn} revealingReserveIndices={revealingReserveIndices[order.right] ?? []} hiddenReserveIndices={hiddenReserveIndices[order.right] ?? []} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={reserveIndexFromRemoteHover(remoteHoverCardSourceKey, order.right, playerId)} onMoveSeat={onMoveSeat} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onEndTurn={onEndTurn} onReservePointerDown={onCardPointerDown} onReservePointerEnter={(_, index) => onCardPointerEnter?.({ type: 'reserve', index })} onReservePointerLeave={onCardPointerLeave} onReservePointerMove={onCardPointerMove} onReservePointerUp={onCardPointerUp} onReservePointerCancel={onCardPointerCancel} />
+          <SplendorSeat className="splendorSeatBottomLeft" state={state} playerId={order.bottomLeft} viewerId={playerId} busy={busy} classicDraft={classicDrafts[order.bottomLeft]} aiControl={aiSeatControls[order.bottomLeft]} purchaseTarget={purchaseTargetForPanel(purchaseTarget, order.bottomLeft, playerId)} remotePurchaseTarget={purchaseTargetForPanel(remotePurchaseTarget, order.bottomLeft)} canEndTurn={canEndTurn} revealingReserveIndices={revealingReserveIndices[order.bottomLeft] ?? []} hiddenReserveIndices={hiddenReserveIndices[order.bottomLeft] ?? []} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={reserveIndexFromRemoteHover(remoteHoverCardSourceKey, order.bottomLeft, playerId)} onMoveSeat={onMoveSeat} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onEndTurn={onEndTurn} onReservePointerDown={onCardPointerDown} onReservePointerEnter={(_, index) => onCardPointerEnter?.({ type: 'reserve', index })} onReservePointerLeave={onCardPointerLeave} onReservePointerMove={onCardPointerMove} onReservePointerUp={onCardPointerUp} onReservePointerCancel={onCardPointerCancel} />
+          <SplendorSeat className="splendorSeatBottomRight" state={state} playerId={order.bottomRight} viewerId={playerId} busy={busy} classicDraft={classicDrafts[order.bottomRight]} aiControl={aiSeatControls[order.bottomRight]} purchaseTarget={purchaseTargetForPanel(purchaseTarget, order.bottomRight, playerId)} remotePurchaseTarget={purchaseTargetForPanel(remotePurchaseTarget, order.bottomRight)} canEndTurn={canEndTurn} revealingReserveIndices={revealingReserveIndices[order.bottomRight] ?? []} hiddenReserveIndices={hiddenReserveIndices[order.bottomRight] ?? []} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={reserveIndexFromRemoteHover(remoteHoverCardSourceKey, order.bottomRight, playerId)} onMoveSeat={onMoveSeat} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onEndTurn={onEndTurn} onReservePointerDown={onCardPointerDown} onReservePointerEnter={(_, index) => onCardPointerEnter?.({ type: 'reserve', index })} onReservePointerLeave={onCardPointerLeave} onReservePointerMove={onCardPointerMove} onReservePointerUp={onCardPointerUp} onReservePointerCancel={onCardPointerCancel} />
 
           <section className="splendorCenterTable">
             <SplendorBank state={state} canReserve={canReserve} goldCellId={goldCellId} takingCellIds={takingCellIds} draftTokenTypes={bankDraftTokenTypes} disabledTokenTypes={disabledBankTokenTypes} hiddenTokenType={hiddenBankTokenType} remoteHoverTokenType={remoteHoverBankTokenType} introBankCounts={introBankCounts} onGoldPointerDown={onGoldPointerDown} onBankTokenPointerDown={onBankTokenPointerDown} onBankTokenPointerEnter={onBankTokenPointerEnter} onBankTokenPointerLeave={onBankTokenPointerLeave} />
@@ -382,6 +372,7 @@ function SplendorSeat({
   aiControl,
   purchaseTarget,
   remotePurchaseTarget,
+  canEndTurn,
   revealingReserveIndices = [],
   hiddenReserveIndices = [],
   hiddenTokenSlotKeys,
@@ -409,6 +400,7 @@ function SplendorSeat({
   aiControl?: AiSeatControlView
   purchaseTarget?: ClassicPurchaseTargetView
   remotePurchaseTarget?: ClassicPurchaseTargetView
+  canEndTurn?: boolean
   revealingReserveIndices?: number[]
   hiddenReserveIndices?: number[]
   hiddenTokenSlotKeys: string[]
@@ -434,9 +426,10 @@ function SplendorSeat({
   const canMoveHere = state.status === 'waiting' && Boolean(viewer?.seated) && viewerId !== playerId && Boolean(onMoveSeat)
   const hiddenEmptySeat = state.status !== 'waiting' && !player.seated && !player.connected && !player.isAi
   const aiOptionIndex = aiControl ? Math.max(0, aiControl.options.findIndex((option) => option.id === aiControl.difficulty)) : 0
+  const showEndTurnButton = state.gameType === 'pokemon' && state.status === 'playing' && playerId === viewerId
   return (
     <div className={`splendorSeat ${className} splendorSeat-${playerId} ${hiddenEmptySeat ? 'splendorEmptySeatHidden' : ''}`}>
-      <SplendorPlayerPanel state={state} playerId={playerId} viewerId={viewerId} classicDraft={classicDraft} purchaseTarget={purchaseTarget} remotePurchaseTarget={remotePurchaseTarget} revealingReserveIndices={revealingReserveIndices} hiddenReserveIndices={hiddenReserveIndices} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={remoteHoveredReserveIndex} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onReservePointerDown={onReservePointerDown} onReservePointerEnter={onReservePointerEnter} onReservePointerLeave={onReservePointerLeave} onReservePointerMove={onReservePointerMove} onReservePointerUp={onReservePointerUp} onReservePointerCancel={onReservePointerCancel} />
+      <SplendorPlayerPanel state={state} playerId={playerId} viewerId={viewerId} classicDraft={classicDraft} purchaseTarget={purchaseTarget} remotePurchaseTarget={remotePurchaseTarget} showEndTurnButton={showEndTurnButton} canEndTurn={canEndTurn} revealingReserveIndices={revealingReserveIndices} hiddenReserveIndices={hiddenReserveIndices} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={remoteHoveredReserveIndex} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onEndTurn={onEndTurn} onReservePointerDown={onReservePointerDown} onReservePointerEnter={onReservePointerEnter} onReservePointerLeave={onReservePointerLeave} onReservePointerMove={onReservePointerMove} onReservePointerUp={onReservePointerUp} onReservePointerCancel={onReservePointerCancel} />
       {canMoveHere && (
         <button className="seatMoveButton splendorSeatMoveButton" type="button" onClick={() => onMoveSeat?.(playerId)} disabled={busy} title={player.seated ? `与 ${displayName} 交换位置` : '移动到此空位'} aria-label={player.seated ? `与 ${displayName} 交换位置` : '移动到此空位'}>
           <ArrowLeftRight size={15} />
@@ -855,6 +848,8 @@ function SplendorPlayerPanel({
   classicDraft,
   purchaseTarget,
   remotePurchaseTarget,
+  showEndTurnButton,
+  canEndTurn,
   revealingReserveIndices,
   hiddenReserveIndices,
   hiddenTokenSlotKeys,
@@ -865,6 +860,7 @@ function SplendorPlayerPanel({
   onDiscardToken,
   onConfirmTokenDraft,
   onCancelTokenDraft,
+  onEndTurn,
   onReservePointerDown,
   onReservePointerEnter,
   onReservePointerLeave,
@@ -878,6 +874,8 @@ function SplendorPlayerPanel({
   classicDraft?: ClassicTokenDraftView
   purchaseTarget?: ClassicPurchaseTargetView
   remotePurchaseTarget?: ClassicPurchaseTargetView
+  showEndTurnButton?: boolean
+  canEndTurn?: boolean
   revealingReserveIndices: number[]
   hiddenReserveIndices: number[]
   hiddenTokenSlotKeys: string[]
@@ -888,6 +886,7 @@ function SplendorPlayerPanel({
   onDiscardToken?: (token: Token) => void
   onConfirmTokenDraft?: () => void
   onCancelTokenDraft?: () => void
+  onEndTurn?: () => void
   onReservePointerDown?: (event: ReactPointerEvent<HTMLElement>, cardId: number, source: CardSource) => void
   onReservePointerEnter?: (cardId: number, index: number) => void
   onReservePointerLeave?: () => void
@@ -916,8 +915,18 @@ function SplendorPlayerPanel({
   const displayName = displayPlayerName(player)
   return (
     <aside className={`playerPanel ${isViewer ? 'viewerPanel' : 'opponentPanel'} ${state.currentPlayer === playerId ? 'activePlayer' : ''}`} data-player-panel={playerId}>
-      <header>
+      <header className={showEndTurnButton ? 'withEndTurnButton' : undefined}>
         <strong data-turn-name-player={playerId}>{displayName}</strong>
+        {showEndTurnButton && (
+          <button
+            className={`hudTextButton endTurnButton splendorSeatEndTurnButton ${canEndTurn ? 'activeHudTextButton' : ''}`}
+            onClick={canEndTurn ? onEndTurn : undefined}
+            disabled={!canEndTurn}
+            type="button"
+          >
+            结束回合
+          </button>
+        )}
         <div className="splendorReserveSlots" data-player-reserve-list={playerId} aria-label={`${displayName} 保留牌`}>
           {Array.from({ length: 3 }).map((_, index) => {
             const cardId = player.reserve[index]

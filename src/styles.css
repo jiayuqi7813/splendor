@@ -1374,18 +1374,18 @@ button:not(:disabled):active {
     0 0 20px rgba(120, 219, 173, 0.26);
 }
 
-.gameHud .hudTextButton {
+.endTurnButton {
   pointer-events: auto;
 }
 
-.gameHud .endTurnButton {
+.endTurnButton {
   margin-right: 2px;
   overflow: visible;
   position: relative;
   isolation: isolate;
 }
 
-.gameHud .endTurnButton.activeHudTextButton {
+.endTurnButton.activeHudTextButton {
   background:
     linear-gradient(135deg, rgba(255, 230, 150, 0.34), transparent 42%),
     rgba(120, 219, 173, 0.92);
@@ -1394,15 +1394,15 @@ button:not(:disabled):active {
     endTurnPulse 1.45s ease-in-out 1.05s infinite;
 }
 
-.gameHud .endTurnButton.activeHudTextButton::before,
-.gameHud .endTurnButton.activeHudTextButton::after {
+.endTurnButton.activeHudTextButton::before,
+.endTurnButton.activeHudTextButton::after {
   content: "";
   position: absolute;
   pointer-events: none;
   border-radius: inherit;
 }
 
-.gameHud .endTurnButton.activeHudTextButton::before {
+.endTurnButton.activeHudTextButton::before {
   inset: 0;
   border: 1px solid rgba(255, 238, 170, 0.78);
   box-shadow:
@@ -1411,7 +1411,7 @@ button:not(:disabled):active {
   animation: endTurnReadyRing 980ms ease-out 1;
 }
 
-.gameHud .endTurnButton.activeHudTextButton::after {
+.endTurnButton.activeHudTextButton::after {
   inset: 2px;
   background: linear-gradient(105deg, transparent 0%, rgba(255, 252, 219, 0.7) 46%, transparent 62%);
   background-size: 230% 100%;
@@ -2468,6 +2468,11 @@ button:not(:disabled):active {
   min-width: 0;
 }
 
+.splendorSeat > .playerPanel header.withEndTurnButton {
+  grid-template-columns: minmax(0, 1fr) auto auto var(--splendor-token-column-width);
+  gap: 7px;
+}
+
 .splendorSeat > .playerPanel header strong {
   grid-column: 1;
   grid-row: 1;
@@ -2476,11 +2481,30 @@ button:not(:disabled):active {
   text-overflow: ellipsis;
 }
 
+.splendorSeatEndTurnButton {
+  grid-column: 2;
+  justify-self: start;
+  align-self: center;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 9px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .splendorReserveSlots {
   grid-column: 2;
   display: grid;
   grid-template-columns: repeat(3, var(--splendor-reserve-slot-width));
   gap: 5px;
+}
+
+.splendorSeat > .playerPanel header.withEndTurnButton .splendorReserveSlots {
+  grid-column: 3;
+}
+
+.splendorSeat > .playerPanel header.withEndTurnButton .splendorPlayerScore {
+  grid-column: 4;
 }
 
 .splendorReserveSlot {
@@ -7055,6 +7079,11 @@ button:not(:disabled):active {
   min-width: 0;
 }
 
+.splendorFourShell .splendorSeat > .playerPanel header.withEndTurnButton {
+  grid-template-columns: minmax(0, 1fr) auto auto 42px;
+  gap: 7px;
+}
+
 .splendorFourShell .splendorSeat > .playerPanel header strong {
   grid-column: 1;
   min-width: 0;
@@ -7068,9 +7097,17 @@ button:not(:disabled):active {
   justify-self: end;
 }
 
+.splendorFourShell .splendorSeat > .playerPanel header.withEndTurnButton .splendorReserveSlots {
+  grid-column: 3;
+}
+
 .splendorFourShell .splendorSeat > .playerPanel .splendorPlayerScore {
   grid-column: 3;
   justify-self: center;
+}
+
+.splendorFourShell .splendorSeat > .playerPanel header.withEndTurnButton .splendorPlayerScore {
+  grid-column: 4;
 }
 
 .splendorFourShell .splendorSeat > .playerPanel .tokenSlots,
