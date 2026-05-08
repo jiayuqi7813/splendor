@@ -37,9 +37,8 @@ const CLASSIC_CARD_DEFINITIONS: CardDefinition[] = DEVELOPMENT_CARDS.map((card) 
   wild: false,
   royalOnlyPoints: false,
   cost: classicCost(card.cost),
-  atlas: `classic-${card.tier}` as CardDefinition['atlas'],
-  x: 0,
-  y: 0,
+  atlas: `classic-tier${card.tier}` as CardDefinition['atlas'],
+  ...classicCardAtlasPosition(card),
 }))
 
 const CLASSIC_NOBLE_DEFINITIONS: CardDefinition[] = NOBLES.map((noble) => ({
@@ -54,9 +53,22 @@ const CLASSIC_NOBLE_DEFINITIONS: CardDefinition[] = NOBLES.map((noble) => ({
   royalOnlyPoints: false,
   cost: classicNobleCost(noble.req),
   atlas: 'classic-noble' as CardDefinition['atlas'],
-  x: 0,
-  y: 0,
+  ...classicNobleAtlasPosition(noble),
 }))
+
+function gridPosition(index: number, columns: number): Pick<CardDefinition, 'x' | 'y'> {
+  return { x: index % columns, y: Math.floor(index / columns) }
+}
+
+function classicCardAtlasPosition(card: Card): Pick<CardDefinition, 'x' | 'y'> {
+  const number = Number(card.id)
+  const firstInTier = card.tier === 1 ? 1 : card.tier === 2 ? 41 : 71
+  return gridPosition(number - firstInTier, 10)
+}
+
+function classicNobleAtlasPosition(noble: { id: string }): Pick<CardDefinition, 'x' | 'y'> {
+  return gridPosition(Number(noble.id) - 20001, 5)
+}
 
 const POKEMON_CARD_ID_BASE = 30000
 const POKEMON_RARE_ID_BASE = 30100
@@ -73,6 +85,7 @@ function pokemonDefinition(card: Card, index: number): CardDefinition {
   const bonusColors = card.bonusColors?.map((color) => CLASSIC_COLOR_TO_DUEL[color])
   const color = bonusColors?.[0] ?? CLASSIC_COLOR_TO_DUEL[card.color]
   const cardId = pokemonCardNumber(card, index)
+  const atlas = pokemonAtlasPosition(card)
   return {
     id: `Pokemon${card.id}`,
     cardId,
@@ -91,10 +104,31 @@ function pokemonDefinition(card: Card, index: number): CardDefinition {
     bonusColors,
     evolvesFrom: card.evolvesFrom,
     evolutionCost: card.evolutionCost ? classicCost(card.evolutionCost) : undefined,
-    atlas: `classic-${card.tier}` as CardDefinition['atlas'],
-    x: 0,
-    y: 0,
+    atlas: atlas.atlas,
+    x: atlas.x,
+    y: atlas.y,
   }
+}
+
+function pokemonAtlasPosition(card: Card): Pick<CardDefinition, 'atlas' | 'x' | 'y'> {
+  const image = card.image ?? ''
+  const stage = image.match(/cards\/stage([123])\/stage\1-(\d+)\.webp$/)
+  if (stage) {
+    const stageNumber = Number(stage[1]) as 1 | 2 | 3
+    return {
+      atlas: `pokemon-stage${stageNumber}` as CardDefinition['atlas'],
+      ...gridPosition(Number(stage[2]) - 1, 10),
+    }
+  }
+  const rare = image.match(/cards\/rare\/rare-(\d+)\.webp$/)
+  if (rare) {
+    return { atlas: 'pokemon-rare', ...gridPosition(Number(rare[1]) - 1, 5) }
+  }
+  const legendary = image.match(/cards\/legendary\/legendary-(\d+)\.webp$/)
+  if (legendary) {
+    return { atlas: 'pokemon-legendary', ...gridPosition(Number(legendary[1]) - 1, 5) }
+  }
+  return { atlas: `pokemon-stage${card.tier}` as CardDefinition['atlas'], ...gridPosition(0, 10) }
 }
 
 const POKEMON_CARD_DEFINITIONS: CardDefinition[] = [

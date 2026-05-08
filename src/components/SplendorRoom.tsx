@@ -6,6 +6,8 @@ import type { CardSource, GameAction, GameState, GameType, GemType, PlayerId, Po
 import { displayPlayerName } from '@/game/playerDisplay'
 import { turnHudLabels } from '@/game/turnHud'
 import { assetPath } from '@/utils/paths'
+import { getCard } from '@/game/cards'
+import { CARD_ATLASES } from '@/game/data/cards.generated'
 
 const CLASSIC_CARD_BY_ID = new Map<number, Card>(DEVELOPMENT_CARDS.map((card) => [Number(card.id), card]))
 const CLASSIC_NOBLE_BY_ID = new Map<number, Noble>(NOBLES.map((noble) => [Number(noble.id), noble]))
@@ -227,7 +229,7 @@ export function SplendorRoom({
   return (
     <main
       className={`gameShell splendorFourShell ${state.gameType === 'pokemon' ? 'pokemonShell' : 'classicShell'} ${isMyTurn ? 'myTurn' : 'notMyTurn'} ${initialLayout ? 'introLayout' : ''} ${introAnimating ? 'introAnimating' : ''}`}
-      style={{ '--table-surface-image': `url(${assetPath(state.gameType === 'pokemon' ? 'pokemon-splendor/tabletops/vivid-monster-table.png' : 'splendor-base/tabletops/jewel-felt.png')})` } as CSSProperties}
+      style={{ '--table-surface-image': `url(${assetPath(state.gameType === 'pokemon' ? 'pokemon-splendor/tabletops/vivid-monster-table.webp' : 'splendor-base/tabletops/jewel-felt.webp')})` } as CSSProperties}
     >
       {state.winner && (
         <div className="winBanner">
@@ -1073,9 +1075,10 @@ function SplendorPlayerPanel({
 
 export function ClassicCardView({ cardId, horizontal = false, variant = 'classic' }: { cardId: number; horizontal?: boolean; variant?: GameType }) {
   const card = splendorCard(cardId, variant)
+  const definition = getCard(cardId)
   return (
     <div className={`card classicCard ${horizontal ? 'classicCardHorizontal' : ''}`} title={card ? `${card.prestige} 分` : undefined}>
-      {card?.image ? <img src={assetPath(card.image)} alt="" draggable={false} /> : null}
+      <ClassicAtlasArt cardId={definition.cardId} />
     </div>
   )
 }
@@ -1084,8 +1087,26 @@ export function ClassicNobleView({ cardId }: { cardId: number }) {
   const noble = CLASSIC_NOBLE_BY_ID.get(cardId)
   return (
     <div className="card classicCard classicNobleCard" title={noble ? `${noble.prestige} 分贵族` : undefined}>
-      {noble?.image ? <img src={assetPath(noble.image)} alt="" draggable={false} /> : null}
+      <ClassicAtlasArt cardId={cardId} />
     </div>
+  )
+}
+
+function ClassicAtlasArt({ cardId }: { cardId: number }) {
+  const card = getCard(cardId)
+  const atlas = CARD_ATLASES[card.atlas]
+  const cellWidth = 'cellWidth' in atlas ? atlas.cellWidth : 1
+  const cellHeight = 'cellHeight' in atlas ? atlas.cellHeight : 1
+  return (
+    <div
+      className="classicCardAtlasImage"
+      style={{
+        aspectRatio: `${cellWidth} / ${cellHeight}`,
+        backgroundImage: `url(${atlas.url})`,
+        backgroundSize: `${atlas.columns * 100}% ${atlas.rows * 100}%`,
+        backgroundPosition: `${(card.x / Math.max(1, atlas.columns - 1)) * 100}% ${(card.y / Math.max(1, atlas.rows - 1)) * 100}%`,
+      }}
+    />
   )
 }
 
@@ -1125,13 +1146,13 @@ function tokenImagePath(color: BasicColor | 'gold', variant: GameType): string {
     }
     return `pokemon-splendor/tokens/${names[color]}.webp`
   }
-  return `splendor-base/tokens/${color}.png`
+  return `splendor-base/tokens/${color}.webp`
 }
 
 function deckBackImageStyle(tier: 1 | 2 | 3 | 'royal', variant: GameType = 'classic', deckKind?: Card['deckKind']): CSSProperties {
   const filename = variant === 'pokemon'
     ? `pokemon-splendor/card-backs/${deckKind === 'rare' ? 'rare' : deckKind === 'legendary' ? 'legendary' : `stage${tier === 'royal' ? 3 : tier}`}.webp`
-    : tier === 'royal' ? 'splendor-base/card-backs/royal.png' : `splendor-base/card-backs/tier${tier}.jpg`
+    : tier === 'royal' ? 'splendor-base/card-backs/noble.webp' : `splendor-base/card-backs/tier${tier}.jpg`
   return { '--deck-back-image': `url(${assetPath(filename)})` } as CSSProperties
 }
 

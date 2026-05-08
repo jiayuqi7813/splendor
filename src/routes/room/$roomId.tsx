@@ -3435,7 +3435,7 @@ function Room() {
   return (
       <main
         className={`gameShell ${isMyTurn ? 'myTurn' : 'notMyTurn'} ${isViewerTurn ? 'viewerTurn' : ''} ${introLayout ? 'introLayout' : ''} ${introAnimating ? 'introAnimating' : ''} ${boardFocusOpen ? 'boardFocusOpen' : ''}`}
-        style={{ '--table-surface-image': `url(${assetPath('duel-splendor/tabletops/birch-boardgame-table.png')})` } as CSSProperties}
+        style={{ '--table-surface-image': `url(${assetPath('duel-splendor/tabletops/birch-boardgame-table.webp')})` } as CSSProperties}
       >
       {state.winner && (
         <div className="winBanner">
@@ -6850,7 +6850,7 @@ function GemBagPanel({
         </button>
       )}
       <div className="gemBagShell" data-gem-bag-target>
-        <img className="gemBagIcon" src={assetPath('gem-bag.png')} alt="" draggable={false} />
+        <img className="gemBagIcon" src={assetPath('gem-bag.webp')} alt="" draggable={false} />
         <strong>{total}</strong>
       </div>
       {canOpenBoardFocus && (
@@ -6865,7 +6865,7 @@ function GemBagPanel({
             data-privilege-supply-index={index}
             key={index}
           >
-            <img src={assetPath('privilege.png')} alt="" draggable={false} />
+            <img src={assetPath('privilege.webp')} alt="" draggable={false} />
           </span>
         ))}
       </div>
@@ -6875,9 +6875,9 @@ function GemBagPanel({
 
 function BoardPrivilegeHints({ activeKind }: { activeKind?: PrivilegeHintKind }) {
   const hints: Array<{ kind: PrivilegeHintKind; src: string; label: string }> = [
-    { kind: 'pearls', src: assetPath('privilege-hints/privilege-hint-pearls.png'), label: '拿取两个珍珠时，对手获得特权卷轴' },
-    { kind: 'replenish', src: assetPath('privilege-hints/privilege-hint-replenish.png'), label: '补充棋盘时，对手获得特权卷轴' },
-    { kind: 'sameColor', src: assetPath('privilege-hints/privilege-hint-same-color.png'), label: '拿取三个同色 token 时，对手获得特权卷轴' },
+    { kind: 'pearls', src: assetPath('privilege-hints/privilege-hint-pearls.webp'), label: '拿取两个珍珠时，对手获得特权卷轴' },
+    { kind: 'replenish', src: assetPath('privilege-hints/privilege-hint-replenish.webp'), label: '补充棋盘时，对手获得特权卷轴' },
+    { kind: 'sameColor', src: assetPath('privilege-hints/privilege-hint-same-color.webp'), label: '拿取三个同色 token 时，对手获得特权卷轴' },
   ]
   return (
     <div className="boardPrivilegeHints" aria-label="特权卷轴规则提示">
@@ -7012,7 +7012,7 @@ function FloatingPrivilegeCarry({ carry }: { carry: PrivilegeCarry }) {
       }
       aria-hidden="true"
     >
-      <img src={assetPath('privilege.png')} alt="" draggable={false} />
+      <img src={assetPath('privilege.webp')} alt="" draggable={false} />
     </div>
   )
 }
@@ -7140,7 +7140,7 @@ function FlyingPrivilegeScroll({ flight }: { flight: FlyingPrivilege }) {
       }
       aria-hidden="true"
     >
-      <img src={assetPath('privilege.png')} alt="" draggable={false} />
+      <img src={assetPath('privilege.webp')} alt="" draggable={false} />
     </div>
   )
 }
@@ -7350,7 +7350,7 @@ function RemotePrivilegeScroll({ anchor }: { anchor: RemotePrivilegeAnchor }) {
       }
       aria-hidden="true"
     >
-      <img src={assetPath('privilege.png')} alt="" draggable={false} />
+      <img src={assetPath('privilege.webp')} alt="" draggable={false} />
     </div>
   )
 }
@@ -7419,7 +7419,7 @@ function DeckStack({
 }
 
 function deckBackImageStyle(tier: 1 | 2 | 3 | 'royal'): CSSProperties {
-  const filename = tier === 'royal' ? 'card-back-royal.png' : `card-back-tier${tier}.png`
+  const filename = tier === 'royal' ? 'card-back-royal.webp' : `card-back-tier${tier}.webp`
   return { '--deck-back-image': `url(${assetPath(filename)})` } as CSSProperties
 }
 

@@ -371,7 +371,7 @@ function ReserveCardBack({ cardId }: { cardId: number }) {
 }
 
 function deckBackImageStyle(tier: 1 | 2 | 3 | 'royal'): CSSProperties {
-  const filename = tier === 'royal' ? 'card-back-royal.png' : `card-back-tier${tier}.png`
+  const filename = tier === 'royal' ? 'card-back-royal.webp' : `card-back-tier${tier}.webp`
   return { '--deck-back-image': `url(${assetPath(filename)})` } as CSSProperties
 }
 
@@ -404,7 +404,7 @@ function PrivilegeSlots({
           }}
           key={index}
         >
-          {index < count && <img src={assetPath('privilege.png')} alt="" draggable={false} style={privilegeTiltStyle(playerId, index)} />}
+          {index < count && <img src={assetPath('privilege.webp')} alt="" draggable={false} style={privilegeTiltStyle(playerId, index)} />}
         </span>
       ))}
     </div>
@@ -495,9 +495,9 @@ function ColorlessPurchasedTrack({
 type VictoryTrackKind = 'prestige' | 'crown' | 'sameColor'
 
 const VICTORY_TRACK_ICONS: Record<VictoryTrackKind, string> = {
-  prestige: assetPath('victory-icons/victory-prestige.png'),
-  crown: assetPath('victory-icons/victory-crown.png'),
-  sameColor: assetPath('victory-icons/victory-same-color.png'),
+  prestige: assetPath('victory-icons/victory-prestige.webp'),
+  crown: assetPath('victory-icons/victory-crown.webp'),
+  sameColor: assetPath('victory-icons/victory-same-color.webp'),
 }
 
 export function WildColorSelect({

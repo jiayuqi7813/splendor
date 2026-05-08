@@ -52,5 +52,5 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
 }
 
 const rootBodyStyle = {
-  '--table-background-image': `url(${assetPath('duel-splendor/tabletops/birch-boardgame-table.png')})`,
+  '--table-background-image': `url(${assetPath('duel-splendor/tabletops/birch-boardgame-table.webp')})`,
 } as CSSProperties

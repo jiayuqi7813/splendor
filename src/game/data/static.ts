@@ -62,13 +62,13 @@ export const TOKEN_COLORS: Record<TokenType, string> = {
 }
 
 export const TOKEN_IMAGES: Record<TokenType, string> = {
-  ruby: assetPath('token-ruby.png'),
-  sapphire: assetPath('token-sapphire.png'),
-  onyx: assetPath('token-onyx.png'),
-  diamond: assetPath('token-diamond.png'),
-  emerald: assetPath('token-emerald.png'),
-  pearl: assetPath('token-pearl.png'),
-  gold: assetPath('token-gold.png'),
+  ruby: assetPath('token-ruby.webp'),
+  sapphire: assetPath('token-sapphire.webp'),
+  onyx: assetPath('token-onyx.webp'),
+  diamond: assetPath('token-diamond.webp'),
+  emerald: assetPath('token-emerald.webp'),
+  pearl: assetPath('token-pearl.webp'),
+  gold: assetPath('token-gold.webp'),
 }
 
 export const MARKET_SIZES = {
