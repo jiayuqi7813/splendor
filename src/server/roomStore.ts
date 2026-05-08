@@ -1,521 +1,666 @@
-import {
-  applyBuy,
-  applyDiscardTokens,
-  applyEvolvePokemon,
-  applyReserve,
-  applyTakeGems,
-  createGame,
-  emptyCosts,
-  emptyGems,
-  getPlayerView,
-  normalizeVariant,
-  validateBuy,
-  validateEvolvePokemon,
-  validateReserve,
-  validateTakeGems,
-  type GameRoom,
-  type GameState,
-  type PlayerState,
-  cloneState,
-} from "../game/rules";
-import type { BasicColor, GameVariant, GemColor } from "../game/data/static";
-import type { GameOverPayload } from "~/game/types";
-import type { GameCommand, RoomIntent, RoomStateEvent, SeatCredentials, SseEnvelope } from "~/game/protocol";
+import { applyAction, createInitialGame, RuleError, startGameIfReady } from '@/game/rules'
+import type { AnyGameAction, AnyGameState, GameAction, GameState, PlayerId, PublicRoomEvent, PublicRoomStateEvent, RoomIntent } from '@/game/types'
+import { chooseAiAction, isDifficultyId } from '@/game/ai'
+import type { AiMemory, DifficultyId } from '@/game/ai'
 
-export interface RoomState {
-  roomId: string;
-  variant: GameVariant;
-  hostId: string;
-  players: PlayerState[];
-  phase: "waiting" | "playing" | "finalRound" | "ended";
-  started: boolean;
-  createdAt: number;
-  lastActivity: number;
+export class RoomNotFoundError extends RuleError {}
+
+type Subscriber = (event: PublicRoomEvent) => void
+const AI_ACTION_DELAY_MS = 1600
+const AI_FAST_PENDING_DELAY_MS = 900
+const AI_OPENING_ACTION_DELAY_MS = 2600
+const AI_MAX_CHAIN_ACTIONS = 40
+const EMPTY_ROOM_TTL_MS = 1000 * 60 * 5
+
+interface Seat {
+  playerId: RoomPlayerId
+  secret: string
 }
 
-type RoomJoinResult = {
-  room?: ManagedRoom;
-  playerId?: string;
-  reconnectToken?: string;
-  error?: string;
-  reconnected?: boolean;
-};
+type RoomPlayerId = PlayerId
 
-type Subscriber = {
-  connectionId: string;
-  roomId: string;
-  playerId: string;
-  emit: (event: SseEnvelope) => void;
-};
-
-type RoomEventRecord = {
-  seq: number;
-  type: RoomStateEvent["type"];
-  message: string;
-  room?: RoomState;
-  state?: GameState;
-  command?: GameCommand;
-  payload?: GameOverPayload;
-};
-
-type ManagedRoom = GameRoom & {
-  seq: number;
-  events: RoomEventRecord[];
-  connections: Record<string, number>;
-};
-
-const ROOM_ID_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
-const ROOM_EVENT_LIMIT = 250;
-const rooms = new Map<string, ManagedRoom>();
-const subscribersByRoom = new Map<string, Map<string, Subscriber>>();
-
-function uuidv4(): string {
-  return crypto.randomUUID();
+interface AiController {
+  playerId: RoomPlayerId
+  difficulty: DifficultyId
+  memory?: AiMemory
+  queued: boolean
+  running: boolean
+  chainActions: number
 }
 
-function makeRoomId(): string {
-  return Array.from({ length: 6 }, () => ROOM_ID_CHARS[Math.floor(Math.random() * ROOM_ID_CHARS.length)]).join("");
+interface Room {
+  id: string
+  createdAt: number
+  updatedAt: number
+  emptySince?: number
+  seats: Partial<Record<RoomPlayerId, Seat>>
+  connections: Partial<Record<RoomPlayerId, number>>
+  state: GameState
+  seq: number
+  events: PublicRoomEvent[]
+  subscribers: Set<Subscriber>
+  ai?: Partial<Record<RoomPlayerId, AiController>>
 }
 
-export function generateRoomId(): string {
-  let id = makeRoomId();
-  while (rooms.has(id)) id = makeRoomId();
-  return id;
+export interface JoinResult {
+  roomId: string
+  playerId: RoomPlayerId
+  playerSecret: string
+  state: AnyGameState
+  seq: number
 }
 
-function normalizeRoomId(roomId: string): string {
-  return roomId.trim().toUpperCase();
+function randomId(size = 8): string {
+  return crypto.randomUUID().replaceAll('-', '').slice(0, size)
 }
 
-function makeLobbyPlayer(id: string, username: string, avatarId: number, isHost: boolean): PlayerState {
-  return {
-    id,
-    username,
-    avatarId,
-    isHost,
-    connected: true,
-    gems: emptyGems(),
-    bonuses: emptyCosts(),
-    purchasedCards: [],
-    reservedCards: [],
-    tuckedCards: [],
-    nobles: [],
-    prestige: 0,
-    turnsTaken: 0,
-  };
+function publicEvent(room: Room, type: PublicRoomStateEvent['type'], message: string, action?: AnyGameAction): PublicRoomStateEvent {
+  return { seq: room.seq, type, message, state: room.state, action }
 }
 
-export function getRoom(roomIdInput: string): ManagedRoom | undefined {
-  return rooms.get(normalizeRoomId(roomIdInput));
+function viewStateForPlayer(state: AnyGameState, playerId?: RoomPlayerId): AnyGameState {
+  if (!playerId || (state.gameType !== 'classic' && state.gameType !== 'pokemon')) return state
+  return { ...state, myPlayerId: playerId }
 }
 
-export function toRoomState(room: GameRoom): RoomState {
-  const phase = room.gameState?.phase ?? "waiting";
-  return {
-    roomId: room.roomId,
-    variant: room.variant,
-    hostId: room.hostId,
-    players: room.players.map((player) => ({ ...player, isHost: player.id === room.hostId })),
-    phase,
-    started: phase !== "waiting",
-    createdAt: room.createdAt,
-    lastActivity: room.lastActivity,
-  };
+function viewEventForPlayer(event: PublicRoomEvent, playerId?: RoomPlayerId): PublicRoomEvent {
+  if (event.type === 'intent') return event
+  return { ...event, state: viewStateForPlayer(event.state, playerId) }
 }
 
-export function touchRoom(roomIdInput: string): void {
-  const room = getRoom(roomIdInput);
-  if (room) room.lastActivity = Date.now();
-}
+class RoomStore {
+  private rooms = new Map<string, Room>()
 
-export function createRoom(
-  username: string,
-  avatarId: number,
-  variantInput: GameVariant = "classic",
-): { room: ManagedRoom; player: PlayerState; playerId: string; reconnectToken: string } | { error: string } {
-  const cleanName = username.trim().slice(0, 16);
-  if (!cleanName) return { error: "请输入用户名。" };
-  const variant = normalizeVariant(variantInput);
-  const roomId = generateRoomId();
-  const playerId = uuidv4();
-  const reconnectToken = uuidv4();
-  const player = makeLobbyPlayer(playerId, cleanName, avatarId, true);
-  const room: ManagedRoom = {
-    roomId,
-    variant,
-    players: [player],
-    hostId: playerId,
-    reconnectTokens: { [playerId]: reconnectToken },
-    gameState: {
-      roomId,
-      variant,
-      phase: "waiting",
-      currentPlayerId: "",
-      turnOrder: [],
-      finalRoundStarterId: null,
-      bank: emptyGems(),
-      tier1: { faceUp: [], deckCount: 0 },
-      tier2: { faceUp: [], deckCount: 0 },
-      tier3: { faceUp: [], deckCount: 0 },
-      rare: variant === "pokemon" ? { faceUp: [], deckCount: 0 } : undefined,
-      legendary: variant === "pokemon" ? { faceUp: [], deckCount: 0 } : undefined,
-      nobles: [],
-      players: [player],
-      myPlayerId: "",
-      winner: null,
-      lastAction: null,
-      actionLog: [],
-      pendingEvolutionPlayerId: null,
-    },
-    createdAt: Date.now(),
-    lastActivity: Date.now(),
-    seq: 0,
-    events: [],
-    connections: {},
-  };
-  rooms.set(roomId, room);
-  return { room, player, playerId, reconnectToken };
-}
-
-export function joinRoom(roomIdInput: string, username: string, avatarId: number): RoomJoinResult {
-  const roomId = normalizeRoomId(roomIdInput);
-  const room = rooms.get(roomId);
-  if (!room) return { error: "房间不存在，请检查房间号。" };
-  const cleanName = username.trim().slice(0, 16);
-  if (!cleanName) return { error: "请输入用户名。" };
-  room.reconnectTokens ??= {};
-
-  const existing = room.players.find((player) => player.username === cleanName);
-  if (existing) {
-    room.reconnectTokens[existing.id] ??= uuidv4();
-    existing.connected = true;
-    existing.avatarId = avatarId;
-    const gamePlayer = room.gameState?.players.find((player) => player.id === existing.id);
-    if (gamePlayer) {
-      gamePlayer.connected = true;
-      gamePlayer.avatarId = avatarId;
+  createRoom(options?: { gameType?: unknown; playerCount?: unknown }): JoinResult {
+    this.cleanup()
+    const id = randomId(8)
+    const gameType = options?.gameType === 'classic' || options?.gameType === 'pokemon' ? options.gameType : 'duel'
+    const state = createInitialGame(id, { gameType, playerCount: gameType === 'classic' || gameType === 'pokemon' ? 4 : 2 })
+    const room: Room = {
+      id,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      seats: {},
+      connections: {},
+      state,
+      seq: 0,
+      events: [],
+      subscribers: new Set(),
     }
-    touchRoom(roomId);
-    recordStateEvent(room, "joined", `${existing.username} 已重新连接。`);
-    return { room, playerId: existing.id, reconnectToken: room.reconnectTokens[existing.id], reconnected: true };
+    this.rooms.set(id, room)
+    return this.joinRoom(id)
   }
 
-  if (room.gameState && room.gameState.phase !== "waiting" && room.gameState.currentPlayerId) {
-    return { error: "游戏已经开始，只能使用原用户名重连。" };
+  joinRoom(roomId: string, secret?: string): JoinResult {
+    const room = this.getRoom(roomId)
+    const existing = secret ? Object.values(room.seats).find((seat) => seat?.secret === secret) : undefined
+    const playerId = existing?.playerId ?? this.nextOpenSeat(room)
+    if (!playerId) throw new RuleError('房间已满。')
+    const playerSecret = existing?.secret ?? randomId(24)
+    room.seats[playerId] = { playerId, secret: playerSecret }
+    room.emptySince = undefined
+    const player = this.playerById(room, playerId)
+    player.connected = true
+    this.emit(room, 'joined', `${this.playerName(player)} 已占位。`)
+    return this.joinResult(room, playerId, playerSecret)
   }
-  if (room.players.length >= 4) return { error: "房间已满，最多 4 名玩家。" };
 
-  const playerId = uuidv4();
-  const reconnectToken = uuidv4();
-  const player = makeLobbyPlayer(playerId, cleanName, avatarId, false);
-  room.players.push(player);
-  room.reconnectTokens[playerId] = reconnectToken;
-  if (room.gameState?.phase === "waiting") room.gameState.players = room.players;
-  touchRoom(roomId);
-  recordStateEvent(room, "joined", `${player.username} 已加入房间。`);
-  return { room, playerId, reconnectToken, reconnected: false };
-}
+  confirmSeat(roomId: string, secret: string, name: unknown): JoinResult {
+    const room = this.getRoom(roomId)
+    const seat = this.findSeat(room, secret)
+    if (!seat) throw new RuleError('玩家身份无效，请重新加入房间。')
+    if (this.isAiPlayer(room, seat.playerId)) throw new RuleError('不能修改 AI 玩家。')
+    if (room.state.status !== 'waiting') throw new RuleError('游戏已经开始，不能修改入座信息。')
+    const playerName = typeof name === 'string' ? name.trim() : ''
+    if (playerName.length > 16) throw new RuleError('玩家名字最多 16 个字符。')
 
-export function assertSeat(credentials: SeatCredentials): { room: ManagedRoom; player: PlayerState } | { error: string } {
-  const room = getRoom(credentials.roomId);
-  if (!room) return { error: "房间不存在，请重新创建或加入。" };
-  const expectedToken = room.reconnectTokens?.[credentials.playerId];
-  if (!expectedToken || expectedToken !== credentials.reconnectToken) {
-    return { error: "重连凭证已失效，请重新加入房间。" };
+    const player = this.playerById(room, seat.playerId)
+    if (playerName) this.setPlayerName(player, playerName)
+    player.seated = true
+    player.connected = true
+    room.emptySince = undefined
+    this.emit(room, 'joined', `${this.playerName(player)} 已入座。`)
+    return this.joinResult(room, seat.playerId, seat.secret)
   }
-  const player = room.players.find((entry) => entry.id === credentials.playerId);
-  if (!player) return { error: "这个座位已经不在房间中。" };
-  return { room, player };
-}
 
-export function reconnectRoom(credentials: SeatCredentials): RoomJoinResult {
-  const result = assertSeat(credentials);
-  if ("error" in result) return result;
-  result.player.connected = true;
-  const gamePlayer = result.room.gameState?.players.find((entry) => entry.id === credentials.playerId);
-  if (gamePlayer) {
-    gamePlayer.connected = true;
-    gamePlayer.avatarId = result.player.avatarId;
+  addAiOpponent(roomId: string, requesterSecret: string, difficulty: unknown = 'standard', secondAi = false, secondDifficulty: unknown = 'standard'): JoinResult {
+    const room = this.getRoom(roomId)
+    const requester = this.findSeat(room, requesterSecret)
+    if (!requester) throw new RuleError('玩家身份无效，请重新加入房间。')
+    if (!this.isHostSeat(room, requester)) throw new RuleError('只有房主可以加入 AI 对手。')
+    if (!this.playerById(room, requester.playerId).seated) throw new RuleError('请先输入名字并入座。')
+    if (room.state.status !== 'waiting') throw new RuleError('游戏已经开始，不能再加入 AI 对手。')
+    if (!isDifficultyId(difficulty)) throw new RuleError('AI 难度无效。')
+    let resolvedSecondDifficulty: DifficultyId = 'standard'
+    if (secondAi) {
+      if (!isDifficultyId(secondDifficulty)) throw new RuleError('第二个 AI 难度无效。')
+      resolvedSecondDifficulty = secondDifficulty
+    }
+
+    if (room.state.gameType === 'classic' || room.state.gameType === 'pokemon') {
+      return this.addClassicAiOpponent(room, requester, difficulty, secondAi, resolvedSecondDifficulty)
+    }
+
+    if (room.seats.p2) throw new RuleError('房间已满。')
+
+    const aiSecret = randomId(24)
+    room.seats.p2 = { playerId: 'p2', secret: aiSecret }
+    room.ai = {
+      p2: createAiController('p2', difficulty),
+    }
+    if (secondAi) {
+      room.ai.p1 = createAiController('p1', resolvedSecondDifficulty)
+      room.state.players.p1.name = 'AI 甲'
+      room.state.players.p1.aiDifficulty = resolvedSecondDifficulty
+      room.state.players.p2.name = 'AI 乙'
+      room.state.players.p1.isAi = true
+      room.state.players.p1.seated = true
+      room.state.players.p1.connected = true
+    } else {
+      room.state.players.p2.name = 'AI 对手'
+    }
+    room.state.players.p2.isAi = true
+    room.state.players.p2.aiDifficulty = difficulty
+    room.state.players.p2.connected = true
+    room.state.players.p2.seated = true
+    this.emit(room, 'joined', secondAi ? '双 AI 已加入房间。' : 'AI 对手已加入房间。')
+    return this.joinResult(room, requester.playerId, requester.secret)
   }
-  touchRoom(result.room.roomId);
-  return { room: result.room, playerId: credentials.playerId, reconnectToken: credentials.reconnectToken, reconnected: true };
-}
 
-export function startRoomGame(credentials: SeatCredentials): { room?: ManagedRoom; gameState?: GameState; error?: string } {
-  const result = assertSeat(credentials);
-  if ("error" in result) return result;
-  const { room } = result;
-  if (room.hostId !== credentials.playerId) return { error: "只有房主可以开始游戏。" };
-  if (room.gameState && room.gameState.phase !== "waiting" && room.gameState.currentPlayerId) return { error: "游戏已经开始。" };
-  const connectedPlayers = room.players.filter((player) => player.connected !== false);
-  if (connectedPlayers.length < 2) return { error: "至少需要 2 名在线玩家才能开始。" };
-  if (connectedPlayers.length > 4) return { error: "最多 4 名玩家。" };
-
-  room.players = connectedPlayers;
-  const gameRoom = createGame(room.players, room.players.length, room.variant);
-  const gameState = gameRoom.gameState!;
-  gameState.roomId = room.roomId;
-  room.players = room.players.map((player) => ({ ...player, isHost: player.id === room.hostId, connected: true }));
-  gameState.players = room.players;
-  room.gameState = gameState;
-  touchRoom(room.roomId);
-  recordStateEvent(room, "snapshot", "游戏已开始。");
-  return { room, gameState };
-}
-
-function subscribers(roomId: string): Subscriber[] {
-  return Array.from(subscribersByRoom.get(roomId)?.values() ?? []);
-}
-
-function emitToRoom(roomId: string, eventFactory: (subscriber: Subscriber) => SseEnvelope | null): void {
-  for (const subscriber of subscribers(roomId)) {
-    const event = eventFactory(subscriber);
-    if (event) subscriber.emit(event);
+  private addClassicAiOpponent(room: Room, requester: Seat, difficulty: DifficultyId, secondAi: boolean, secondDifficulty: DifficultyId): JoinResult {
+    const targetId = room.state.playerOrder.find((playerId) => playerId !== requester.playerId && !room.seats[playerId])
+    if (!targetId) throw new RuleError('房间已满。')
+    const aiSecret = randomId(24)
+    room.seats[targetId] = { playerId: targetId, secret: aiSecret }
+    room.ai ??= {}
+    room.ai[targetId] = createAiController(targetId, difficulty)
+    const aiPlayer = room.state.players[targetId]
+    aiPlayer.name = classicAiName(targetId)
+    aiPlayer.isAi = true
+    aiPlayer.aiDifficulty = difficulty
+    aiPlayer.connected = true
+    aiPlayer.seated = true
+    if (secondAi) {
+      room.ai[requester.playerId] = createAiController(requester.playerId, secondDifficulty)
+      const hostPlayer = room.state.players[requester.playerId]
+      hostPlayer.name = 'AI 房主'
+      hostPlayer.isAi = true
+      hostPlayer.aiDifficulty = secondDifficulty
+      hostPlayer.connected = true
+      hostPlayer.seated = true
+    }
+    this.emit(room, 'joined', secondAi ? `${aiPlayer.name} 已加入，房主位交给 AI。` : `${aiPlayer.name} 已加入房间。`)
+    return this.joinResult(room, requester.playerId, requester.secret)
   }
-}
 
-function actionRequiredEvent(room: ManagedRoom, playerId: string, seq: number): RoomStateEvent | null {
-  const player = room.players.find((entry) => entry.id === playerId);
-  if (!player || room.gameState?.pendingDiscardPlayerId !== playerId) return null;
-  const total = Object.values(player.gems).reduce((sum, value) => sum + value, 0);
-  return {
-    seq,
-    type: "actionRequired",
-    message: "需要先弃置多余代币。",
-    action: { type: "discard_tokens", excess: Math.max(0, total - 10) },
-  };
-}
-
-function gameOverPayload(room: ManagedRoom): GameOverPayload | null {
-  if (!room.gameState || room.gameState.phase !== "ended" || !room.gameState.winner) return null;
-  return {
-    winner: room.gameState.winner,
-    finalScores: [...room.gameState.players].sort((a, b) => {
-      if (b.prestige !== a.prestige) return b.prestige - a.prestige;
-      if (room.gameState?.variant === "pokemon") {
-        if (b.tuckedCards.length !== a.tuckedCards.length) return b.tuckedCards.length - a.tuckedCards.length;
-        return b.purchasedCards.length - a.purchasedCards.length;
-      }
-      return a.purchasedCards.length - b.purchasedCards.length;
-    }),
-    reason: room.gameState.gameOverReason || "游戏结束，已按声望与购卡数量结算胜者。",
-  };
-}
-
-function eventForPlayer(record: RoomEventRecord, playerId: string): SseEnvelope {
-  const shouldIncludeState = record.state && record.state.phase !== "waiting";
-  return {
-    seq: record.seq,
-    type: record.type,
-    message: record.message,
-    ...(record.room ? { room: record.room } : {}),
-    ...(shouldIncludeState ? { state: getPlayerView(record.state!, playerId) } : {}),
-    ...(record.command ? { command: record.command } : {}),
-    ...(record.payload ? { payload: record.payload } : {}),
-  };
-}
-
-function emitRecord(room: ManagedRoom, record: RoomEventRecord): void {
-  emitToRoom(room.roomId, (subscriber) => {
-    subscriber.emit(eventForPlayer(record, subscriber.playerId));
-    const required = actionRequiredEvent(room, subscriber.playerId, record.seq);
-    if (required) subscriber.emit(required);
-    return null;
-  });
-}
-
-function recordStateEvent(room: ManagedRoom, type: RoomEventRecord["type"], message: string, command?: GameCommand): RoomEventRecord {
-  room.seq += 1;
-  room.lastActivity = Date.now();
-  const payload = gameOverPayload(room) ?? undefined;
-  const record: RoomEventRecord = {
-    seq: room.seq,
-    type: payload ? "gameOver" : type,
-    message: payload?.reason ?? message,
-    room: toRoomState(room),
-    state: room.gameState ? cloneState(room.gameState) : undefined,
-    command,
-    payload,
-  };
-  room.events.push(record);
-  if (room.events.length > ROOM_EVENT_LIMIT) room.events.splice(0, room.events.length - ROOM_EVENT_LIMIT);
-  emitRecord(room, record);
-  return record;
-}
-
-export function publishRoom(roomIdInput: string): void {
-  const room = getRoom(roomIdInput);
-  if (!room) return;
-  recordStateEvent(room, "snapshot", "房间状态已更新。");
-}
-
-export function publishGame(roomIdInput: string): void {
-  const room = getRoom(roomIdInput);
-  if (!room || !room.gameState) {
-    publishRoom(roomIdInput);
-    return;
+  setHostAi(roomId: string, requesterSecret: string, difficulty: unknown = 'standard'): JoinResult {
+    const room = this.getRoom(roomId)
+    const requester = this.findSeat(room, requesterSecret)
+    if (!requester) throw new RuleError('玩家身份无效，请重新加入房间。')
+    if (!this.isHostSeat(room, requester)) throw new RuleError('只有房主可以设置 AI。')
+    if (room.state.status !== 'waiting') throw new RuleError('游戏已经开始，不能修改 AI。')
+    if (room.state.gameType !== 'classic' && room.state.gameType !== 'pokemon') throw new RuleError('只有璀璨宝石房间支持四人 AI。')
+    if (!isDifficultyId(difficulty)) throw new RuleError('AI 难度无效。')
+    const nonHost = room.state.playerOrder.filter((playerId) => playerId !== 'p1')
+    if (!nonHost.every((playerId) => this.isAiPlayer(room, playerId))) throw new RuleError('需要先添加三个 AI 对手。')
+    room.ai ??= {}
+    room.ai.p1 = createAiController('p1', difficulty)
+    const hostPlayer = room.state.players.p1
+    hostPlayer.name = 'AI 房主'
+    hostPlayer.isAi = true
+    hostPlayer.aiDifficulty = difficulty
+    hostPlayer.seated = true
+    hostPlayer.connected = true
+    this.emit(room, 'joined', '房主位已交给 AI。')
+    return this.joinResult(room, requester.playerId, requester.secret)
   }
-  recordStateEvent(room, "snapshot", "游戏状态已更新。");
-}
 
-export function subscribeToRoom(credentials: SeatCredentials, after: number, emit: (event: SseEnvelope) => void): { connectionId?: string; error?: string } {
-  const result = reconnectRoom(credentials);
-  if (!result.room || !result.playerId || result.error) return { error: result.error ?? "恢复房间失败。" };
-  const roomId = result.room.roomId;
-  const connectionId = uuidv4();
-  const roomSubscribers = subscribersByRoom.get(roomId) ?? new Map<string, Subscriber>();
-  subscribersByRoom.set(roomId, roomSubscribers);
-  for (const [existingId, subscriber] of roomSubscribers) {
-    if (subscriber.playerId === result.playerId) {
-      subscriber.emit({ type: "sessionReplaced" });
-      roomSubscribers.delete(existingId);
-      result.room.connections[result.playerId] = Math.max(0, (result.room.connections[result.playerId] ?? 1) - 1);
+  updateAiDifficulty(roomId: string, requesterSecret: string, targetPlayerId: unknown, difficulty: unknown): JoinResult {
+    const room = this.getRoom(roomId)
+    const requester = this.findSeat(room, requesterSecret)
+    if (!requester) throw new RuleError('玩家身份无效，请重新加入房间。')
+    if (!this.isHostSeat(room, requester)) throw new RuleError('只有房主可以修改 AI。')
+    if (room.state.status !== 'waiting') throw new RuleError('游戏已经开始，不能修改 AI。')
+    if (!isRoomPlayerId(targetPlayerId) || !room.state.playerOrder.includes(targetPlayerId)) throw new RuleError('目标 AI 不存在。')
+    if (!this.isAiPlayer(room, targetPlayerId)) throw new RuleError('目标玩家不是 AI。')
+    if (!isDifficultyId(difficulty)) throw new RuleError('AI 难度无效。')
+    const ai = room.ai?.[targetPlayerId]
+    if (!ai) throw new RuleError('目标 AI 不存在。')
+    ai.difficulty = difficulty
+    ai.memory = undefined
+    room.state.players[targetPlayerId].aiDifficulty = difficulty
+    this.emit(room, 'joined', `${this.playerName(room.state.players[targetPlayerId])} 难度已更新。`)
+    return this.joinResult(room, requester.playerId, requester.secret)
+  }
+
+  removeAiPlayer(roomId: string, requesterSecret: string, targetPlayerId: unknown): JoinResult {
+    const room = this.getRoom(roomId)
+    const requester = this.findSeat(room, requesterSecret)
+    if (!requester) throw new RuleError('玩家身份无效，请重新加入房间。')
+    if (!this.isHostSeat(room, requester)) throw new RuleError('只有房主可以移除 AI。')
+    if (room.state.status !== 'waiting') throw new RuleError('游戏已经开始，不能移除 AI。')
+    if (!isRoomPlayerId(targetPlayerId) || !room.state.playerOrder.includes(targetPlayerId)) throw new RuleError('目标 AI 不存在。')
+    if (!this.isAiPlayer(room, targetPlayerId)) throw new RuleError('目标玩家不是 AI。')
+    delete room.ai?.[targetPlayerId]
+    if (Object.keys(room.ai ?? {}).length === 0) room.ai = undefined
+    if (targetPlayerId !== requester.playerId) {
+      delete room.seats[targetPlayerId]
+      room.connections[targetPlayerId] = 0
+      applyDuelSeatPayload(room.state.players[targetPlayerId], emptyDuelSeatPayload(targetPlayerId))
+    } else {
+      const player = room.state.players[targetPlayerId]
+      player.name = '玩家一'
+      player.isAi = undefined
+      player.aiDifficulty = undefined
+      player.seated = true
+      player.connected = true
+    }
+    this.emit(room, 'joined', 'AI 已移除。')
+    return this.joinResult(room, requester.playerId, requester.secret)
+  }
+
+  restartRoom(roomId: string, requesterSecret: string): JoinResult {
+    const room = this.getRoom(roomId)
+    const requester = this.findSeat(room, requesterSecret)
+    if (!requester) throw new RuleError('玩家身份无效，请重新加入房间。')
+    if (!this.isHostSeat(room, requester)) throw new RuleError('只有房主可以开启新一局。')
+    if (this.isAiPlayer(room, requester.playerId) && requester.playerId !== 'p1') throw new RuleError('不能使用 AI 身份开启新一局。')
+    if (room.state.status !== 'finished') throw new RuleError('只有游戏结束后才能开启新一局。')
+    if (!room.state.playerOrder.every((id) => room.seats[id])) throw new RuleError('需要所有玩家都在房间内才能开启新一局。')
+
+    const previousState = room.state
+    const nextState = createInitialGame(room.id, { gameType: previousState.gameType, playerCount: previousState.playerOrder.length === 4 ? 4 : 2 })
+    for (const playerId of previousState.playerOrder) {
+      nextState.players[playerId].name = previousState.players[playerId].name
+      nextState.players[playerId].connected = previousState.players[playerId].connected
+      nextState.players[playerId].seated = previousState.players[playerId].seated
+      nextState.players[playerId].isAi = previousState.players[playerId].isAi
+      nextState.players[playerId].aiDifficulty = previousState.players[playerId].aiDifficulty
+    }
+    room.state = nextState
+    room.ai = this.resetAiControllers(room.ai)
+    startGameIfReady(room.state)
+    this.emit(room, 'snapshot', '新一局已开始。')
+    this.queueAiIfNeeded(room, AI_OPENING_ACTION_DELAY_MS)
+    return this.joinResult(room, requester.playerId, requester.secret)
+  }
+
+  getSnapshot(roomId: string, secret?: string): { state: AnyGameState; seq: number } {
+    const room = this.getRoom(roomId)
+    const seat = secret ? this.findSeat(room, secret) : undefined
+    return { state: viewStateForPlayer(room.state, seat?.playerId), seq: room.seq }
+  }
+
+  apply(roomId: string, secret: string, action: AnyGameAction): PublicRoomEvent {
+    const room = this.getRoom(roomId)
+    const seat = Object.values(room.seats).find((item) => item?.secret === secret)
+    if (!seat) throw new RuleError('玩家身份无效，请重新加入房间。')
+    if (seat.playerId !== action.playerId) throw new RuleError('不能替其他玩家行动。')
+    const duelAction = action as GameAction
+    if (action.type === 'startGame') {
+      if (seat.playerId !== 'p1') throw new RuleError('只有房主可以开始游戏。')
+      this.resetAiChainActions(room)
+      room.state = applyAction(room.state, duelAction)
+      const event = this.emit(room, 'action', '游戏已开始。', duelAction)
+      this.queueAiIfNeeded(room, AI_OPENING_ACTION_DELAY_MS)
+      return viewEventForPlayer(event, seat.playerId)
+    }
+    if (this.isAiPlayer(room, seat.playerId)) throw new RuleError('不能使用 AI 身份提交行动。')
+    if (!room.state.players[seat.playerId as PlayerId].seated) throw new RuleError('请先输入名字并入座。')
+    this.resetAiChainActions(room)
+    room.state = applyAction(room.state, duelAction)
+    const event = this.emit(room, 'action', '行动已执行。', duelAction)
+    this.queueAiIfNeeded(room, aiDelayAfterAction(duelAction))
+    return viewEventForPlayer(event, seat.playerId)
+  }
+
+  publishIntent(roomId: string, secret: string, intent: RoomIntent): PublicRoomEvent {
+    const room = this.getRoom(roomId)
+    const seat = this.findSeat(room, secret)
+    if (!seat) throw new RuleError('玩家身份无效，请重新加入房间。')
+    if (room.state.gameType !== 'duel' && room.state.gameType !== 'classic' && room.state.gameType !== 'pokemon') throw new RuleError('当前房间不支持同步操作意图。')
+    if (room.state.status !== 'playing' || room.state.winner || room.state.pending || room.state.currentPlayer !== seat.playerId) {
+      throw new RuleError('当前不能同步操作意图。')
+    }
+    room.seq += 1
+    room.updatedAt = Date.now()
+    const event: PublicRoomEvent = { seq: room.seq, type: 'intent', playerId: seat.playerId, intent }
+    room.subscribers.forEach((subscriber) => subscriber(event))
+    return event
+  }
+
+  subscribe(roomId: string, after: number, subscriber: Subscriber, secret?: string): () => void {
+    const room = this.getRoom(roomId)
+    const seat = secret ? this.findSeat(room, secret) : undefined
+    const wrappedSubscriber: Subscriber = (event) => subscriber(viewEventForPlayer(event, secret ? this.findSeat(room, secret)?.playerId : undefined))
+    room.events.filter((event) => event.seq > after).forEach(wrappedSubscriber)
+    room.subscribers.add(wrappedSubscriber)
+    if (seat) this.markConnected(room, seat.playerId)
+    return () => room.subscribers.delete(wrappedSubscriber)
+  }
+
+  disconnect(roomId: string, secret?: string): void {
+    if (!secret) return
+    const room = this.rooms.get(roomId)
+    if (!room) return
+    const seat = this.findSeat(room, secret)
+    if (!seat) return
+    const connections = Math.max(0, (room.connections[seat.playerId] ?? 1) - 1)
+    room.connections[seat.playerId] = connections
+    const player = this.playerById(room, seat.playerId)
+    if (connections === 0 && player.connected) {
+      player.connected = false
+      this.emit(room, 'snapshot', `${this.playerName(player)} 已离线。`)
+    }
+    if (this.hasActiveHumanConnection(room)) {
+      room.emptySince = undefined
+    } else {
+      room.emptySince ??= Date.now()
     }
   }
-  roomSubscribers.set(connectionId, { connectionId, roomId, playerId: result.playerId, emit });
-  result.room.connections[result.playerId] = (result.room.connections[result.playerId] ?? 0) + 1;
-  const replay = result.room.events.filter((event) => event.seq > after);
-  if (replay.length) {
-    replay.forEach((record) => {
-      emit(eventForPlayer(record, result.playerId!));
-      const required = actionRequiredEvent(result.room!, result.playerId!, record.seq);
-      if (required) emit(required);
-    });
-  } else {
-    const seq = result.room.seq;
-    emit({
-      seq,
-      type: "snapshot",
-      message: "房间快照已同步。",
-      room: toRoomState(result.room),
-      ...(result.room.gameState && result.room.gameState.phase !== "waiting" ? { state: getPlayerView(result.room.gameState, result.playerId) } : {}),
-    });
-    const required = actionRequiredEvent(result.room, result.playerId, seq);
-    if (required) emit(required);
+
+  moveSeat(roomId: string, secret: string, targetPlayerId: unknown): JoinResult {
+    const room = this.getRoom(roomId)
+    if (room.state.status !== 'waiting') throw new RuleError('游戏已经开始，不能换座。')
+    const sourceSeat = this.findSeat(room, secret)
+    if (!sourceSeat) throw new RuleError('玩家身份无效，请重新加入房间。')
+    if (this.isAiPlayer(room, sourceSeat.playerId)) throw new RuleError('不能使用 AI 身份换座。')
+    const targetId = typeof targetPlayerId === 'string' && room.state.playerOrder.includes(targetPlayerId as PlayerId) ? (targetPlayerId as PlayerId) : undefined
+    if (!targetId) throw new RuleError('目标座位不存在。')
+    if (targetId === sourceSeat.playerId) return this.joinResult(room, sourceSeat.playerId, sourceSeat.secret)
+
+    const source = room.state.players[sourceSeat.playerId]
+    const target = room.state.players[targetId]
+    const targetSeat = room.seats[targetId]
+    const sourcePayload = duelSeatPayload(source)
+    const targetPayload = targetSeat ? duelSeatPayload(target) : emptyDuelSeatPayload(targetId)
+
+    applyDuelSeatPayload(target, sourcePayload)
+    applyDuelSeatPayload(source, targetPayload)
+
+    if (targetSeat) {
+      room.seats[source.id] = { ...targetSeat, playerId: source.id }
+      room.seats[targetId] = { ...sourceSeat, playerId: targetId }
+    } else {
+      delete room.seats[source.id]
+      room.seats[targetId] = { ...sourceSeat, playerId: targetId }
+    }
+    this.swapAiControllers(room, source.id, targetId, Boolean(targetSeat))
+    this.swapConnections(room, source.id, targetId, Boolean(targetSeat))
+
+    this.emit(room, 'joined', targetSeat ? `${target.name} 与 ${source.name} 已交换座位。` : `${source.name} 已移动座位。`)
+    return this.joinResult(room, targetId, sourceSeat.secret)
   }
-  return { connectionId };
-}
 
-export function unsubscribeFromRoom(roomIdInput: string, playerId: string, connectionId: string): void {
-  const roomId = normalizeRoomId(roomIdInput);
-  const roomSubscribers = subscribersByRoom.get(roomId);
-  if (roomSubscribers?.get(connectionId)?.playerId === playerId) {
-    roomSubscribers.delete(connectionId);
+  private emit(room: Room, type: PublicRoomStateEvent['type'], message: string, action?: AnyGameAction): PublicRoomStateEvent {
+    room.seq += 1
+    room.updatedAt = Date.now()
+    const event = publicEvent(room, type, message, action)
+    room.events.push(event)
+    if (room.events.length > 250) room.events.splice(0, room.events.length - 250)
+    room.subscribers.forEach((subscriber) => subscriber(event))
+    return event
   }
-  const room = rooms.get(roomId);
-  if (!room) return;
-  const stillConnected = subscribers(roomId).some((subscriber) => subscriber.playerId === playerId);
-  if (stillConnected) return;
-  room.connections[playerId] = Math.max(0, (room.connections[playerId] ?? 1) - 1);
-  if (room.connections[playerId] > 0) return;
-  const player = room.players.find((entry) => entry.id === playerId);
-  if (player) player.connected = false;
-  const gamePlayer = room.gameState?.players.find((entry) => entry.id === playerId);
-  if (gamePlayer) gamePlayer.connected = false;
-  touchRoom(roomId);
-  recordStateEvent(room, "snapshot", `${player?.username ?? "玩家"} 已离线。`);
-}
 
-export function sendGameCommand(input: { credentials: SeatCredentials; command: GameCommand }): { error?: string } {
-  const result = assertSeat(input.credentials);
-  if ("error" in result) return result;
-  const { room } = result;
-  const playerId = input.credentials.playerId;
-  if (!room.gameState) return { error: "房间或玩家状态不存在。" };
+  private joinResult(room: Room, playerId: RoomPlayerId, playerSecret: string): JoinResult {
+    return { roomId: room.id, playerId, playerSecret, state: viewStateForPlayer(room.state, playerId), seq: room.seq }
+  }
 
-  switch (input.command.type) {
-    case "takeGems": {
-      const validation = validateTakeGems(room.gameState, playerId, input.command.colors as GemColor[]);
-      if (!validation.valid) return recordCommandError(room, validation.error || "取宝石失败。").errorResult;
-      room.gameState = applyTakeGems(room.gameState, playerId, input.command.colors as GemColor[]);
-      break;
-    }
-    case "reserveCard": {
-      const validation = validateReserve(room.gameState, playerId, input.command.cardId, input.command.fromDeck);
-      if (!validation.valid) return recordCommandError(room, validation.error || "保留卡牌失败。").errorResult;
-      room.gameState = applyReserve(room.gameState, playerId, input.command.cardId, input.command.fromDeck);
-      break;
-    }
-    case "buyCard": {
-      const validation = validateBuy(room.gameState, playerId, input.command.cardId, input.command.goldSubstitutions as Partial<Record<BasicColor, number>>);
-      if (!validation.valid) return recordCommandError(room, validation.error || "购买卡牌失败。").errorResult;
-      room.gameState = applyBuy(room.gameState, playerId, input.command.cardId, input.command.goldSubstitutions as Partial<Record<BasicColor, number>>);
-      break;
-    }
-    case "discardTokens": {
+  private queueAiIfNeeded(room: Room, delayMs = AI_ACTION_DELAY_MS): void {
+    const ai = this.aiToAct(room)
+    if (!ai || ai.running || ai.queued) return
+    ai.queued = true
+    setTimeout(() => {
       try {
-        room.gameState = applyDiscardTokens(room.gameState, playerId, input.command.tokens as Partial<Record<GemColor, number>>);
+        ai.queued = false
+        this.runAiIfNeeded(room, ai.playerId)
       } catch (error) {
-        return recordCommandError(room, error instanceof Error ? error.message : "弃置代币失败。").errorResult;
+        ai.running = false
+        const message = error instanceof Error ? error.message : '未知 AI 错误。'
+        this.recordAiIssue(room, `AI 行动失败：${message}`)
+        this.emit(room, 'error', `AI 行动失败：${message}`)
       }
-      break;
-    }
-    case "evolvePokemon": {
-      const validation = validateEvolvePokemon(room.gameState, playerId, input.command.targetCardId, input.command.skip);
-      if (!validation.valid) return recordCommandError(room, validation.error || "进化失败。").errorResult;
-      room.gameState = applyEvolvePokemon(room.gameState, playerId, input.command.targetCardId, input.command.skip);
-      break;
+    }, delayMs)
+  }
+
+  private runAiIfNeeded(room: Room, playerId: RoomPlayerId): void {
+    const ai = room.ai?.[playerId]
+    if (!ai || ai.running) return
+    ai.running = true
+    let action: AnyGameAction | null = null
+    try {
+      if (!this.isAiToAct(room, ai.playerId)) {
+        ai.chainActions = 0
+        return
+      }
+      ai.chainActions += 1
+      if (ai.chainActions > AI_MAX_CHAIN_ACTIONS) {
+        this.recordAiIssue(room, 'AI 行动超过安全上限，已停止自动行动。')
+        this.emit(room, 'error', 'AI 行动超过安全上限，已停止自动行动。')
+        return
+      }
+      const decision = chooseAiAction({
+        state: room.state,
+        aiPlayerId: ai.playerId,
+        config: { difficulty: ai.difficulty },
+        memory: ai.memory,
+      })
+      ai.memory = decision.updatedMemory
+      action = decision.action
+      if (!action) {
+        this.recordAiIssue(room, 'AI 没有可执行的合法行动。')
+        this.emit(room, 'error', 'AI 没有可执行的合法行动。')
+        return
+      }
+      room.state = applyAction(room.state, action as GameAction)
+      this.emit(room, 'action', 'AI 已行动。', action)
+    } finally {
+      ai.running = false
+      const nextAi = this.aiToAct(room)
+      if (nextAi) this.queueAiIfNeeded(room, aiDelayAfterAction(action))
+      if (nextAi?.playerId !== ai.playerId) ai.chainActions = 0
     }
   }
 
-  touchRoom(room.roomId);
-  recordStateEvent(room, "action", "行动已执行。", input.command);
-  return {};
-}
-
-function recordCommandError(room: ManagedRoom, error: string): { errorResult: { error: string } } {
-  recordStateEvent(room, "error", error);
-  return { errorResult: { error } };
-}
-
-export function publishIntent(credentials: SeatCredentials, intent: RoomIntent): { error?: string } {
-  const result = assertSeat(credentials);
-  if ("error" in result) return result;
-  const { room } = result;
-  const gameState = room.gameState;
-  if (!gameState || gameState.phase === "waiting" || gameState.phase === "ended") {
-    return { error: "当前不能同步操作意图。" };
+  private isAiToAct(room: Room, playerId: RoomPlayerId): boolean {
+    if (!this.isAiPlayer(room, playerId) || room.state.status !== 'playing' || room.state.winner) return false
+    if (room.state.pending) return room.state.pending.playerId === playerId
+    return room.state.currentPlayer === playerId
   }
-  const mayAct = gameState.currentPlayerId === credentials.playerId || gameState.pendingDiscardPlayerId === credentials.playerId || gameState.pendingEvolutionPlayerId === credentials.playerId;
-  if (!mayAct) return { error: "当前不能同步操作意图。" };
-  room.seq += 1;
-  room.lastActivity = Date.now();
-  emitToRoom(room.roomId, (subscriber) =>
-    subscriber.playerId === credentials.playerId
-      ? null
-      : {
-          seq: room.seq,
-          type: "intent",
-          playerId: credentials.playerId,
-          intent,
+
+  private aiToAct(room: Room): AiController | undefined {
+    if (!room.ai || room.state.status !== 'playing' || room.state.winner) return undefined
+    const playerId = (room.state.pending?.playerId ?? room.state.currentPlayer) as PlayerId
+    return room.ai[playerId]
+  }
+
+  private isAiPlayer(room: Room, playerId: RoomPlayerId): boolean {
+    return Boolean(room.ai?.[playerId])
+  }
+
+  private isHostSeat(room: Room, seat: Seat): boolean {
+    return seat.playerId === 'p1'
+  }
+
+  private swapAiControllers(room: Room, sourceId: RoomPlayerId, targetId: RoomPlayerId, swapTarget: boolean): void {
+    const sourceAi = room.ai?.[sourceId]
+    const targetAi = room.ai?.[targetId]
+    if (!sourceAi && !targetAi) return
+    room.ai ??= {}
+    if (swapTarget && targetAi) room.ai[sourceId] = { ...targetAi, playerId: sourceId }
+    else delete room.ai[sourceId]
+    if (sourceAi) room.ai[targetId] = { ...sourceAi, playerId: targetId }
+    else delete room.ai[targetId]
+  }
+
+  private swapConnections(room: Room, sourceId: RoomPlayerId, targetId: RoomPlayerId, swapTarget: boolean): void {
+    const sourceConnections = room.connections[sourceId] ?? 0
+    const targetConnections = room.connections[targetId] ?? 0
+    room.connections[targetId] = sourceConnections
+    room.connections[sourceId] = swapTarget ? targetConnections : 0
+  }
+
+  private recordAiIssue(room: Room, message: string): void {
+    room.state.log.unshift(message)
+  }
+
+  private resetAiControllers(ai: Room['ai']): Room['ai'] {
+    if (!ai) return undefined
+    return Object.fromEntries(
+      Object.entries(ai).map(([playerId, controller]) => [
+        playerId,
+        {
+          ...controller,
+          memory: undefined,
+          queued: false,
+          running: false,
+          chainActions: 0,
         },
-  );
-  return {};
-}
+      ]),
+    ) as Room['ai']
+  }
 
-export function getSnapshot(credentials: SeatCredentials): { seq?: number; room?: RoomState; state?: GameState; error?: string } {
-  const result = assertSeat(credentials);
-  if ("error" in result) return result;
-  return {
-    seq: result.room.seq,
-    room: toRoomState(result.room),
-    state: result.room.gameState && result.room.gameState.phase !== "waiting" ? getPlayerView(result.room.gameState, credentials.playerId) : undefined,
-  };
-}
+  private resetAiChainActions(room: Room): void {
+    Object.values(room.ai ?? {}).forEach((ai) => {
+      if (ai) ai.chainActions = 0
+    })
+  }
 
-export function cleanupRooms(now = Date.now()): void {
-  for (const [roomId, room] of rooms.entries()) {
-    if (now - room.lastActivity > TWO_HOURS_MS) {
-      rooms.delete(roomId);
-      subscribersByRoom.delete(roomId);
+  private getRoom(roomId: string): Room {
+    const room = this.rooms.get(roomId)
+    if (!room) throw new RoomNotFoundError('房间不存在或已过期。')
+    if (this.isExpired(room, Date.now())) {
+      this.rooms.delete(roomId)
+      throw new RoomNotFoundError('房间不存在或已过期。')
     }
+    room.updatedAt = Date.now()
+    return room
+  }
+
+  private findSeat(room: Room, secret: string): Seat | undefined {
+    return Object.values(room.seats).find((seat) => seat?.secret === secret)
+  }
+
+  private nextOpenSeat(room: Room): RoomPlayerId | undefined {
+    return room.state.playerOrder.find((playerId) => !room.seats[playerId])
+  }
+
+  private playerById(room: Room, playerId: RoomPlayerId): { connected?: boolean; seated?: boolean; name?: string; username?: string } {
+    const player = room.state.players[playerId]
+    if (!player) throw new RuleError('玩家不存在。')
+    return player
+  }
+
+  private playerName(player: { name?: string; username?: string }): string {
+    return player.name ?? player.username ?? '玩家'
+  }
+
+  private setPlayerName(player: { name?: string; username?: string }, name: string): void {
+    if ('username' in player) player.username = name
+    else player.name = name
+  }
+
+  private markConnected(room: Room, playerId: RoomPlayerId): void {
+    room.connections[playerId] = (room.connections[playerId] ?? 0) + 1
+    room.emptySince = undefined
+    const player = this.playerById(room, playerId)
+    if (!player.connected) {
+      player.connected = true
+      this.emit(room, 'joined', `${this.playerName(player)} 已重新连接。`)
+    }
+  }
+
+  private cleanup(): void {
+    const now = Date.now()
+    for (const [id, room] of this.rooms) {
+      if (this.isExpired(room, now)) this.rooms.delete(id)
+    }
+  }
+
+  private isExpired(room: Room, now: number): boolean {
+    return room.emptySince !== undefined && now - room.emptySince >= EMPTY_ROOM_TTL_MS
+  }
+
+  private hasActiveHumanConnection(room: Room): boolean {
+    return Object.values(room.seats).some((seat) => {
+      if (!seat || this.isAiPlayer(room, seat.playerId)) return false
+      return (room.connections[seat.playerId] ?? 0) > 0
+    })
   }
 }
 
-export function resetGameStoreForTests(): void {
-  rooms.clear();
-  subscribersByRoom.clear();
+function createAiController(playerId: RoomPlayerId, difficulty: DifficultyId): AiController {
+  return { playerId, difficulty, queued: false, running: false, chainActions: 0 }
 }
 
-setInterval(() => cleanupRooms(), 10 * 60 * 1000).unref?.();
+function classicAiName(playerId: RoomPlayerId): string {
+  return {
+    p1: 'AI 房主',
+    p2: 'AI 对手一',
+    p3: 'AI 对手二',
+    p4: 'AI 对手三',
+  }[playerId]
+}
+
+function isRoomPlayerId(value: unknown): value is RoomPlayerId {
+  return value === 'p1' || value === 'p2' || value === 'p3' || value === 'p4'
+}
+
+function aiDelayAfterAction(action: AnyGameAction | null): number {
+  if (!action) return AI_ACTION_DELAY_MS
+  if (action.type === 'startGame') return AI_OPENING_ACTION_DELAY_MS
+  if (action.type === 'chooseRoyal' || action.type === 'discardToken' || action.type === 'discardTokens' || action.type === 'reorderTokenSlots') return AI_FAST_PENDING_DELAY_MS
+  if (action.type === 'purchaseCard' || action.type === 'buyCard') return 1900
+  if (action.type === 'reserveCard') return 1800
+  if (action.type === 'takeTokens' || action.type === 'takeClassicBankTokens' || action.type === 'takeGems') return 1500
+  if (action.type === 'replenishBoard' || action.type === 'usePrivilege' || action.type === 'takeBoardToken' || action.type === 'stealToken') return 1500
+  if (action.type === 'evolvePokemon' || action.type === 'chooseNoble') return AI_FAST_PENDING_DELAY_MS
+  if (action.type === 'endTurn') return AI_FAST_PENDING_DELAY_MS
+  return AI_ACTION_DELAY_MS
+}
+
+type DuelSeatPayload = Pick<GameState['players'][PlayerId], 'name' | 'isAi' | 'aiDifficulty' | 'seated' | 'connected'>
+
+function duelSeatPayload(player: GameState['players'][PlayerId]): DuelSeatPayload {
+  return {
+    name: player.name,
+    isAi: player.isAi,
+    aiDifficulty: player.aiDifficulty,
+    seated: player.seated,
+    connected: player.connected,
+  }
+}
+
+function emptyDuelSeatPayload(playerId: PlayerId): DuelSeatPayload {
+  return {
+    name: { p1: '玩家一', p2: '玩家二', p3: '玩家三', p4: '玩家四' }[playerId],
+    isAi: undefined,
+    aiDifficulty: undefined,
+    seated: false,
+    connected: false,
+  }
+}
+
+function applyDuelSeatPayload(player: GameState['players'][PlayerId], payload: DuelSeatPayload): void {
+  player.name = payload.name
+  player.isAi = payload.isAi
+  player.aiDifficulty = payload.aiDifficulty
+  player.seated = payload.seated
+  player.connected = payload.connected
+}
+
+const roomStoreGlobal = globalThis as typeof globalThis & {
+  __gemDuelArenaRoomStore?: RoomStore
+}
+
+export const roomStore = (roomStoreGlobal.__gemDuelArenaRoomStore ??= new RoomStore())
+
+export function jsonOk(data: unknown, init?: ResponseInit): Response {
+  return Response.json(data, init)
+}
+
+export function jsonError(error: unknown): Response {
+  const message = error instanceof Error ? error.message : '未知错误。'
+  const status = error instanceof RoomNotFoundError ? 404 : error instanceof RuleError ? 400 : 500
+  return Response.json({ error: message }, { status })
+}

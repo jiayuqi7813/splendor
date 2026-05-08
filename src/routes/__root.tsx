@@ -1,35 +1,44 @@
 /// <reference types="vite/client" />
-import { QueryClientProvider } from "@tanstack/react-query";
-import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router";
-import type { QueryClient } from "@tanstack/react-query";
-import type { ReactNode } from "react";
-import appCss from "~/styles.css?url";
+import type { CSSProperties } from 'react'
+import type { ReactNode } from 'react'
+import { HeadContent, Outlet, Scripts, createRootRoute } from '@tanstack/react-router'
+import { assetPath } from '@/utils/paths'
+import appCss from '../styles.css?url'
 
-export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+export const Route = createRootRoute({
   head: () => ({
     meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Splendor Online" },
+      { charSet: 'utf-8' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      { title: 'Gem Duel Arena' },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [{ rel: 'stylesheet', href: appCss }],
   }),
-  component: Outlet,
-  shellComponent: RootDocument,
-});
+  component: RootComponent,
+})
 
-function RootDocument({ children }: { children: ReactNode }) {
-  const { queryClient } = Route.useRouteContext();
+function RootComponent() {
+  return (
+    <RootDocument>
+      <Outlet />
+    </RootDocument>
+  )
+}
 
+function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="zh-CN">
       <head>
         <HeadContent />
       </head>
-      <body>
-        <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <body style={rootBodyStyle}>
+        {children}
         <Scripts />
       </body>
     </html>
-  );
+  )
 }
+
+const rootBodyStyle = {
+  '--table-background-image': `url(${assetPath('duel-splendor/tabletops/birch-boardgame-table.png')})`,
+} as CSSProperties

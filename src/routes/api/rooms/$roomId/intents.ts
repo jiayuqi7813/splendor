@@ -1,18 +1,20 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { publishRoomIntentInputSchema } from "~/game/protocol";
-import { publishIntent } from "~/server/roomStore";
+import { createFileRoute } from '@tanstack/react-router'
+import { RuleError } from '@/game/rules'
+import { jsonError, jsonOk, roomStore } from '@/server/roomStore'
+import type { RoomIntent } from '@/game/types'
 
-export const Route = createFileRoute("/api/rooms/$roomId/intents")({
+export const Route = createFileRoute('/api/rooms/$roomId/intents')({
   server: {
     handlers: {
       POST: async ({ request, params }) => {
-        const body = await request.json().catch(() => ({}));
-        const input = publishRoomIntentInputSchema.safeParse({ ...body, roomId: params.roomId });
-        if (!input.success) return Response.json({ error: "同步意图请求无效。" }, { status: 400 });
-        const result = publishIntent(input.data, input.data.intent);
-        if (result.error) return Response.json({ error: result.error }, { status: 400 });
-        return Response.json({ ok: true });
+        try {
+          const body = (await request.json()) as { playerSecret?: string; intent?: RoomIntent }
+          if (!body.playerSecret || !body.intent) return jsonError(new RuleError('请求缺少玩家身份或同步意图。'))
+          return jsonOk(roomStore.publishIntent(params.roomId, body.playerSecret, body.intent))
+        } catch (error) {
+          return jsonError(error)
+        }
       },
     },
   },
-});
+})

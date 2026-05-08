@@ -1,6 +1,7 @@
 ARG NODE_IMAGE=node:22-alpine
 
 FROM ${NODE_IMAGE} AS builder
+
 WORKDIR /app
 
 COPY package*.json ./
@@ -19,8 +20,9 @@ ENV PORT=3000
 COPY package*.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
-COPY --from=builder /app/.output ./.output
+COPY --from=builder /app/dist ./dist
+COPY server.mjs ./server.mjs
 
 EXPOSE 3000
 
-CMD ["node", ".output/server/index.mjs"]
+CMD ["node", "server.mjs"]
