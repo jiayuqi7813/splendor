@@ -16,6 +16,7 @@ import { Route as ApiRoomsRoomIdSnapshotRouteImport } from './routes/api/rooms/$
 import { Route as ApiRoomsRoomIdJoinRouteImport } from './routes/api/rooms/$roomId/join'
 import { Route as ApiRoomsRoomIdIntentsRouteImport } from './routes/api/rooms/$roomId/intents'
 import { Route as ApiRoomsRoomIdEventsRouteImport } from './routes/api/rooms/$roomId/events'
+import { Route as ApiRoomsRoomIdChatRouteImport } from './routes/api/rooms/$roomId/chat'
 import { Route as ApiRoomsRoomIdActionsRouteImport } from './routes/api/rooms/$roomId/actions'
 
 const IndexRoute = IndexRouteImport.update({
@@ -53,6 +54,11 @@ const ApiRoomsRoomIdEventsRoute = ApiRoomsRoomIdEventsRouteImport.update({
   path: '/$roomId/events',
   getParentRoute: () => ApiRoomsRoute,
 } as any)
+const ApiRoomsRoomIdChatRoute = ApiRoomsRoomIdChatRouteImport.update({
+  id: '/$roomId/chat',
+  path: '/$roomId/chat',
+  getParentRoute: () => ApiRoomsRoute,
+} as any)
 const ApiRoomsRoomIdActionsRoute = ApiRoomsRoomIdActionsRouteImport.update({
   id: '/$roomId/actions',
   path: '/$roomId/actions',
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/api/rooms': typeof ApiRoomsRouteWithChildren
   '/room/$roomId': typeof RoomRoomIdRoute
   '/api/rooms/$roomId/actions': typeof ApiRoomsRoomIdActionsRoute
+  '/api/rooms/$roomId/chat': typeof ApiRoomsRoomIdChatRoute
   '/api/rooms/$roomId/events': typeof ApiRoomsRoomIdEventsRoute
   '/api/rooms/$roomId/intents': typeof ApiRoomsRoomIdIntentsRoute
   '/api/rooms/$roomId/join': typeof ApiRoomsRoomIdJoinRoute
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/api/rooms': typeof ApiRoomsRouteWithChildren
   '/room/$roomId': typeof RoomRoomIdRoute
   '/api/rooms/$roomId/actions': typeof ApiRoomsRoomIdActionsRoute
+  '/api/rooms/$roomId/chat': typeof ApiRoomsRoomIdChatRoute
   '/api/rooms/$roomId/events': typeof ApiRoomsRoomIdEventsRoute
   '/api/rooms/$roomId/intents': typeof ApiRoomsRoomIdIntentsRoute
   '/api/rooms/$roomId/join': typeof ApiRoomsRoomIdJoinRoute
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/api/rooms': typeof ApiRoomsRouteWithChildren
   '/room/$roomId': typeof RoomRoomIdRoute
   '/api/rooms/$roomId/actions': typeof ApiRoomsRoomIdActionsRoute
+  '/api/rooms/$roomId/chat': typeof ApiRoomsRoomIdChatRoute
   '/api/rooms/$roomId/events': typeof ApiRoomsRoomIdEventsRoute
   '/api/rooms/$roomId/intents': typeof ApiRoomsRoomIdIntentsRoute
   '/api/rooms/$roomId/join': typeof ApiRoomsRoomIdJoinRoute
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/api/rooms'
     | '/room/$roomId'
     | '/api/rooms/$roomId/actions'
+    | '/api/rooms/$roomId/chat'
     | '/api/rooms/$roomId/events'
     | '/api/rooms/$roomId/intents'
     | '/api/rooms/$roomId/join'
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/api/rooms'
     | '/room/$roomId'
     | '/api/rooms/$roomId/actions'
+    | '/api/rooms/$roomId/chat'
     | '/api/rooms/$roomId/events'
     | '/api/rooms/$roomId/intents'
     | '/api/rooms/$roomId/join'
@@ -117,6 +128,7 @@ export interface FileRouteTypes {
     | '/api/rooms'
     | '/room/$roomId'
     | '/api/rooms/$roomId/actions'
+    | '/api/rooms/$roomId/chat'
     | '/api/rooms/$roomId/events'
     | '/api/rooms/$roomId/intents'
     | '/api/rooms/$roomId/join'
@@ -180,6 +192,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiRoomsRoomIdEventsRouteImport
       parentRoute: typeof ApiRoomsRoute
     }
+    '/api/rooms/$roomId/chat': {
+      id: '/api/rooms/$roomId/chat'
+      path: '/$roomId/chat'
+      fullPath: '/api/rooms/$roomId/chat'
+      preLoaderRoute: typeof ApiRoomsRoomIdChatRouteImport
+      parentRoute: typeof ApiRoomsRoute
+    }
     '/api/rooms/$roomId/actions': {
       id: '/api/rooms/$roomId/actions'
       path: '/$roomId/actions'
@@ -192,6 +211,7 @@ declare module '@tanstack/react-router' {
 
 interface ApiRoomsRouteChildren {
   ApiRoomsRoomIdActionsRoute: typeof ApiRoomsRoomIdActionsRoute
+  ApiRoomsRoomIdChatRoute: typeof ApiRoomsRoomIdChatRoute
   ApiRoomsRoomIdEventsRoute: typeof ApiRoomsRoomIdEventsRoute
   ApiRoomsRoomIdIntentsRoute: typeof ApiRoomsRoomIdIntentsRoute
   ApiRoomsRoomIdJoinRoute: typeof ApiRoomsRoomIdJoinRoute
@@ -200,6 +220,7 @@ interface ApiRoomsRouteChildren {
 
 const ApiRoomsRouteChildren: ApiRoomsRouteChildren = {
   ApiRoomsRoomIdActionsRoute: ApiRoomsRoomIdActionsRoute,
+  ApiRoomsRoomIdChatRoute: ApiRoomsRoomIdChatRoute,
   ApiRoomsRoomIdEventsRoute: ApiRoomsRoomIdEventsRoute,
   ApiRoomsRoomIdIntentsRoute: ApiRoomsRoomIdIntentsRoute,
   ApiRoomsRoomIdJoinRoute: ApiRoomsRoomIdJoinRoute,

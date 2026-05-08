@@ -424,7 +424,7 @@ function SplendorSeat({
   const hiddenEmptySeat = state.status !== 'waiting' && !player.seated && !player.connected && !player.isAi
   const aiOptionIndex = aiControl ? Math.max(0, aiControl.options.findIndex((option) => option.id === aiControl.difficulty)) : 0
   return (
-    <div className={`splendorSeat ${className} ${hiddenEmptySeat ? 'splendorEmptySeatHidden' : ''}`}>
+    <div className={`splendorSeat ${className} splendorSeat-${playerId} ${hiddenEmptySeat ? 'splendorEmptySeatHidden' : ''}`}>
       <SplendorPlayerPanel state={state} playerId={playerId} viewerId={viewerId} classicDraft={classicDraft} purchaseTarget={purchaseTarget} remotePurchaseTarget={remotePurchaseTarget} revealingReserveIndices={revealingReserveIndices} hiddenReserveIndices={hiddenReserveIndices} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={remoteHoveredReserveIndex} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onReservePointerDown={onReservePointerDown} onReservePointerEnter={onReservePointerEnter} onReservePointerLeave={onReservePointerLeave} onReservePointerMove={onReservePointerMove} onReservePointerUp={onReservePointerUp} onReservePointerCancel={onReservePointerCancel} />
       {canMoveHere && (
         <button className="seatMoveButton splendorSeatMoveButton" type="button" onClick={() => onMoveSeat?.(playerId)} disabled={busy} title={player.seated ? `与 ${displayName} 交换位置` : '移动到此空位'} aria-label={player.seated ? `与 ${displayName} 交换位置` : '移动到此空位'}>

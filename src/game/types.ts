@@ -72,6 +72,7 @@ export interface PlayerState {
   name: string
   isAi?: boolean
   aiDifficulty?: AiDifficultyId
+  aiControlled?: boolean
   connected: boolean
   seated: boolean
   tokens: Record<TokenType, number>
@@ -131,7 +132,20 @@ export interface GameState {
   finalRound?: { triggerPlayerId: PlayerId; targetTurns: number; reason: VictoryReason }
   winner?: { playerId: PlayerId; reason: VictoryReason }
   myPlayerId?: PlayerId
+  feed?: RoomFeedItem[]
   log: string[]
+}
+
+export type RoomFeedKind = 'chat' | 'event' | 'status' | 'action'
+
+export interface RoomFeedItem {
+  id: string
+  seq: number
+  at: number
+  kind: RoomFeedKind
+  message: string
+  playerId?: PlayerId
+  playerName?: string
 }
 
 export type GameAction =
@@ -160,6 +174,7 @@ export type RoomIntent =
   | { type: 'purchaseTarget'; source: CardSource; gem?: GemType; valid: boolean }
   | { type: 'goldTarget'; cellId: string; source?: CardSource }
   | { type: 'privilegeTarget'; cellId?: string; index?: number }
+  | { type: 'cursorMove'; x: number; y: number; visible: boolean; path?: { x: number; y: number; at: number; visible: boolean }[]; click?: boolean }
   | { type: 'clear' }
 
 export type AnyGameState = any

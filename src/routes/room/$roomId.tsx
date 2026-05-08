@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { BookOpen, Bot, Check, Copy, Home, Loader2, Maximize2, Play, RefreshCw, UserRound, X } from 'lucide-react'
+import { Bell, BellOff, BookOpen, Bot, Check, Copy, Home, Loader2, Maximize2, MessageSquare, Play, RefreshCw, Send, UserRound, Volume2, VolumeX, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { SPIRAL_CELL_IDS, TOKEN_LABELS } from '@/game/data/static'
 import { getCard } from '@/game/cards'
 import { canAfford, computePayment, otherPlayer, playerStats, royalCardOwner } from '@/game/rules'
-import { GEM_TYPES, type AnyGameAction, type BoardCell, type CardSource, type GameAction, type GameState, type GameType, type GemType, type PlayerId, type PublicRoomEvent, type RoomIntent, type Token, type TokenType } from '@/game/types'
+import { GEM_TYPES, type AnyGameAction, type BoardCell, type CardSource, type GameAction, type GameState, type GameType, type GemType, type PlayerId, type PublicRoomEvent, type RoomFeedItem, type RoomIntent, type Token, type TokenType } from '@/game/types'
 import { displayPlayerName } from '@/game/playerDisplay'
 import type { DifficultyId } from '@/game/ai'
 import { selectTutorialStep, type TutorialCounts, type TutorialStep } from '@/game/tutorial'
@@ -33,10 +33,61 @@ const ALL_PLAYER_IDS = ['p1', 'p2', 'p3', 'p4'] as const satisfies readonly Play
 const ROOM_TOAST_TIMEOUT_MS = 1800
 const ROOM_MACHINE_HEADER = 'X-Splendor-Room-Machine'
 const ROOM_MACHINE_PARAM = 'roomMachine'
+const JOIN_AS_NEW_PARAM = 'joinAsNew'
+const TURN_SOUND_STORAGE_KEY = 'splendor:turnReminderSound'
+const TURN_NOTIFICATION_STORAGE_KEY = 'splendor:turnReminderNotification'
+const CHAT_OPEN_STORAGE_KEY = 'splendor:roomChatOpen'
+const CHAT_POSITION_STORAGE_KEY = 'splendor:roomChatPosition'
+const CHAT_SIZE_STORAGE_KEY = 'splendor:roomChatSize'
+const CHAT_MESSAGE_MAX_LENGTH = 280
+const CURSOR_TRACE_THROTTLE_MS = 33
+const CURSOR_SEND_INTERVAL_MS = 110
+const CURSOR_IDLE_END_MS = 680
+const CURSOR_TRAIL_BUFFER_MAX_POINTS = 48
+const CURSOR_SEND_MAX_PATH_POINTS = 48
+const CURSOR_TRAIL_MAX_POINTS = 48
+const CURSOR_TRACK_STALE_MS = 3800
+const CURSOR_TRACK_FADE_MS = 2400
+const CURSOR_LAYER_TICK_MS = 1400
+const REMOTE_CURSOR_CLICK_MS = 720
+const REMOTE_CURSOR_CLICK_LIMIT = 18
+const REMOTE_CURSOR_COLORS: Record<PlayerId, string> = {
+  p1: '#f6c75e',
+  p2: '#74c0fc',
+  p3: '#bde3af',
+  p4: '#ff8da1',
+}
+const CURSOR_POINTER_BASE_SIZE = 20
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value))
+}
+
+type RemoteCursorIntentPoint = {
+  x: number
+  y: number
+  at: number
+  visible: boolean
+}
+
+type ChatPanelPosition = {
+  left: number
+  top: number
+}
+
+type ChatPanelSize = {
+  width: number
+  height: number
+}
 
 function readRoomMachineFromLocation(): string {
   if (typeof window === 'undefined') return ''
   return new URLSearchParams(window.location.search).get(ROOM_MACHINE_PARAM) ?? ''
+}
+
+function shouldJoinAsNewPlayer(): boolean {
+  if (typeof window === 'undefined') return false
+  return new URLSearchParams(window.location.search).get(JOIN_AS_NEW_PARAM) === '1'
 }
 
 function withRoomMachine(path: string, machineId: string): string {
@@ -47,6 +98,10 @@ function withRoomMachine(path: string, machineId: string): string {
 
 function roomPath(roomId: string, machineId: string | null): string {
   return appPath(withRoomMachine(`/room/${roomId}`, machineId ?? ''))
+}
+
+function roomInvitePath(roomId: string, machineId: string | null): string {
+  return appPath(withRoomMachine(`/room/${roomId}?${JOIN_AS_NEW_PARAM}=1`, machineId ?? ''))
 }
 
 function roomToastError(error: string): string {
@@ -171,9 +226,111 @@ function Room() {
   const [pendingIntroSeq, setPendingIntroSeq] = useState<number>()
   const [introAnimation, setIntroAnimation] = useState<IntroAnimation>()
   const [classicIntroBankCounts, setClassicIntroBankCounts] = useState<Record<TokenType, number>>()
+  const [remoteCursors, setRemoteCursors] = useState<Partial<Record<PlayerId, RemoteCursorState>>>({})
+  const [remoteCursorClicks, setRemoteCursorClicks] = useState<RemoteCursorClickEffect[]>([])
+  const [cursorMapRect, setCursorMapRect] = useState<DOMRect | null>(null)
+  const [chatOpen, setChatOpen] = useState(true)
+  const [chatInput, setChatInput] = useState('')
+  const [chatBusy, setChatBusy] = useState(false)
+  const [turnSoundEnabled, setTurnSoundEnabled] = useState(true)
+  const [turnNotificationEnabled, setTurnNotificationEnabled] = useState(false)
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default')
+  const cursorPathBufferRef = useRef<RemoteCursorIntentPoint[]>([])
+  const cursorLastCaptureAtRef = useRef(0)
+  const cursorLastPathPublishAtRef = useRef(0)
+  const cursorIdleEndTimerRef = useRef<number | null>(null)
+  const remoteCursorClickTimersRef = useRef<Record<string, number>>({})
+  const turnAudioContextRef = useRef<AudioContext | undefined>(undefined)
+  const lastTurnReminderKeyRef = useRef<string | undefined>(undefined)
+  const turnReminderInitializedRef = useRef(false)
 
   function roomApiPath(path: string): string {
     return appPath(withRoomMachine(path, roomMachineRef.current))
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    function syncShellRect(): void {
+      const next = resolveCursorMapRect()
+      if (!next) return
+      setCursorMapRect((current) => (sameRect(current, next) ? current : next))
+    }
+    syncShellRect()
+    window.addEventListener('resize', syncShellRect)
+    window.addEventListener('scroll', syncShellRect, { passive: true })
+    window.visualViewport?.addEventListener('resize', syncShellRect)
+    window.visualViewport?.addEventListener('scroll', syncShellRect, { passive: true })
+    const cursorNodes = collectCursorMapNodes()
+    const observer =
+      cursorNodes.length > 0 && typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => {
+            syncShellRect()
+          })
+        : null
+    if (observer) {
+      for (const node of cursorNodes) observer.observe(node)
+    }
+    return () => {
+      window.removeEventListener('resize', syncShellRect)
+      window.removeEventListener('scroll', syncShellRect)
+      window.visualViewport?.removeEventListener('resize', syncShellRect)
+      window.visualViewport?.removeEventListener('scroll', syncShellRect)
+      observer?.disconnect()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!secret || !state) return
+    const timer = window.setTimeout(() => {
+      const next = resolveCursorMapRect()
+      if (!next) return
+      setCursorMapRect((current) => (sameRect(current, next) ? current : next))
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [secret, state])
+
+  function resolveCursorMapRect(): DOMRect | null {
+    const nodes = collectCursorMapNodes()
+    const rects = nodes.map((node) => node.getBoundingClientRect()).filter((rect) => rect.width > 0 && rect.height > 0)
+    if (rects.length === 0) {
+      const shell = typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.gameShell')
+      if (!(shell instanceof HTMLElement) || !shell.isConnected) return null
+      return shell.getBoundingClientRect()
+    }
+    let left = Number.POSITIVE_INFINITY
+    let top = Number.POSITIVE_INFINITY
+    let right = Number.NEGATIVE_INFINITY
+    let bottom = Number.NEGATIVE_INFINITY
+    for (const rect of rects) {
+      left = Math.min(left, rect.left)
+      top = Math.min(top, rect.top)
+      right = Math.max(right, rect.right)
+      bottom = Math.max(bottom, rect.bottom)
+    }
+    return new DOMRect(left, top, right - left, bottom - top)
+  }
+
+  function collectCursorMapNodes(): HTMLElement[] {
+    if (typeof document === 'undefined') return []
+    const candidates = new Set<HTMLElement>()
+    const addNode = (node: Element | null | undefined): void => {
+      if (node instanceof HTMLElement && node.isConnected) candidates.add(node)
+    }
+    const addNodes = (nodes: NodeListOf<HTMLElement>): void => {
+      for (const node of nodes) addNode(node)
+    }
+    addNodes(document.querySelectorAll('.tableArea'))
+    addNodes(document.querySelectorAll('.playersArea [data-player-panel]'))
+    addNodes(document.querySelectorAll('.splendorCenterTable'))
+    addNodes(document.querySelectorAll('.splendorSeat'))
+    addNode(document.querySelector('.gameShell'))
+    return [...candidates]
+  }
+
+
+  function sameRect(a: DOMRect | null, b: DOMRect | null): boolean {
+    if (!a || !b) return false
+    return a.left === b.left && a.top === b.top && a.width === b.width && a.height === b.height
   }
 
   function rememberRoomMachine(machineId: string | null): void {
@@ -185,15 +342,67 @@ function Room() {
   }
 
   function currentRoomLink(): string {
-    if (!roomMachineRef.current || typeof window === 'undefined') return location.href
-    const url = new URL(window.location.href)
-    url.searchParams.set(ROOM_MACHINE_PARAM, roomMachineRef.current)
+    if (typeof window === 'undefined') return roomInvitePath(roomId, roomMachineRef.current)
+    const url = new URL(roomInvitePath(roomId, roomMachineRef.current), window.location.origin)
+    if (roomMachineRef.current) url.searchParams.set(ROOM_MACHINE_PARAM, roomMachineRef.current)
     return url.href
+  }
+
+  function readNormalizedCursorPoint(clientX: number, clientY: number): RemoteCursorIntentPoint | undefined {
+    const shellRect = cursorMapRect ?? resolveCursorMapRect()
+    if (!shellRect || shellRect.width <= 0 || shellRect.height <= 0) return undefined
+    if (!cursorMapRect) setCursorMapRect(shellRect)
+    const normalizedX = clamp01((clientX - shellRect.left) / shellRect.width)
+    const normalizedY = clamp01((clientY - shellRect.top) / shellRect.height)
+    return {
+      x: normalizedX,
+      y: normalizedY,
+      at: Date.now(),
+      visible: clientX >= shellRect.left && clientX <= shellRect.right && clientY >= shellRect.top && clientY <= shellRect.bottom,
+    }
   }
 
   useEffect(() => {
     setTutorialEnabled(localStorage.getItem(TUTORIAL_ENABLED_STORAGE_KEY) === 'true')
   }, [])
+
+  useEffect(() => {
+    setChatOpen(localStorage.getItem(CHAT_OPEN_STORAGE_KEY) !== 'false')
+    setTurnSoundEnabled(localStorage.getItem(TURN_SOUND_STORAGE_KEY) !== 'false')
+    const notificationSupported = typeof window !== 'undefined' && 'Notification' in window
+    if (notificationSupported) {
+      setNotificationPermission(Notification.permission)
+      setTurnNotificationEnabled(localStorage.getItem(TURN_NOTIFICATION_STORAGE_KEY) === 'true' && Notification.permission === 'granted')
+    }
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem(CHAT_OPEN_STORAGE_KEY, chatOpen ? 'true' : 'false')
+  }, [chatOpen])
+
+  useEffect(() => {
+    localStorage.setItem(TURN_SOUND_STORAGE_KEY, turnSoundEnabled ? 'true' : 'false')
+  }, [turnSoundEnabled])
+
+  useEffect(() => {
+    localStorage.setItem(TURN_NOTIFICATION_STORAGE_KEY, turnNotificationEnabled ? 'true' : 'false')
+  }, [turnNotificationEnabled])
+
+  useEffect(() => {
+    if (!turnSoundEnabled || typeof window === 'undefined') return
+    const unlockAudio = () => {
+      const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (!AudioContextCtor) return
+      turnAudioContextRef.current ??= new AudioContextCtor()
+      void turnAudioContextRef.current.resume().catch(() => undefined)
+    }
+    window.addEventListener('pointerdown', unlockAudio, { once: true, passive: true })
+    window.addEventListener('keydown', unlockAudio, { once: true })
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio)
+      window.removeEventListener('keydown', unlockAudio)
+    }
+  }, [turnSoundEnabled])
 
   useEffect(() => {
     boardFocusOpenRef.current = boardFocusOpen
@@ -254,7 +463,10 @@ function Room() {
     async function join() {
       setError('')
       setBusy(true)
-      const storedSecret = localStorage.getItem(`splendor:${roomId}:secret`) ?? undefined
+      const storageKey = `splendor:${roomId}:secret`
+      const tabStorageKey = `splendor:${roomId}:tabSecret`
+      const joinAsNew = shouldJoinAsNewPlayer()
+      const storedSecret = joinAsNew ? undefined : sessionStorage.getItem(tabStorageKey) ?? localStorage.getItem(storageKey) ?? undefined
       const response = await fetch(roomApiPath(`/api/rooms/${roomId}/join`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -265,7 +477,13 @@ function Room() {
       if (!response.ok) throw new Error(data.error ?? '加入房间失败')
       if (closed) return
       const shouldPlayIntro = !storedSecret && shouldAnimateInitialStart(undefined, data.state)
-      localStorage.setItem(`splendor:${roomId}:secret`, data.playerSecret)
+      sessionStorage.setItem(tabStorageKey, data.playerSecret)
+      localStorage.setItem(storageKey, data.playerSecret)
+      if (joinAsNew && typeof window !== 'undefined') {
+        const url = new URL(window.location.href)
+        url.searchParams.delete(JOIN_AS_NEW_PARAM)
+        window.history.replaceState(null, '', url)
+      }
       setSecret(data.playerSecret)
       setPlayerId(data.playerId)
       if (!roomPlayer(data.state, data.playerId)?.seated) setPlayerNameInput(localStorage.getItem('splendor:playerName') ?? '')
@@ -276,6 +494,7 @@ function Room() {
       setBusy(false)
     }
     join().catch((err) => {
+      sessionStorage.removeItem(`splendor:${roomId}:tabSecret`)
       localStorage.removeItem(`splendor:${roomId}:secret`)
       setError(err instanceof Error ? err.message : '加入房间失败')
       setBusy(false)
@@ -300,6 +519,7 @@ function Room() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error ?? '创建房间失败')
       localStorage.setItem(`splendor:${data.roomId}:secret`, data.playerSecret)
+      sessionStorage.setItem(`splendor:${data.roomId}:tabSecret`, data.playerSecret)
       location.href = roomPath(data.roomId, response.headers.get(ROOM_MACHINE_HEADER))
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建房间失败')
@@ -469,6 +689,74 @@ function Room() {
       setError(err instanceof Error ? err.message : '开启新一局失败')
     } finally {
       setRestartBusy(false)
+    }
+  }
+
+  async function sendChatMessage() {
+    const message = chatInput.trim()
+    if (!secret || !message || chatBusy) return
+    setChatBusy(true)
+    setError('')
+    try {
+      const response = await fetch(roomApiPath(`/api/rooms/${roomId}/chat`), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerSecret: secret, message }),
+      })
+      const data = await response.json()
+      if (!response.ok) throw new Error(data.error ?? '发送聊天失败')
+      setChatInput('')
+      receiveStateUpdate({ seq: data.seq, state: data.state })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '发送聊天失败')
+    } finally {
+      setChatBusy(false)
+    }
+  }
+
+  async function requestTurnNotificationPermission() {
+    if (typeof window === 'undefined' || !('Notification' in window)) return
+    const permission = await Notification.requestPermission()
+    setNotificationPermission(permission)
+    const enabled = permission === 'granted'
+    setTurnNotificationEnabled(enabled)
+  }
+
+  function playTurnReminderSound() {
+    if (!turnSoundEnabled || typeof window === 'undefined') return
+    const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!AudioContextCtor) return
+    const context = turnAudioContextRef.current ?? new AudioContextCtor()
+    turnAudioContextRef.current = context
+    void context.resume().catch(() => undefined)
+    const now = context.currentTime
+    const gain = context.createGain()
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(0.08, now + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.34)
+    gain.connect(context.destination)
+    for (const [index, frequency] of [660, 880].entries()) {
+      const oscillator = context.createOscillator()
+      oscillator.type = 'sine'
+      oscillator.frequency.setValueAtTime(frequency, now + index * 0.11)
+      oscillator.connect(gain)
+      oscillator.start(now + index * 0.11)
+      oscillator.stop(now + index * 0.11 + 0.18)
+    }
+  }
+
+  function showTurnNotification() {
+    if (!turnNotificationEnabled || typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') return
+    if (!document.hidden && document.hasFocus()) return
+    const player = playerId && stateRef.current ? roomPlayer(stateRef.current, playerId) : undefined
+    const notification = new Notification('轮到你了', {
+      body: player ? `${displayPlayerName(player)}，现在到你的回合。` : '现在到你的回合。',
+      tag: `splendor-turn-${roomId}`,
+      silent: true,
+    })
+    notification.onclick = () => {
+      window.focus()
+      notification.close()
     }
   }
 
@@ -706,7 +994,31 @@ function Room() {
   const isMyTurn = Boolean(state && playerId && !nameRequired && !state.players[playerId].isAi && state.currentPlayer === playerId && state.status === 'playing' && !state.winner && !interactionLocked)
   const roomPending = state && typeof state === 'object' && 'pending' in state ? state.pending : undefined
   const currentPending = playerId && roomPending?.playerId === playerId ? roomPending : undefined
+  const turnReminderKey =
+    state && playerId && !nameRequired && state.status === 'playing' && !state.winner && !state.players[playerId].isAi && !state.players[playerId].aiControlled
+      ? currentPending
+        ? `pending:${state.turnNumber}:${currentPending.type}:${playerId}`
+        : state.currentPlayer === playerId
+          ? `turn:${state.turnNumber}:${playerId}`
+          : undefined
+      : undefined
   const toastError = roomToastError(error)
+
+  useEffect(() => {
+    if (!turnReminderInitializedRef.current) {
+      turnReminderInitializedRef.current = true
+      lastTurnReminderKeyRef.current = turnReminderKey
+      return
+    }
+    if (!turnReminderKey) {
+      lastTurnReminderKeyRef.current = undefined
+      return
+    }
+    if (lastTurnReminderKeyRef.current === turnReminderKey) return
+    lastTurnReminderKeyRef.current = turnReminderKey
+    playTurnReminderSound()
+    showTurnNotification()
+  }, [turnReminderKey, turnSoundEnabled, turnNotificationEnabled])
 
   useEffect(() => {
     if (!error || !state || !playerId) return
@@ -719,6 +1031,147 @@ function Room() {
     }, ROOM_TOAST_TIMEOUT_MS)
     return () => window.clearTimeout(timer)
   }, [error, Boolean(state), Boolean(playerId), toastError])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const now = Date.now()
+      setRemoteCursors((current) => {
+        let changed = false
+        const next: Partial<Record<PlayerId, RemoteCursorState>> = {}
+        for (const id of Object.keys(current) as PlayerId[]) {
+          const cursor = current[id]
+          if (!cursor) continue
+          if (!cursor.visible && now - cursor.lastSeenAt > CURSOR_TRACK_FADE_MS) continue
+          if (now - cursor.lastSeenAt > CURSOR_TRACK_STALE_MS) continue
+          next[id] = {
+            ...cursor,
+            visible: now - cursor.lastSeenAt <= CURSOR_TRACK_FADE_MS,
+          }
+          if (next[id].visible !== cursor.visible) changed = true
+        }
+        return changed || Object.keys(next).length !== Object.keys(current).length ? next : current
+      })
+    }, CURSOR_LAYER_TICK_MS)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  function appendCursorPoint(point: RemoteCursorIntentPoint, force = false): void {
+    const next = { ...point, x: clamp01(point.x), y: clamp01(point.y), visible: point.visible === true }
+    const now = Date.now()
+    const last = cursorPathBufferRef.current[cursorPathBufferRef.current.length - 1]
+    if (!force && last && now - cursorLastCaptureAtRef.current < CURSOR_TRACE_THROTTLE_MS && next.visible === last.visible && next.x === last.x && next.y === last.y) return
+    cursorPathBufferRef.current = [...cursorPathBufferRef.current, next]
+    if (cursorPathBufferRef.current.length > CURSOR_TRAIL_BUFFER_MAX_POINTS) {
+      cursorPathBufferRef.current = cursorPathBufferRef.current.slice(-Math.ceil(CURSOR_TRAIL_BUFFER_MAX_POINTS / 2))
+    }
+    cursorLastCaptureAtRef.current = now
+  }
+
+  function queueCursorPoint(clientX: number, clientY: number, force = false): void {
+    const next = readNormalizedCursorPoint(clientX, clientY)
+    if (!next) return
+    appendCursorPoint(next, force)
+  }
+
+  function latestCursorFallbackPoint(visible = false): RemoteCursorIntentPoint {
+    const last = cursorPathBufferRef.current[cursorPathBufferRef.current.length - 1]
+    return {
+      x: last?.x ?? 0.5,
+      y: last?.y ?? 0.5,
+      at: Date.now(),
+      visible,
+    }
+  }
+
+  function publishCursorPath(force = false, options?: { click?: boolean }): void {
+    const path = cursorPathBufferRef.current
+    if (path.length === 0) {
+      if (!options?.click) return
+      cursorPathBufferRef.current = [latestCursorFallbackPoint(true)]
+    }
+    const currentPath = cursorPathBufferRef.current
+    const now = Date.now()
+    if (!force && !options?.click && now - cursorLastPathPublishAtRef.current < CURSOR_SEND_INTERVAL_MS) return
+    cursorLastPathPublishAtRef.current = now
+    const compactPath = currentPath.filter(
+      (point, index) =>
+        index === 0
+        || point.visible !== currentPath[index - 1].visible
+        || point.at - currentPath[index - 1].at > CURSOR_TRACE_THROTTLE_MS
+        || point.x !== currentPath[index - 1].x
+        || point.y !== currentPath[index - 1].y,
+    )
+    const baseAt = compactPath[0]?.at ?? now
+    const sample = compactPath[compactPath.length - 1]
+    const pathPayload = compactPath.map((point) => ({ x: point.x, y: point.y, visible: point.visible, at: point.at - baseAt }))
+    const sendPath = pathPayload.length <= CURSOR_SEND_MAX_PATH_POINTS
+      ? pathPayload
+      : (() => {
+          const step = Math.ceil(pathPayload.length / CURSOR_SEND_MAX_PATH_POINTS)
+          const sampled = pathPayload.filter((point, index) => index % step === 0)
+          const last = pathPayload[pathPayload.length - 1]
+          if (sampled[sampled.length - 1] !== last) {
+            sampled.push(last)
+          }
+          return sampled
+        })()
+    publishCursorIntent({
+      type: 'cursorMove',
+      x: sample.x,
+      y: sample.y,
+      visible: sample.visible,
+      path: sendPath,
+      ...(options?.click ? { click: true } : {}),
+    })
+    cursorPathBufferRef.current = []
+  }
+
+  useEffect(() => {
+    if (!secret) return
+    function handlePointerMove(event: PointerEvent) {
+      queueCursorPoint(event.clientX, event.clientY)
+      if (cursorIdleEndTimerRef.current !== null) {
+        window.clearTimeout(cursorIdleEndTimerRef.current)
+      }
+      cursorIdleEndTimerRef.current = window.setTimeout(() => publishCursorPath(true), CURSOR_IDLE_END_MS)
+    }
+    function hideCursorSample(event: PointerEvent) {
+      if (event.relatedTarget) return
+      const next = readNormalizedCursorPoint(event.clientX, event.clientY) ?? latestCursorFallbackPoint()
+      appendCursorPoint({ ...next, visible: false, at: Date.now() }, true)
+      publishCursorPath(true)
+    }
+    function handleVisibility() {
+      appendCursorPoint(latestCursorFallbackPoint(false), true)
+      publishCursorPath(true)
+    }
+    function handleClick(event: MouseEvent) {
+      const next = readNormalizedCursorPoint(event.clientX, event.clientY)
+      if (!next) return
+      appendCursorPoint({ ...next, visible: true, at: Date.now() }, true)
+      publishCursorPath(true, { click: true })
+    }
+    window.addEventListener('pointermove', handlePointerMove)
+    // pointerdown is intentionally ignored to avoid duplicate bursts when clicking/dragging.
+    window.addEventListener('click', handleClick, { capture: true, passive: true })
+    window.addEventListener('pointerout', hideCursorSample)
+    window.addEventListener('pointercancel', hideCursorSample)
+    window.addEventListener('blur', handleVisibility)
+    const interval = window.setInterval(() => publishCursorPath(), CURSOR_SEND_INTERVAL_MS)
+    return () => {
+      publishCursorPath(true)
+      window.clearInterval(interval)
+      if (cursorIdleEndTimerRef.current !== null) {
+        window.clearTimeout(cursorIdleEndTimerRef.current)
+        cursorIdleEndTimerRef.current = null
+      }
+      window.removeEventListener('pointermove', handlePointerMove)
+      window.removeEventListener('click', handleClick, true)
+      window.removeEventListener('pointerout', hideCursorSample)
+      window.removeEventListener('pointercancel', hideCursorSample)
+      window.removeEventListener('blur', handleVisibility)
+    }
+  }, [secret, cursorMapRect])
 
   useEffect(() => {
     if (!state || state.status !== 'playing' || pendingIntroSeq === undefined) return
@@ -796,6 +1249,8 @@ function Room() {
       if (remoteGoldFrameRef.current !== undefined) window.cancelAnimationFrame(remoteGoldFrameRef.current)
       window.clearTimeout(remotePrivilegeSettleTimerRef.current)
       if (remotePrivilegeFrameRef.current !== undefined) window.cancelAnimationFrame(remotePrivilegeFrameRef.current)
+      Object.values(remoteCursorClickTimersRef.current).forEach((timer) => window.clearTimeout(timer))
+      remoteCursorClickTimersRef.current = {}
     }
   }, [])
 
@@ -1258,6 +1713,10 @@ function Room() {
 
   function handleRoomIntent(event: Extract<PublicRoomEvent, { type: 'intent' }>) {
     if (!playerId || event.playerId === playerId) return
+    if (event.intent.type === 'cursorMove') {
+      appendRemoteCursorIntent(event.playerId, event.intent)
+      return
+    }
     if (event.intent.type === 'classicTokenDraft') {
       const previous = remoteClassicTokenDraftsRef.current[event.playerId]
       const initialCounts = previous?.initialCounts ?? classicGemBankCounts(stateRef.current)
@@ -1393,11 +1852,70 @@ function Room() {
     setRemotePrivilegeTargetCellId(undefined)
   }
 
-  function publishIntent(intent: RoomIntent) {
+  function appendRemoteCursorIntent(playerId: PlayerId, intent: Extract<RoomIntent, { type: 'cursorMove' }>) {
+    const now = Date.now()
+    const path = intent.path
+    const senderEndAt = path && path.length > 0 ? path[path.length - 1]?.at ?? 0 : 0
+    const normalizedPath = path && path.length > 0
+      ? path.map((point) => ({
+          x: clamp01(point.x),
+          y: clamp01(point.y),
+          visible: point.visible === true,
+          at: now - (senderEndAt - (point.at ?? 0)),
+        }))
+      : [{ x: clamp01(intent.x), y: clamp01(intent.y), visible: intent.visible === true, at: now }]
+
+    setRemoteCursors((current) => {
+      const previous = current[playerId]
+      const merged = previous ? [...previous.points, ...normalizedPath] : [...normalizedPath]
+      const trimmed = merged.length > CURSOR_TRAIL_MAX_POINTS ? merged.slice(-CURSOR_TRAIL_MAX_POINTS) : merged
+      const latestPoint = merged[merged.length - 1] ?? { visible: intent.visible, at: now }
+      return {
+        ...current,
+        [playerId]: {
+          playerId,
+          points: trimmed,
+          visible: latestPoint.visible,
+          lastSeenAt: now,
+        },
+      }
+    })
+
+    if (intent.click) {
+      const latest = normalizedPath[normalizedPath.length - 1]
+      if (!latest?.visible) return
+      const clickId = `${playerId}:${now}:${Math.random().toString(36).slice(2, 7)}`
+      setRemoteCursorClicks((current) => [
+        ...current,
+        { id: clickId, playerId, x: latest.x, y: latest.y, at: now },
+      ].slice(-REMOTE_CURSOR_CLICK_LIMIT))
+      remoteCursorClickTimersRef.current[clickId] = window.setTimeout(() => {
+        setRemoteCursorClicks((current) => current.filter((effect) => effect.id !== clickId))
+        delete remoteCursorClickTimersRef.current[clickId]
+      }, REMOTE_CURSOR_CLICK_MS)
+    }
+  }
+
+  function sendRoomIntent(intent: RoomIntent, options: { dedupe: boolean }) {
     if (!secret || !isMyTurn || currentPending || pendingDeferredSubmitRef.current) return
-    const key = JSON.stringify(intent)
-    if (key === lastIntentKeyRef.current) return
-    lastIntentKeyRef.current = key
+    if (options?.dedupe && intent.type !== 'cursorMove') {
+      const key = JSON.stringify(intent)
+      if (key === lastIntentKeyRef.current) return
+      lastIntentKeyRef.current = key
+    }
+    void fetch(roomApiPath(`/api/rooms/${roomId}/intents`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerSecret: secret, intent }),
+    }).catch(() => undefined)
+  }
+
+  function publishIntent(intent: RoomIntent) {
+    sendRoomIntent(intent, { dedupe: true })
+  }
+
+  function publishCursorIntent(intent: Extract<RoomIntent, { type: 'cursorMove' }>) {
+    if (!secret) return
     void fetch(roomApiPath(`/api/rooms/${roomId}/intents`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2707,6 +3225,26 @@ function Room() {
       </form>
     </div>
   ) : null
+  const roomChatPanel = (
+    <RoomChatPanel
+      state={state}
+      playerId={playerId}
+      feed={state.feed ?? []}
+      open={chatOpen}
+      value={chatInput}
+      busy={chatBusy}
+      soundEnabled={turnSoundEnabled}
+      notificationEnabled={turnNotificationEnabled}
+      notificationPermission={notificationPermission}
+      notificationSupported={typeof window !== 'undefined' && 'Notification' in window}
+      onToggleOpen={() => setChatOpen((current) => !current)}
+      onValueChange={setChatInput}
+      onSend={() => void sendChatMessage()}
+      onToggleSound={() => setTurnSoundEnabled((current) => !current)}
+      onRequestNotification={() => void requestTurnNotificationPermission()}
+      onDisableNotification={() => setTurnNotificationEnabled(false)}
+    />
+  )
 
   if (isSplendorRoomState(state)) {
     const goldCellId = classicGoldCellId(state)
@@ -2773,6 +3311,12 @@ function Room() {
         : undefined
     return (
       <>
+        <RemoteCursorLayer
+          state={state}
+          remoteCursors={remoteCursors}
+          clickEffects={remoteCursorClicks}
+          shellRect={cursorMapRect}
+        />
         <SplendorRoom
           state={state}
           roomId={roomId}
@@ -2830,9 +3374,10 @@ function Room() {
             setPurchasePreviewSlotKeys([])
             setPurchaseTarget(undefined)
             cancelCardCarryWithReturn()
-          }}
+        }}
           introAnimating={pendingIntroSeq !== undefined || Boolean(introAnimation)}
         />
+        {roomChatPanel}
         <TurnNameGlow playerId={state.currentPlayer} active={state.status === 'playing' && !state.winner} ownTurn={isViewerTurn} />
         {tokenCarry?.kind === 'gold' && <FloatingGoldToken carry={tokenCarry} />}
         {classicTokenCarry && <FloatingClassicToken carry={classicTokenCarry} />}
@@ -2886,10 +3431,10 @@ function Room() {
     ? tutorialStepForInteraction({ baseStep: tutorialStep, tokenSelection, tokenCarry, cardCarry, privilegeCarry, activePrivilegeIndex, playerId, isMobileBoardLayout, boardFocusOpen })
     : tutorialStep
   return (
-    <main
-      className={`gameShell ${isMyTurn ? 'myTurn' : 'notMyTurn'} ${isViewerTurn ? 'viewerTurn' : ''} ${introLayout ? 'introLayout' : ''} ${introAnimating ? 'introAnimating' : ''} ${boardFocusOpen ? 'boardFocusOpen' : ''}`}
-      style={{ '--table-surface-image': `url(${assetPath('duel-splendor/tabletops/birch-boardgame-table.png')})` } as CSSProperties}
-    >
+      <main
+        className={`gameShell ${isMyTurn ? 'myTurn' : 'notMyTurn'} ${isViewerTurn ? 'viewerTurn' : ''} ${introLayout ? 'introLayout' : ''} ${introAnimating ? 'introAnimating' : ''} ${boardFocusOpen ? 'boardFocusOpen' : ''}`}
+        style={{ '--table-surface-image': `url(${assetPath('duel-splendor/tabletops/birch-boardgame-table.png')})` } as CSSProperties}
+      >
       {state.winner && (
         <div className="winBanner">
           <strong>{displayPlayerName(state.players[state.winner.playerId])} 获胜</strong>
@@ -2898,6 +3443,12 @@ function Room() {
       )}
       {toastError && <div className="toast">{toastError}</div>}
       <TurnNameGlow playerId={state.currentPlayer} active={state.status === 'playing' && !state.winner} ownTurn={isViewerTurn} />
+      <RemoteCursorLayer
+        state={state}
+        remoteCursors={remoteCursors}
+        clickEffects={remoteCursorClicks}
+        shellRect={cursorMapRect}
+      />
       <aside className="gameHud" aria-label="房间信息">
         <span>房间 {roomId}</span>
         <span>{displayPlayerName(state.players[playerId])}</span>
@@ -2943,6 +3494,7 @@ function Room() {
           <Home size={17} />
         </button>
       </nav>
+      {roomChatPanel}
       {nameRequired && (
         <div className="modalScrim playerNameScrim" role="presentation">
           <form
@@ -3498,6 +4050,455 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
+function RoomChatPanel({
+  state,
+  playerId,
+  feed,
+  open,
+  value,
+  busy,
+  soundEnabled,
+  notificationEnabled,
+  notificationPermission,
+  notificationSupported,
+  onToggleOpen,
+  onValueChange,
+  onSend,
+  onToggleSound,
+  onRequestNotification,
+  onDisableNotification,
+}: {
+  state: GameState
+  playerId: PlayerId
+  feed: RoomFeedItem[]
+  open: boolean
+  value: string
+  busy: boolean
+  soundEnabled: boolean
+  notificationEnabled: boolean
+  notificationPermission: NotificationPermission
+  notificationSupported: boolean
+  onToggleOpen: () => void
+  onValueChange: (value: string) => void
+  onSend: () => void
+  onToggleSound: () => void
+  onRequestNotification: () => void
+  onDisableNotification: () => void
+}) {
+  const panelRef = useRef<HTMLElement>(null)
+  const feedListRef = useRef<HTMLOListElement>(null)
+  const dragRef = useRef<{ startX: number; startY: number; offsetX: number; offsetY: number; width: number; height: number; moved: boolean } | undefined>(undefined)
+  const resizeRef = useRef<{ startX: number; startY: number; startWidth: number; startHeight: number; left: number; top: number } | undefined>(undefined)
+  const suppressToggleClickRef = useRef(false)
+  const [position, setPosition] = useState<ChatPanelPosition>()
+  const [size, setSize] = useState<ChatPanelSize>()
+  const [dragging, setDragging] = useState(false)
+  const [resizing, setResizing] = useState(false)
+  const latestFeedId = feed.at(-1)?.id
+
+  useEffect(() => {
+    const stored = readStoredChatPosition()
+    const storedSize = readStoredChatSize()
+    const frame = window.requestAnimationFrame(() => {
+      const rect = panelRef.current?.getBoundingClientRect()
+      const nextSize = storedSize ? constrainChatPanelSize(storedSize.width, storedSize.height, stored?.left ?? rect?.left ?? 36, stored?.top ?? rect?.top ?? 124) : undefined
+      if (nextSize) setSize(nextSize)
+      if (stored) setPosition(constrainChatPanelPosition(stored.left, stored.top, nextSize?.width ?? rect?.width ?? 320, nextSize?.height ?? rect?.height ?? 360))
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [])
+
+  useEffect(() => {
+    if (!position) return
+    localStorage.setItem(CHAT_POSITION_STORAGE_KEY, JSON.stringify(position))
+  }, [position])
+
+  useEffect(() => {
+    if (!size) return
+    localStorage.setItem(CHAT_SIZE_STORAGE_KEY, JSON.stringify(size))
+  }, [size])
+
+  useEffect(() => {
+    function keepPanelInViewport() {
+      if (!position && !size) return
+      const rect = panelRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const nextSize = size ? constrainChatPanelSize(size.width, size.height, position?.left ?? rect.left, position?.top ?? rect.top) : undefined
+      if (nextSize) setSize(nextSize)
+      if (position) setPosition(constrainChatPanelPosition(position.left, position.top, nextSize?.width ?? rect.width, nextSize?.height ?? rect.height))
+    }
+    window.addEventListener('resize', keepPanelInViewport)
+    window.visualViewport?.addEventListener('resize', keepPanelInViewport)
+    return () => {
+      window.removeEventListener('resize', keepPanelInViewport)
+      window.visualViewport?.removeEventListener('resize', keepPanelInViewport)
+    }
+  }, [position, size])
+
+  useEffect(() => {
+    if (!open) return
+    const list = feedListRef.current
+    if (!list) return
+    const frame = window.requestAnimationFrame(() => {
+      list.scrollTop = list.scrollHeight
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [open, latestFeedId])
+
+  function startPanelDrag(event: ReactPointerEvent<HTMLElement>) {
+    if (event.button !== 0) return
+    if ((event.target as Element | null)?.closest('button,input,textarea,a')) return
+    beginPanelDrag(event)
+  }
+
+  function startCollapsedPanelDrag(event: ReactPointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) return
+    beginPanelDrag(event)
+  }
+
+  function beginPanelDrag(event: ReactPointerEvent<HTMLElement>) {
+    const rect = panelRef.current?.getBoundingClientRect()
+    if (!rect) return
+    dragRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+      width: rect.width,
+      height: rect.height,
+      moved: false,
+    }
+    setDragging(true)
+    event.currentTarget.setPointerCapture(event.pointerId)
+    event.preventDefault()
+  }
+
+  function movePanelDrag(event: ReactPointerEvent<HTMLElement>) {
+    const drag = dragRef.current
+    if (!drag) return
+    const moved = Math.abs(event.clientX - drag.startX) > 3 || Math.abs(event.clientY - drag.startY) > 3
+    drag.moved = drag.moved || moved
+    const next = constrainChatPanelPosition(event.clientX - drag.offsetX, event.clientY - drag.offsetY, drag.width, drag.height)
+    setPosition(next)
+    event.preventDefault()
+  }
+
+  function stopPanelDrag(event: ReactPointerEvent<HTMLElement>) {
+    const drag = dragRef.current
+    if (!drag) return
+    if (drag.moved) suppressToggleClickRef.current = true
+    dragRef.current = undefined
+    setDragging(false)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+  }
+
+  function handleToggleClick() {
+    if (suppressToggleClickRef.current) {
+      suppressToggleClickRef.current = false
+      return
+    }
+    onToggleOpen()
+  }
+
+  function startPanelResize(event: ReactPointerEvent<HTMLSpanElement>) {
+    if (event.button !== 0) return
+    const rect = panelRef.current?.getBoundingClientRect()
+    if (!rect) return
+    resizeRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      startWidth: rect.width,
+      startHeight: rect.height,
+      left: rect.left,
+      top: rect.top,
+    }
+    setResizing(true)
+    event.currentTarget.setPointerCapture(event.pointerId)
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  function movePanelResize(event: ReactPointerEvent<HTMLSpanElement>) {
+    const resize = resizeRef.current
+    if (!resize) return
+    const nextSize = constrainChatPanelSize(resize.startWidth + event.clientX - resize.startX, resize.startHeight + event.clientY - resize.startY, resize.left, resize.top)
+    setSize(nextSize)
+    setPosition(constrainChatPanelPosition(resize.left, resize.top, nextSize.width, nextSize.height))
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
+  function stopPanelResize(event: ReactPointerEvent<HTMLSpanElement>) {
+    if (!resizeRef.current) return
+    resizeRef.current = undefined
+    setResizing(false)
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+    event.stopPropagation()
+  }
+
+  const orderedPlayers = state.playerOrder.filter((id) => state.players[id]?.seated || state.players[id]?.connected || state.players[id]?.isAi)
+  const unread = !open && feed.length > 0
+  const panelStyle = {
+    ...(position ? { left: position.left, top: position.top, bottom: 'auto' } : {}),
+    ...(open && size ? { width: size.width, height: size.height, maxHeight: 'none' } : {}),
+  } as CSSProperties
+  return (
+    <aside className={`roomChatPanel ${open ? 'open' : 'collapsed'} ${position ? 'positioned' : ''} ${size && open ? 'sized' : ''} ${dragging ? 'dragging' : ''} ${resizing ? 'resizing' : ''}`} aria-label="房间聊天和事件" ref={panelRef} style={panelStyle}>
+      <button
+        className="roomChatToggle"
+        type="button"
+        onClick={handleToggleClick}
+        onPointerDown={startCollapsedPanelDrag}
+        onPointerMove={movePanelDrag}
+        onPointerUp={stopPanelDrag}
+        onPointerCancel={stopPanelDrag}
+        aria-label={open ? '收起聊天' : '展开聊天'}
+        title={open ? '收起聊天' : '展开聊天；按住可拖动'}
+      >
+        <MessageSquare size={18} />
+        {unread && <span aria-hidden="true" />}
+      </button>
+      {open && (
+        <div className="roomChatBody">
+          <header
+            className="roomChatHeader"
+            onPointerDown={startPanelDrag}
+            onPointerMove={movePanelDrag}
+            onPointerUp={stopPanelDrag}
+            onPointerCancel={stopPanelDrag}
+            title="拖动移动聊天框"
+          >
+            <strong>房间动态</strong>
+            <div className="roomChatActions">
+              <button type="button" onClick={onToggleSound} className={soundEnabled ? 'activeChatIconButton' : ''} title={soundEnabled ? '关闭声音提醒' : '开启声音提醒'} aria-label={soundEnabled ? '关闭声音提醒' : '开启声音提醒'}>
+                {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+              </button>
+              {notificationSupported && (
+                <button
+                  type="button"
+                  onClick={notificationEnabled ? onDisableNotification : onRequestNotification}
+                  className={notificationEnabled ? 'activeChatIconButton' : ''}
+                  title={notificationEnabled ? '关闭浏览器提醒' : notificationPermission === 'denied' ? '浏览器提醒已被拒绝' : '开启浏览器提醒'}
+                  aria-label={notificationEnabled ? '关闭浏览器提醒' : '开启浏览器提醒'}
+                  disabled={!notificationEnabled && notificationPermission === 'denied'}
+                >
+                  {notificationEnabled ? <Bell size={15} /> : <BellOff size={15} />}
+                </button>
+              )}
+              <button type="button" onClick={onToggleOpen} title="收起聊天" aria-label="收起聊天">
+                <X size={15} />
+              </button>
+            </div>
+          </header>
+          <div className="roomChatPresence" aria-label="玩家在线状态">
+            {orderedPlayers.map((id) => {
+              const player = state.players[id]
+              const status = player.isAi ? 'AI' : player.aiControlled ? '托管' : player.connected ? '在线' : '离线'
+              return (
+                <span className={`roomPresencePill ${player.connected || player.isAi || player.aiControlled ? 'online' : 'offline'} ${id === playerId ? 'self' : ''}`} key={id} title={`${displayPlayerName(player)}：${status}`}>
+                  <i aria-hidden="true" />
+                  {displayPlayerName(player)}
+                  <b>{status}</b>
+                </span>
+              )
+            })}
+          </div>
+          <ol className="roomFeedList" aria-label="聊天和事件列表" ref={feedListRef}>
+            {feed.length === 0 ? (
+              <li className="roomFeedEmpty">暂无动态</li>
+            ) : (
+              feed.map((item) => (
+                <li className={`roomFeedItem ${item.kind}`} key={item.id}>
+                  <time>{formatFeedTime(item.at)}</time>
+                  <span>{item.kind === 'chat' && item.playerName ? `${item.playerName}：` : ''}{item.message}</span>
+                </li>
+              ))
+            )}
+          </ol>
+          <form
+            className="roomChatComposer"
+            onSubmit={(event) => {
+              event.preventDefault()
+              onSend()
+            }}
+          >
+            <input
+              value={value}
+              maxLength={CHAT_MESSAGE_MAX_LENGTH}
+              onChange={(event) => onValueChange(event.currentTarget.value)}
+              placeholder="输入消息"
+              aria-label="输入聊天消息"
+            />
+            <button type="submit" disabled={busy || value.trim().length === 0} aria-label="发送消息" title="发送消息">
+              {busy ? <Loader2 className="spin" size={15} /> : <Send size={15} />}
+            </button>
+          </form>
+          <span
+            className="roomChatResizeHandle"
+            aria-hidden="true"
+            onPointerDown={startPanelResize}
+            onPointerMove={movePanelResize}
+            onPointerUp={stopPanelResize}
+            onPointerCancel={stopPanelResize}
+          />
+        </div>
+      )}
+    </aside>
+  )
+}
+
+function formatFeedTime(value: number): string {
+  return new Date(value).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+}
+
+function readStoredChatPosition(): ChatPanelPosition | undefined {
+  try {
+    const raw = localStorage.getItem(CHAT_POSITION_STORAGE_KEY)
+    if (!raw) return undefined
+    const parsed = JSON.parse(raw) as Partial<ChatPanelPosition>
+    if (typeof parsed.left !== 'number' || typeof parsed.top !== 'number') return undefined
+    if (!Number.isFinite(parsed.left) || !Number.isFinite(parsed.top)) return undefined
+    return parsed as ChatPanelPosition
+  } catch {
+    return undefined
+  }
+}
+
+function readStoredChatSize(): ChatPanelSize | undefined {
+  try {
+    const raw = localStorage.getItem(CHAT_SIZE_STORAGE_KEY)
+    if (!raw) return undefined
+    const parsed = JSON.parse(raw) as Partial<ChatPanelSize>
+    if (typeof parsed.width !== 'number' || typeof parsed.height !== 'number') return undefined
+    if (!Number.isFinite(parsed.width) || !Number.isFinite(parsed.height)) return undefined
+    return parsed as ChatPanelSize
+  } catch {
+    return undefined
+  }
+}
+
+function constrainChatPanelPosition(left: number, top: number, width: number, height: number): ChatPanelPosition {
+  const margin = 8
+  const maxLeft = Math.max(margin, window.innerWidth - Math.min(width, window.innerWidth - margin * 2) - margin)
+  const maxTop = Math.max(margin, window.innerHeight - Math.min(height, window.innerHeight - margin * 2) - margin)
+  return {
+    left: clamp(left, margin, maxLeft),
+    top: clamp(top, margin, maxTop),
+  }
+}
+
+function constrainChatPanelSize(width: number, height: number, left: number, top: number): ChatPanelSize {
+  const margin = 8
+  const minWidth = Math.min(260, window.innerWidth - margin * 2)
+  const minHeight = Math.min(240, window.innerHeight - margin * 2)
+  const maxWidth = Math.max(minWidth, window.innerWidth - left - margin)
+  const maxHeight = Math.max(minHeight, window.innerHeight - top - margin)
+  return {
+    width: clamp(width, minWidth, maxWidth),
+    height: clamp(height, minHeight, maxHeight),
+  }
+}
+
+function RemoteCursorLayer({
+  state,
+  remoteCursors,
+  clickEffects,
+  shellRect,
+}: {
+  state?: any
+  remoteCursors: Partial<Record<PlayerId, RemoteCursorState>>
+  clickEffects: RemoteCursorClickEffect[]
+  shellRect: DOMRect | null
+}) {
+  if (!state || !shellRect) return null
+  const now = Date.now()
+  const tracks = Object.entries(remoteCursors).flatMap(([id, cursor]) => {
+    if (!cursor) return []
+    const visiblePoints = cursor.points.filter((point) => point.visible)
+    if (visiblePoints.length === 0) return []
+    const trailPoints = visiblePoints.length > CURSOR_TRAIL_MAX_POINTS ? visiblePoints.slice(-CURSOR_TRAIL_MAX_POINTS) : visiblePoints
+    const current = trailPoints[trailPoints.length - 1]
+    if (!current) return []
+    const currentPlayer = roomPlayer(state, id)
+    const color = REMOTE_CURSOR_COLORS[id as PlayerId] ?? '#999'
+    const playerName = currentPlayer ? displayPlayerName(currentPlayer) : id
+    const stale = now - cursor.lastSeenAt > CURSOR_TRACK_FADE_MS
+    if (stale && !cursor.visible) return []
+    const pointerOpacity = Math.max(0.08, 1 - (now - cursor.lastSeenAt) / CURSOR_TRACK_STALE_MS)
+
+    const trackStyle: CSSProperties & {
+      '--trace-color': string
+      '--trace-x': string
+      '--trace-y': string
+    } = {
+      '--trace-color': color,
+      '--trace-x': `${current.x * 100}%`,
+      '--trace-y': `${current.y * 100}%`,
+      left: `${shellRect.left}px`,
+      top: `${shellRect.top}px`,
+      width: `${shellRect.width}px`,
+      height: `${shellRect.height}px`,
+      opacity: 1 - (now - cursor.lastSeenAt) / CURSOR_TRACK_STALE_MS,
+      pointerEvents: 'none',
+      position: 'absolute',
+      zIndex: 90,
+    }
+
+    return [
+      <div
+        className="remote-trace"
+        key={id}
+        aria-hidden="true"
+        style={trackStyle}
+      >
+        <div
+          className="remote-cursor-pointer"
+          style={{
+            opacity: pointerOpacity,
+            color,
+            transform: 'translate(-16px, -4px)',
+          }}
+        >
+          <svg className="remote-cursor-glyph" viewBox="0 0 28 34" aria-hidden="true">
+            <path d="M5 3.5v25.2l6.8-6.2 4 8.4 4.5-2.1-4.2-8.2h8.8L5 3.5Z" />
+          </svg>
+          <strong>{playerName}</strong>
+        </div>
+      </div>,
+    ]
+  })
+  const clicks = clickEffects.map((effect) => {
+    const color = REMOTE_CURSOR_COLORS[effect.playerId] ?? '#999'
+    return (
+      <div
+        key={effect.id}
+        style={
+          {
+            left: `${shellRect.left}px`,
+            top: `${shellRect.top}px`,
+            width: `${shellRect.width}px`,
+            height: `${shellRect.height}px`,
+            position: 'absolute',
+          } as CSSProperties
+        }
+      >
+        <span
+          className="remote-click-effect"
+          style={
+            {
+              '--trace-color': color,
+              '--trace-x': `${effect.x * 100}%`,
+              '--trace-y': `${effect.y * 100}%`,
+            } as CSSProperties
+          }
+        />
+      </div>
+    )
+  })
+  if (tracks.length === 0 && clicks.length === 0) return null
+  return <div className="remoteCursorLayer remote-trace-layer">{tracks}{clicks}</div>
+}
+
 function TurnNameGlow({ playerId, active, ownTurn }: { playerId: PlayerId; active: boolean; ownTurn: boolean }) {
   const [rect, setRect] = useState<TurnNameGlowRect>()
 
@@ -3641,6 +4642,28 @@ type QueuedStateUpdate = {
   seq: number
   state: GameState
   action?: AnyGameAction
+}
+
+type RemoteCursorPoint = {
+  x: number
+  y: number
+  at: number
+  visible: boolean
+}
+
+type RemoteCursorState = {
+  playerId: PlayerId
+  points: RemoteCursorPoint[]
+  visible: boolean
+  lastSeenAt: number
+}
+
+type RemoteCursorClickEffect = {
+  id: string
+  playerId: PlayerId
+  x: number
+  y: number
+  at: number
 }
 
 type FlyingToken = {

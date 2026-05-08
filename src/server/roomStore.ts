@@ -1,5 +1,5 @@
 import { applyAction, createInitialGame, RuleError, startGameIfReady } from '@/game/rules'
-import type { AnyGameAction, AnyGameState, GameAction, GameState, PlayerId, PublicRoomEvent, PublicRoomStateEvent, RoomIntent } from '@/game/types'
+import type { AnyGameAction, AnyGameState, GameAction, GameState, PlayerId, PublicRoomEvent, PublicRoomStateEvent, RoomFeedItem, RoomFeedKind, RoomIntent } from '@/game/types'
 import { chooseAiAction, isDifficultyId } from '@/game/ai'
 import type { AiMemory, DifficultyId } from '@/game/ai'
 
@@ -11,10 +11,15 @@ const AI_FAST_PENDING_DELAY_MS = 900
 const AI_OPENING_ACTION_DELAY_MS = 2600
 const AI_MAX_CHAIN_ACTIONS = 40
 const EMPTY_ROOM_TTL_MS = 1000 * 60
+const TEMPORARY_AI_DISCONNECT_MS = 1000 * 20
+const ROOM_FEED_LIMIT = 200
+const CHAT_MESSAGE_LIMIT = 280
 const ROOM_MACHINE_COOKIE = 'splendor_room_machine'
 const ROOM_MACHINE_HEADER = 'X-Splendor-Room-Machine'
 const ROOM_MACHINE_PARAM = 'roomMachine'
 const ROOM_MACHINE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 12
+const CURSOR_PATH_POINT_LIMIT = 48
+const CURSOR_PATH_DURATION_LIMIT_MS = 5000
 
 interface Seat {
   playerId: RoomPlayerId
@@ -30,6 +35,7 @@ interface AiController {
   queued: boolean
   running: boolean
   chainActions: number
+  temporary?: boolean
 }
 
 interface Room {
@@ -44,6 +50,7 @@ interface Room {
   events: PublicRoomEvent[]
   subscribers: Set<Subscriber>
   ai?: Partial<Record<RoomPlayerId, AiController>>
+  temporaryAiTimers?: Partial<Record<RoomPlayerId, ReturnType<typeof setTimeout>>>
 }
 
 export interface JoinResult {
@@ -150,6 +157,52 @@ function viewEventForPlayer(event: PublicRoomEvent, playerId?: RoomPlayerId): Pu
   return { ...event, state: viewStateForPlayer(event.state, playerId) }
 }
 
+function clampUnit(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
+  return Math.max(0, Math.min(1, value))
+}
+
+function sanitizeCursorPathAt(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 0
+  return Math.max(0, Math.min(CURSOR_PATH_DURATION_LIMIT_MS, value))
+}
+
+function sameCursorPoint(
+  left: { x: number; y: number; visible: boolean },
+  right: { x: number; y: number; visible: boolean },
+): boolean {
+  return left.visible === right.visible && Math.abs(left.x - right.x) <= 0.0001 && Math.abs(left.y - right.y) <= 0.0001
+}
+
+function sanitizeCursorIntent(intent: Extract<RoomIntent, { type: 'cursorMove' }>): Extract<RoomIntent, { type: 'cursorMove' }> | undefined {
+  const x = clampUnit(intent.x)
+  const y = clampUnit(intent.y)
+  if (x === undefined || y === undefined) return undefined
+  const visible = intent.visible === true
+  const path = Array.isArray(intent.path)
+    ? intent.path.slice(-CURSOR_PATH_POINT_LIMIT).flatMap((point) => {
+        const pointX = clampUnit(point.x)
+        const pointY = clampUnit(point.y)
+        if (pointX === undefined || pointY === undefined) return []
+        return [{ x: pointX, y: pointY, at: sanitizeCursorPathAt(point.at), visible: point.visible === true }]
+      })
+    : []
+  const latest = { x, y, at: path[path.length - 1]?.at ?? 0, visible }
+  if (path.length === 0 || !sameCursorPoint(path[path.length - 1], latest)) {
+    path.push(latest)
+  }
+  const trimmed = path.slice(-CURSOR_PATH_POINT_LIMIT)
+  const sample = trimmed[trimmed.length - 1] ?? latest
+  return {
+    type: 'cursorMove',
+    x: sample.x,
+    y: sample.y,
+    visible: sample.visible,
+    path: trimmed,
+    ...(intent.click === true ? { click: true } : {}),
+  }
+}
+
 class RoomStore {
   private rooms = new Map<string, Room>()
 
@@ -158,6 +211,7 @@ class RoomStore {
     const id = randomId(8)
     const gameType = options?.gameType === 'classic' || options?.gameType === 'pokemon' ? options.gameType : 'duel'
     const state = createInitialGame(id, { gameType, playerCount: gameType === 'classic' || gameType === 'pokemon' ? 4 : 2 })
+    state.feed = []
     const room: Room = {
       id,
       createdAt: Date.now(),
@@ -182,8 +236,16 @@ class RoomStore {
     room.seats[playerId] = { playerId, secret: playerSecret }
     room.emptySince = undefined
     const player = this.playerById(room, playerId)
+    const wasConnected = player.connected
+    const restoredTemporaryAi = existing ? this.stopTemporaryAi(room, playerId) : false
     player.connected = true
-    this.emit(room, 'joined', `${this.playerName(player)} 已占位。`)
+    if (!existing) {
+      this.emit(room, 'joined', `${this.playerName(player)} 已占位。`)
+    } else if (restoredTemporaryAi) {
+      this.emit(room, 'joined', `${this.playerName(player)} 已回来，AI 托管已停止。`)
+    } else if (!wasConnected) {
+      this.emit(room, 'joined', `${this.playerName(player)} 已重新连接。`)
+    }
     return this.joinResult(room, playerId, playerSecret)
   }
 
@@ -334,6 +396,7 @@ class RoomStore {
       player.name = '玩家一'
       player.isAi = undefined
       player.aiDifficulty = undefined
+      player.aiControlled = undefined
       player.seated = true
       player.connected = true
     }
@@ -358,9 +421,11 @@ class RoomStore {
       nextState.players[playerId].seated = previousState.players[playerId].seated
       nextState.players[playerId].isAi = previousState.players[playerId].isAi
       nextState.players[playerId].aiDifficulty = previousState.players[playerId].aiDifficulty
+      nextState.players[playerId].aiControlled = undefined
     }
+    nextState.feed = previousState.feed ?? []
     room.state = nextState
-    room.ai = this.resetAiControllers(room.ai)
+    room.ai = this.resetAiControllers(room.ai, true)
     startGameIfReady(room.state)
     this.emit(room, 'snapshot', '新一局已开始。')
     this.queueAiIfNeeded(room, AI_OPENING_ACTION_DELAY_MS)
@@ -371,6 +436,23 @@ class RoomStore {
     const room = this.getRoom(roomId)
     const seat = secret ? this.findSeat(room, secret) : undefined
     return { state: viewStateForPlayer(room.state, seat?.playerId), seq: room.seq }
+  }
+
+  postChatMessage(roomId: string, secret: string, message: unknown): PublicRoomEvent {
+    const room = this.getRoom(roomId)
+    const seat = this.findSeat(room, secret)
+    if (!seat) throw new RuleError('玩家身份无效，请重新加入房间。')
+    const text = typeof message === 'string' ? message.trim().replace(/\s+/g, ' ') : ''
+    if (!text) throw new RuleError('聊天内容不能为空。')
+    const clipped = text.slice(0, CHAT_MESSAGE_LIMIT)
+    const player = this.playerById(room, seat.playerId)
+    const event = this.emit(room, 'snapshot', `${this.playerName(player)}：${clipped}`, undefined, {
+      kind: 'chat',
+      playerId: seat.playerId,
+      playerName: this.playerName(player),
+      message: clipped,
+    })
+    return viewEventForPlayer(event, seat.playerId)
   }
 
   apply(roomId: string, secret: string, action: AnyGameAction): PublicRoomEvent {
@@ -401,6 +483,15 @@ class RoomStore {
     const seat = this.findSeat(room, secret)
     if (!seat) throw new RuleError('玩家身份无效，请重新加入房间。')
     if (room.state.gameType !== 'duel' && room.state.gameType !== 'classic' && room.state.gameType !== 'pokemon') throw new RuleError('当前房间不支持同步操作意图。')
+    if (intent.type === 'cursorMove') {
+      const sanitized = sanitizeCursorIntent(intent)
+      if (!sanitized) throw new RuleError('鼠标同步数据无效。')
+      const event: PublicRoomEvent = { seq: room.seq + 1, type: 'intent', playerId: seat.playerId, intent: sanitized }
+      room.seq += 1
+      room.updatedAt = Date.now()
+      room.subscribers.forEach((subscriber) => subscriber(event))
+      return event
+    }
     if (room.state.status !== 'playing' || room.state.winner || room.state.pending || room.state.currentPlayer !== seat.playerId) {
       throw new RuleError('当前不能同步操作意图。')
     }
@@ -433,6 +524,7 @@ class RoomStore {
     if (connections === 0 && player.connected) {
       player.connected = false
       this.emit(room, 'snapshot', `${this.playerName(player)} 已离线。`)
+      this.scheduleTemporaryAi(room, seat.playerId)
     }
     if (this.hasActiveHumanConnection(room)) {
       room.emptySince = undefined
@@ -474,14 +566,45 @@ class RoomStore {
     return this.joinResult(room, targetId, sourceSeat.secret)
   }
 
-  private emit(room: Room, type: PublicRoomStateEvent['type'], message: string, action?: AnyGameAction): PublicRoomStateEvent {
+  private emit(
+    room: Room,
+    type: PublicRoomStateEvent['type'],
+    message: string,
+    action?: AnyGameAction,
+    feed?: Pick<RoomFeedItem, 'kind' | 'message' | 'playerId' | 'playerName'>,
+  ): PublicRoomStateEvent {
     room.seq += 1
     room.updatedAt = Date.now()
+    this.appendFeed(room, feed ?? this.feedItemForStateEvent(type, message, action))
     const event = publicEvent(room, type, message, action)
     room.events.push(event)
     if (room.events.length > 250) room.events.splice(0, room.events.length - 250)
     room.subscribers.forEach((subscriber) => subscriber(event))
     return event
+  }
+
+  private appendFeed(room: Room, item: Pick<RoomFeedItem, 'kind' | 'message' | 'playerId' | 'playerName'> | undefined): void {
+    if (!item?.message) return
+    const feed = room.state.feed ?? []
+    room.state.feed = [
+      ...feed,
+      {
+        id: `${room.id}:${room.seq}:${feed.length}`,
+        seq: room.seq,
+        at: Date.now(),
+        kind: item.kind,
+        message: item.message,
+        playerId: item.playerId,
+        playerName: item.playerName,
+      },
+    ].slice(-ROOM_FEED_LIMIT)
+  }
+
+  private feedItemForStateEvent(type: PublicRoomStateEvent['type'], message: string, action?: AnyGameAction): Pick<RoomFeedItem, 'kind' | 'message' | 'playerId' | 'playerName'> | undefined {
+    if (!message) return undefined
+    const kind: RoomFeedKind = type === 'action' ? 'action' : type === 'joined' ? 'event' : type === 'error' ? 'status' : 'status'
+    const playerId = action && isRoomPlayerId(action.playerId) ? action.playerId : undefined
+    return { kind, message, playerId }
   }
 
   private joinResult(room: Room, playerId: RoomPlayerId, playerSecret: string): JoinResult {
@@ -560,6 +683,10 @@ class RoomStore {
     return Boolean(room.ai?.[playerId])
   }
 
+  private isPermanentAiPlayer(room: Room, playerId: RoomPlayerId): boolean {
+    return Boolean(room.ai?.[playerId] && !room.ai?.[playerId]?.temporary)
+  }
+
   private isHostSeat(room: Room, seat: Seat): boolean {
     return seat.playerId === 'p1'
   }
@@ -586,10 +713,12 @@ class RoomStore {
     room.state.log.unshift(message)
   }
 
-  private resetAiControllers(ai: Room['ai']): Room['ai'] {
+  private resetAiControllers(ai: Room['ai'], dropTemporary = false): Room['ai'] {
     if (!ai) return undefined
+    const entries = Object.entries(ai).filter(([, controller]) => !dropTemporary || !controller.temporary)
+    if (entries.length === 0) return undefined
     return Object.fromEntries(
-      Object.entries(ai).map(([playerId, controller]) => [
+      entries.map(([playerId, controller]) => [
         playerId,
         {
           ...controller,
@@ -612,6 +741,7 @@ class RoomStore {
     const room = this.rooms.get(roomId)
     if (!room) throw new RoomNotFoundError('房间不存在或已过期。')
     if (this.isExpired(room, Date.now())) {
+      Object.values(room.temporaryAiTimers ?? {}).forEach((timer) => timer && clearTimeout(timer))
       this.rooms.delete(roomId)
       throw new RoomNotFoundError('房间不存在或已过期。')
     }
@@ -627,7 +757,7 @@ class RoomStore {
     return room.state.playerOrder.find((playerId) => !room.seats[playerId])
   }
 
-  private playerById(room: Room, playerId: RoomPlayerId): { connected?: boolean; seated?: boolean; name?: string; username?: string } {
+  private playerById(room: Room, playerId: RoomPlayerId): GameState['players'][PlayerId] {
     const player = room.state.players[playerId]
     if (!player) throw new RuleError('玩家不存在。')
     return player
@@ -646,16 +776,21 @@ class RoomStore {
     room.connections[playerId] = (room.connections[playerId] ?? 0) + 1
     room.emptySince = undefined
     const player = this.playerById(room, playerId)
-    if (!player.connected) {
+    this.clearTemporaryAiTimer(room, playerId)
+    const restoredTemporaryAi = this.stopTemporaryAi(room, playerId)
+    if (!player.connected || restoredTemporaryAi) {
       player.connected = true
-      this.emit(room, 'joined', `${this.playerName(player)} 已重新连接。`)
+      this.emit(room, 'joined', restoredTemporaryAi ? `${this.playerName(player)} 已重新连接，AI 托管已停止。` : `${this.playerName(player)} 已重新连接。`)
     }
   }
 
   private cleanup(): void {
     const now = Date.now()
     for (const [id, room] of this.rooms) {
-      if (this.isExpired(room, now)) this.rooms.delete(id)
+      if (this.isExpired(room, now)) {
+        Object.values(room.temporaryAiTimers ?? {}).forEach((timer) => timer && clearTimeout(timer))
+        this.rooms.delete(id)
+      }
     }
   }
 
@@ -665,14 +800,54 @@ class RoomStore {
 
   private hasActiveHumanConnection(room: Room): boolean {
     return Object.values(room.seats).some((seat) => {
-      if (!seat || this.isAiPlayer(room, seat.playerId)) return false
+      if (!seat || this.isPermanentAiPlayer(room, seat.playerId)) return false
       return (room.connections[seat.playerId] ?? 0) > 0
     })
   }
+
+  private scheduleTemporaryAi(room: Room, playerId: RoomPlayerId): void {
+    const player = this.playerById(room, playerId)
+    if (player.isAi || !player.seated || room.state.status !== 'playing' || room.state.winner) return
+    this.clearTemporaryAiTimer(room, playerId)
+    room.temporaryAiTimers ??= {}
+    room.temporaryAiTimers[playerId] = setTimeout(() => {
+      const liveRoom = this.rooms.get(room.id)
+      if (!liveRoom || this.isExpired(liveRoom, Date.now())) return
+      delete liveRoom.temporaryAiTimers?.[playerId]
+      if ((liveRoom.connections[playerId] ?? 0) > 0) return
+      const livePlayer = this.playerById(liveRoom, playerId)
+      if (livePlayer.isAi || !livePlayer.seated || liveRoom.state.status !== 'playing' || liveRoom.state.winner) return
+      liveRoom.ai ??= {}
+      liveRoom.ai[playerId] = createAiController(playerId, 'standard', true)
+      livePlayer.aiControlled = true
+      livePlayer.aiDifficulty = 'standard'
+      this.emit(liveRoom, 'snapshot', `${this.playerName(livePlayer)} 离线超过 20 秒，AI 已临时接管。`)
+      this.queueAiIfNeeded(liveRoom, AI_FAST_PENDING_DELAY_MS)
+    }, TEMPORARY_AI_DISCONNECT_MS)
+  }
+
+  private clearTemporaryAiTimer(room: Room, playerId: RoomPlayerId): void {
+    const timer = room.temporaryAiTimers?.[playerId]
+    if (!timer) return
+    clearTimeout(timer)
+    delete room.temporaryAiTimers?.[playerId]
+  }
+
+  private stopTemporaryAi(room: Room, playerId: RoomPlayerId): boolean {
+    this.clearTemporaryAiTimer(room, playerId)
+    const ai = room.ai?.[playerId]
+    if (!ai?.temporary) return false
+    delete room.ai?.[playerId]
+    if (Object.keys(room.ai ?? {}).length === 0) room.ai = undefined
+    const player = this.playerById(room, playerId)
+    player.aiControlled = undefined
+    if (!player.isAi) player.aiDifficulty = undefined
+    return true
+  }
 }
 
-function createAiController(playerId: RoomPlayerId, difficulty: DifficultyId): AiController {
-  return { playerId, difficulty, queued: false, running: false, chainActions: 0 }
+function createAiController(playerId: RoomPlayerId, difficulty: DifficultyId, temporary = false): AiController {
+  return { playerId, difficulty, queued: false, running: false, chainActions: 0, ...(temporary ? { temporary } : {}) }
 }
 
 function classicAiName(playerId: RoomPlayerId): string {
@@ -701,13 +876,14 @@ function aiDelayAfterAction(action: AnyGameAction | null): number {
   return AI_ACTION_DELAY_MS
 }
 
-type DuelSeatPayload = Pick<GameState['players'][PlayerId], 'name' | 'isAi' | 'aiDifficulty' | 'seated' | 'connected'>
+type DuelSeatPayload = Pick<GameState['players'][PlayerId], 'name' | 'isAi' | 'aiDifficulty' | 'aiControlled' | 'seated' | 'connected'>
 
 function duelSeatPayload(player: GameState['players'][PlayerId]): DuelSeatPayload {
   return {
     name: player.name,
     isAi: player.isAi,
     aiDifficulty: player.aiDifficulty,
+    aiControlled: player.aiControlled,
     seated: player.seated,
     connected: player.connected,
   }
@@ -718,6 +894,7 @@ function emptyDuelSeatPayload(playerId: PlayerId): DuelSeatPayload {
     name: { p1: '玩家一', p2: '玩家二', p3: '玩家三', p4: '玩家四' }[playerId],
     isAi: undefined,
     aiDifficulty: undefined,
+    aiControlled: undefined,
     seated: false,
     connected: false,
   }
@@ -727,12 +904,17 @@ function applyDuelSeatPayload(player: GameState['players'][PlayerId], payload: D
   player.name = payload.name
   player.isAi = payload.isAi
   player.aiDifficulty = payload.aiDifficulty
+  player.aiControlled = payload.aiControlled
   player.seated = payload.seated
   player.connected = payload.connected
 }
 
 const roomStoreGlobal = globalThis as typeof globalThis & {
   __gemDuelArenaRoomStore?: RoomStore
+}
+
+if (roomStoreGlobal.__gemDuelArenaRoomStore) {
+  Object.setPrototypeOf(roomStoreGlobal.__gemDuelArenaRoomStore, RoomStore.prototype)
 }
 
 export const roomStore = (roomStoreGlobal.__gemDuelArenaRoomStore ??= new RoomStore())

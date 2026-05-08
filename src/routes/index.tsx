@@ -32,6 +32,7 @@ function Home() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error ?? '创建房间失败')
       localStorage.setItem(`splendor:${data.roomId}:secret`, data.playerSecret)
+      sessionStorage.setItem(`splendor:${data.roomId}:tabSecret`, data.playerSecret)
       location.href = roomPath(data.roomId, response.headers.get(ROOM_MACHINE_HEADER))
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建房间失败')

@@ -15,6 +15,7 @@ export const Route = createRootRoute({
     links: [{ rel: 'stylesheet', href: appCss }],
   }),
   component: RootComponent,
+  notFoundComponent: RootNotFound,
 })
 
 function RootComponent() {
@@ -22,6 +23,17 @@ function RootComponent() {
     <RootDocument>
       <Outlet />
     </RootDocument>
+  )
+}
+
+function RootNotFound() {
+  return (
+    <main className="roomErrorScreen">
+      <section className="roomErrorPanel">
+        <strong>页面不存在</strong>
+        <p>这个地址没有对应的页面或接口。</p>
+      </section>
+    </main>
   )
 }
 

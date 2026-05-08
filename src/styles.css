@@ -1044,6 +1044,300 @@ button:not(:disabled):active {
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
 }
 
+.roomChatPanel,
+.roomChatPanel * {
+  cursor: auto !important;
+}
+
+.roomChatPanel {
+  position: fixed;
+  z-index: 74;
+  left: clamp(12px, 3vw, 36px);
+  top: calc(env(safe-area-inset-top) + 124px);
+  width: clamp(260px, 22vw, 340px);
+  max-height: min(56dvh, 460px);
+  color: #f5f1e8;
+  pointer-events: auto;
+}
+
+.roomChatPanel.collapsed {
+  width: auto;
+}
+
+.roomChatPanel.positioned {
+  bottom: auto;
+}
+
+.roomChatPanel.dragging {
+  user-select: none;
+}
+
+.roomChatPanel.sized {
+  min-width: 260px;
+  min-height: 240px;
+}
+
+.roomChatPanel.resizing,
+.roomChatPanel.resizing * {
+  user-select: none;
+}
+
+.roomChatToggle {
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border-radius: 999px;
+  border-color: rgba(236, 203, 134, 0.26);
+  background: rgba(13, 16, 15, 0.68);
+  color: #e9dfcf;
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(8px);
+  position: relative;
+  touch-action: none;
+  cursor: move !important;
+}
+
+.roomChatPanel.open .roomChatToggle {
+  display: none;
+}
+
+.roomChatToggle span {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #78dbad;
+  box-shadow: 0 0 12px rgba(120, 219, 173, 0.5);
+}
+
+.roomChatBody {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto auto minmax(96px, 1fr) auto;
+  gap: 9px;
+  max-height: min(56dvh, 460px);
+  padding: 12px;
+  border: 1px solid rgba(236, 203, 134, 0.2);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(30, 24, 16, 0.84), rgba(13, 16, 15, 0.82)),
+    rgba(13, 16, 15, 0.78);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+.roomChatPanel.sized .roomChatBody {
+  height: 100%;
+  max-height: none;
+}
+
+.roomChatHeader,
+.roomChatActions,
+.roomChatComposer {
+  display: flex;
+  align-items: center;
+}
+
+.roomChatHeader {
+  justify-content: space-between;
+  gap: 10px;
+  touch-action: none;
+}
+
+.roomChatHeader,
+.roomChatHeader strong {
+  cursor: move !important;
+}
+
+.roomChatHeader button,
+.roomChatHeader button * {
+  cursor: pointer !important;
+}
+
+.roomChatHeader strong {
+  min-width: 0;
+  color: #fff3c7;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.roomChatActions {
+  gap: 5px;
+}
+
+.roomChatActions button,
+.roomChatComposer button {
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border-radius: 999px;
+  color: #e9dfcf;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.roomChatActions .activeChatIconButton {
+  color: #081713;
+  border-color: rgba(177, 255, 217, 0.58);
+  background: rgba(120, 219, 173, 0.86);
+}
+
+.roomChatPresence {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 26px;
+}
+
+.roomPresencePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 0 7px;
+  border: 1px solid rgba(245, 241, 232, 0.12);
+  border-radius: 999px;
+  color: #d7cfc2;
+  background: rgba(255, 255, 255, 0.045);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.roomPresencePill i {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #7d7770;
+}
+
+.roomPresencePill.online i {
+  background: #78dbad;
+  box-shadow: 0 0 10px rgba(120, 219, 173, 0.45);
+}
+
+.roomPresencePill.offline {
+  opacity: 0.62;
+}
+
+.roomPresencePill.self {
+  border-color: rgba(120, 219, 173, 0.32);
+}
+
+.roomPresencePill b {
+  color: #a79f92;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.roomFeedList {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.roomFeedItem,
+.roomFeedEmpty {
+  display: grid;
+  grid-template-columns: 39px minmax(0, 1fr);
+  gap: 7px;
+  align-items: start;
+  padding: 7px 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #e8dfd0;
+  font-size: 12px;
+  line-height: 1.36;
+}
+
+.roomFeedItem.chat {
+  background: rgba(120, 219, 173, 0.08);
+}
+
+.roomFeedItem.action {
+  background: rgba(224, 182, 94, 0.1);
+}
+
+.roomFeedItem.status {
+  background: rgba(116, 192, 252, 0.08);
+}
+
+.roomFeedItem time {
+  color: #a79f92;
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.roomFeedItem span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.roomFeedEmpty {
+  grid-template-columns: minmax(0, 1fr);
+  color: #a79f92;
+}
+
+.roomChatComposer {
+  gap: 7px;
+}
+
+.roomChatComposer input {
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  border: 1px solid rgba(236, 203, 134, 0.18);
+  border-radius: 999px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.07);
+  color: #f5f1e8;
+  padding: 0 12px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.roomChatComposer input:focus {
+  border-color: rgba(120, 219, 173, 0.58);
+  box-shadow: 0 0 0 3px rgba(120, 219, 173, 0.12);
+}
+
+.roomChatComposer button {
+  flex: 0 0 auto;
+}
+
+.roomChatResizeHandle {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px 0 5px 0;
+  cursor: nwse-resize !important;
+  touch-action: none;
+}
+
+.roomChatResizeHandle::before {
+  content: "";
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 10px;
+  height: 10px;
+  border-right: 2px solid rgba(236, 203, 134, 0.42);
+  border-bottom: 2px solid rgba(236, 203, 134, 0.42);
+}
+
 .hudIconButton:not(:disabled):hover {
   border-color: rgba(236, 203, 134, 0.46);
   background: rgba(49, 75, 72, 0.68);
@@ -2472,6 +2766,53 @@ button:not(:disabled):active {
     background 180ms ease,
     border-color 180ms ease,
     box-shadow 180ms ease;
+}
+
+.playerPanel[data-player-panel="p1"] {
+  --player-sync-color: #f6c75e;
+}
+
+.playerPanel[data-player-panel="p2"] {
+  --player-sync-color: #74c0fc;
+}
+
+.playerPanel[data-player-panel="p3"] {
+  --player-sync-color: #bde3af;
+}
+
+.playerPanel[data-player-panel="p4"] {
+  --player-sync-color: #ff8da1;
+}
+
+.playerPanel[data-player-panel] {
+  border-color: color-mix(in srgb, var(--player-sync-color) 38%, rgba(236, 203, 134, 0.16));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--player-sync-color) 13%, transparent), transparent 42%),
+    rgba(13, 16, 15, 0.24);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 0 0 1px color-mix(in srgb, var(--player-sync-color) 13%, transparent),
+    0 14px 36px rgba(0, 0, 0, 0.26);
+}
+
+.playerPanel[data-player-panel].activePlayer {
+  border-color: color-mix(in srgb, var(--player-sync-color) 52%, rgba(236, 203, 134, 0.26));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--player-sync-color) 17%, transparent), transparent 46%),
+    rgba(29, 35, 31, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 20px color-mix(in srgb, var(--player-sync-color) 12%, transparent),
+    0 14px 36px rgba(0, 0, 0, 0.26);
+}
+
+.playerPanel[data-player-panel] header strong {
+  text-shadow: 0 0 12px color-mix(in srgb, var(--player-sync-color) 28%, transparent);
+}
+
+.playerPanel[data-player-panel] .tokenSlots,
+.playerPanel[data-player-panel] .splendorReserveSlots {
+  border-color: color-mix(in srgb, var(--player-sync-color) 22%, rgba(245, 241, 232, 0.12));
 }
 
 .playerPanel section {
@@ -4031,6 +4372,299 @@ button:not(:disabled):active {
 .remotePrivilegeScroll {
   transform: translate(var(--remote-privilege-x), var(--remote-privilege-y));
   transition: transform var(--remote-privilege-duration) cubic-bezier(0.2, 0.76, 0.24, 1);
+}
+
+.remoteCursorLayer,
+.remote-trace-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  overflow: hidden;
+  pointer-events: none;
+  contain: layout paint style;
+}
+
+.remote-trace {
+  position: absolute;
+  inset: 0;
+  color: var(--trace-color);
+}
+
+.remote-trace-path {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  display: none;
+}
+
+.remote-trace-path polyline {
+  fill: none;
+  stroke: currentColor;
+  stroke-dasharray: 1.8 1.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 0.34;
+  opacity: 0.58;
+  vector-effect: non-scaling-stroke;
+  filter: drop-shadow(0 4px 10px oklch(35% 0.05 235 / 0.18));
+}
+
+.remote-trace-dot {
+  position: absolute;
+  left: var(--trace-dot-x);
+  top: var(--trace-dot-y);
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: var(--trace-dot-alpha);
+  transform: translate(-50%, -50%);
+  display: none;
+}
+
+.remote-trace-figure {
+  position: absolute;
+  left: var(--trace-x);
+  top: var(--trace-y);
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  gap: 3px 7px;
+  align-items: center;
+  min-width: 126px;
+  border: 1px solid color-mix(in oklch, currentColor 58%, transparent);
+  border-radius: 999px;
+  background: oklch(99% 0.006 220 / 0.93);
+  box-shadow: 0 12px 34px oklch(35% 0.04 235 / 0.18);
+  padding: 5px 9px 5px 5px;
+  transform: translate(-18px, -50%);
+  transition:
+    transform 120ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.remote-trace-figure::after {
+  content: "";
+  position: absolute;
+  left: 17px;
+  top: 50%;
+  width: 84px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, currentColor, transparent);
+  opacity: 0.28;
+  transform: translate(-100%, -50%);
+}
+
+.remote-trace-avatar {
+  z-index: 1;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: currentColor;
+  color: var(--surface);
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.remote-trace-object {
+  z-index: 1;
+  grid-row: 1 / 3;
+  grid-column: 2;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.remote-trace-figure.card .remote-trace-object {
+  width: 34px;
+  height: 48px;
+  border-radius: 6px;
+}
+
+.remote-cursor-pointer {
+  position: absolute;
+  left: var(--trace-x);
+  top: var(--trace-y);
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 3px;
+  color: currentColor;
+  transform: translate(0, 0);
+  transition:
+    left 130ms linear,
+    top 130ms linear,
+    transform 130ms linear,
+    opacity 160ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: left, top, opacity;
+}
+
+.remote-cursor-pointer strong {
+  max-width: 120px;
+  overflow: hidden;
+  margin-top: 15px;
+  border: 1px solid color-mix(in oklch, currentColor 48%, transparent);
+  border-radius: 7px;
+  background: oklch(99% 0.006 220 / 0.9);
+  box-shadow: 0 7px 18px oklch(35% 0.04 235 / 0.15);
+  color: var(--ink);
+  padding: 2px 6px 3px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.remote-cursor-glyph {
+  position: relative;
+  display: block;
+  width: 24px;
+  height: 29px;
+  color: currentColor;
+  overflow: visible;
+  fill: oklch(99% 0.006 220);
+  stroke: currentColor;
+  stroke-linejoin: round;
+  stroke-width: 2.5px;
+  filter: drop-shadow(0 2px 1px oklch(0% 0 0 / 0.2)) drop-shadow(0 7px 14px oklch(35% 0.04 235 / 0.18));
+}
+
+.remote-click-effect {
+  position: absolute;
+  left: var(--trace-x);
+  top: var(--trace-y);
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  color: var(--trace-color);
+  background: currentColor;
+  opacity: 0.82;
+  transform: translate(-50%, -50%) scale(0.34);
+  animation: remote-click-core 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.remote-click-effect::before,
+.remote-click-effect::after {
+  content: "";
+  position: absolute;
+  inset: -12px;
+  border: 2px solid currentColor;
+  border-radius: inherit;
+  opacity: 0.68;
+  transform: scale(0.28);
+  animation: remote-click-ring 680ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.remote-click-effect::after {
+  inset: -18px;
+  opacity: 0.4;
+  animation-delay: 80ms;
+}
+
+.remote-trace-object img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remote-trace-object b {
+  position: absolute;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  background: oklch(99% 0.006 220 / 0.92);
+  color: var(--ink);
+  font-size: 0.72rem;
+}
+
+.remote-trace-label {
+  z-index: 1;
+  display: grid;
+  min-width: 0;
+}
+
+.remote-trace-label strong,
+.remote-trace-label em {
+  overflow: hidden;
+  max-width: 76px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remote-trace-label strong {
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 950;
+}
+
+.remote-trace-label em {
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-style: normal;
+  font-weight: 820;
+}
+
+@keyframes trace-fade-away {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes remote-click-core {
+  45% {
+    opacity: 0.92;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.25);
+  }
+}
+
+@keyframes remote-click-ring {
+  to {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .remote-trace-path,
+  .remote-trace-dot {
+    display: none;
+  }
+
+  .remote-trace-figure,
+  .remote-click-effect,
+  .remote-click-effect::before,
+  .remote-click-effect::after {
+    animation: none;
+    transition: none;
+  }
+
+  .remote-click-effect {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .remote-click-effect::before,
+  .remote-click-effect::after {
+    display: none;
+  }
 }
 
 .flyingTakenToken {
@@ -5728,6 +6362,32 @@ button:not(:disabled):active {
   .hudIconButton {
     width: 36px;
     height: 36px;
+  }
+
+  .roomChatPanel {
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: calc(env(safe-area-inset-bottom) + 8px);
+    width: auto;
+    max-height: 42dvh;
+    z-index: 80;
+  }
+
+  .roomChatPanel.positioned {
+    right: auto;
+    bottom: auto;
+  }
+
+  .roomChatPanel.collapsed {
+    left: 8px;
+    right: auto;
+    width: auto;
+  }
+
+  .roomChatBody {
+    grid-template-rows: auto auto minmax(78px, 1fr) auto;
+    max-height: 42dvh;
   }
 
   .aiDifficultyControl {

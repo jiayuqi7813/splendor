@@ -99,6 +99,77 @@ describe('room store', () => {
     expect(replayed.some((item) => (item as { type?: string }).type === 'intent')).toBe(false)
   })
 
+  it('sanitizes cursor sync intents before broadcasting them', () => {
+    const first = roomStore.createRoom()
+    const second = roomStore.joinRoom(first.roomId)
+    const liveEvents: unknown[] = []
+    roomStore.subscribe(first.roomId, first.seq, (event) => liveEvents.push(event), second.playerSecret)
+
+    const event = roomStore.publishIntent(first.roomId, first.playerSecret, {
+      type: 'cursorMove',
+      x: 1.2,
+      y: -0.4,
+      visible: true,
+      click: true,
+      path: [
+        { x: 0.1, y: 0.2, at: 10, visible: true },
+        { x: 4, y: -2, at: 100000, visible: true },
+      ],
+    })
+
+    expect(event).toMatchObject({
+      type: 'intent',
+      playerId: first.playerId,
+      intent: {
+        type: 'cursorMove',
+        x: 1,
+        y: 0,
+        visible: true,
+        click: true,
+      },
+    })
+    expect(event.type === 'intent' && event.intent.type === 'cursorMove' ? event.intent.path?.at(-1) : undefined).toEqual({ x: 1, y: 0, at: 5000, visible: true })
+    expect(liveEvents).toContain(event)
+  })
+
+  it('stores chat messages in the room feed and broadcasts them', () => {
+    const first = roomStore.createRoom()
+    roomStore.confirmSeat(first.roomId, first.playerSecret, '红方')
+    const liveEvents: unknown[] = []
+    roomStore.subscribe(first.roomId, first.seq, (event) => liveEvents.push(event), first.playerSecret)
+
+    const event = roomStore.postChatMessage(first.roomId, first.playerSecret, ` ${'a'.repeat(320)} `)
+    expect(event.type).toBe('snapshot')
+    const snapshot = roomStore.getSnapshot(first.roomId)
+    const latest = snapshot.state.feed.at(-1)
+
+    expect(latest).toMatchObject({ kind: 'chat', playerId: 'p1', playerName: '红方' })
+    expect(latest.message).toHaveLength(280)
+    expect(liveEvents).toContainEqual(expect.objectContaining({ seq: event.seq, type: 'snapshot' }))
+    expect(() => roomStore.postChatMessage(first.roomId, first.playerSecret, '   ')).toThrow(/不能为空/)
+  })
+
+  it('temporarily hands a disconnected human player to AI and restores control on reconnect', async () => {
+    vi.useFakeTimers()
+    try {
+      const { first } = startTwoHumanRoom()
+      roomStore.getSnapshot(first.roomId).state.currentPlayer = 'p1'
+      roomStore.disconnect(first.roomId, first.playerSecret)
+
+      await vi.advanceTimersByTimeAsync(20_000)
+      const takeover = roomStore.getSnapshot(first.roomId).state
+      expect(takeover.players.p1).toMatchObject({ connected: false, aiControlled: true, aiDifficulty: 'standard' })
+      expect(takeover.players.p1.isAi).toBeUndefined()
+      expect(takeover.feed.at(-1).message).toContain('AI 已临时接管')
+
+      const rejoined = roomStore.joinRoom(first.roomId, first.playerSecret)
+      expect(rejoined.state.players.p1).toMatchObject({ connected: true, aiControlled: undefined, aiDifficulty: undefined })
+      expect(rejoined.state.feed.at(-1).message).toContain('AI 托管已停止')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('tracks player presence from live event streams', () => {
     const first = roomStore.createRoom()
     const cleanup = roomStore.subscribe(first.roomId, first.seq, () => undefined, first.playerSecret)
