@@ -7,6 +7,7 @@ import { getCard } from '@/game/cards'
 import { canAfford, computePayment, otherPlayer, playerStats, royalCardOwner } from '@/game/rules'
 import { GEM_TYPES, type AnyGameAction, type BoardCell, type CardSource, type GameAction, type GameState, type GameType, type GemType, type PlayerId, type PublicRoomEvent, type RoomFeedItem, type RoomIntent, type Token, type TokenType } from '@/game/types'
 import { displayPlayerName } from '@/game/playerDisplay'
+import { turnHudLabels } from '@/game/turnHud'
 import type { DifficultyId } from '@/game/ai'
 import { selectTutorialStep, type TutorialCounts, type TutorialStep } from '@/game/tutorial'
 import { CardView } from '@/components/CardView'
@@ -3401,6 +3402,7 @@ function Room() {
 
   const allPlayersSeated = state.players.p1.seated && state.players.p2.seated
   const allPlayersOnline = state.players.p1.connected && state.players.p2.connected
+  const turnLabels = turnHudLabels(state)
   const turnLabel =
     state.status === 'waiting'
       ? allPlayersSeated
@@ -3452,7 +3454,9 @@ function Room() {
       <aside className="gameHud" aria-label="房间信息">
         <span>房间 {roomId}</span>
         <span>{displayPlayerName(state.players[playerId])}</span>
-        <span>回合 {state.turnNumber}</span>
+        {turnLabels.map((label) => (
+          <span key={label}>{label}</span>
+        ))}
         <strong>{turnLabel}</strong>
       </aside>
       <nav className="roomOps" aria-label="房间操作">

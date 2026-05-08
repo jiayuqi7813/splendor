@@ -636,7 +636,7 @@ function settleFinalRound(state: GameState): boolean {
     leaders = leaders.filter((entry) => (state.players[entry.playerId].tucked?.length ?? 0) === topEvolved)
   }
   if (leaders.length > 1) {
-    state.finalRound = { ...finalRound, targetTurns: finalRound.targetTurns + 1 }
+    state.finalRound = { ...finalRound, targetTurns: finalRound.targetTurns + 1, overtimeRounds: (finalRound.overtimeRounds ?? 0) + 1 }
     state.log.unshift(`多名玩家同为 ${topScore}，加时一回合。`)
     return false
   }
@@ -668,11 +668,20 @@ function advanceTurnAfterMandatoryAction(state: GameState, playerId: PlayerId, r
   const player = state.players[playerId]
   player.turnsTaken = (player.turnsTaken ?? 0) + 1
   const reason = victoryReason(state, playerId)
+  const wasFinalRoundActive = Boolean(state.finalRound)
   if (!state.finalRound && reason) {
     state.finalRound = { triggerPlayerId: playerId, targetTurns: player.turnsTaken, reason }
     state.log.unshift(`${player.name} 达成胜利条件，触发最终圈。`)
   }
   resetTurnActions(state)
+  if (state.gameType === 'duel' && state.finalRound) {
+    const roundEndsHere = nextPlayer(state, playerId) === state.firstPlayer
+    if ((wasFinalRoundActive || reason) && roundEndsHere && settleFinalRound(state)) return
+    const next = nextPlayer(state, playerId)
+    state.currentPlayer = next
+    if (next === state.firstPlayer) state.turnNumber += 1
+    return
+  }
   if (state.finalRound && playerOrder(state).every((id) => (state.players[id].turnsTaken ?? 0) >= state.finalRound!.targetTurns) && settleFinalRound(state)) return
   if (!resume.extraTurn) {
     const next = nextPlayer(state, playerId)

@@ -129,7 +129,7 @@ export interface GameState {
   turnActions?: TurnActions
   players: Record<PlayerId, PlayerState>
   pending?: PendingChoice
-  finalRound?: { triggerPlayerId: PlayerId; targetTurns: number; reason: VictoryReason }
+  finalRound?: { triggerPlayerId: PlayerId; targetTurns: number; reason: VictoryReason; overtimeRounds?: number }
   winner?: { playerId: PlayerId; reason: VictoryReason }
   myPlayerId?: PlayerId
   feed?: RoomFeedItem[]
