@@ -283,6 +283,37 @@ describe('room store', () => {
     expect(swappedHuman.state.players.p4).toMatchObject({ id: 'p4', name: '客人', seated: true })
   })
 
+  it('keeps waiting-room host permissions attached to the creator after seat moves', () => {
+    const first = roomStore.createRoom({ gameType: 'classic' })
+    roomStore.confirmSeat(first.roomId, first.playerSecret, '房主')
+    const second = roomStore.joinRoom(first.roomId)
+    roomStore.confirmSeat(first.roomId, second.playerSecret, '客人')
+    const hostEvents: unknown[] = []
+    const cleanupHost = roomStore.subscribe(first.roomId, first.seq, (event) => hostEvents.push(event), first.playerSecret)
+
+    const hostMoved = roomStore.moveSeat(first.roomId, first.playerSecret, 'p4')
+    const guestMoved = roomStore.moveSeat(first.roomId, second.playerSecret, 'p1')
+    const hostSnapshot = roomStore.getSnapshot(first.roomId, first.playerSecret)
+    const guestSnapshot = roomStore.getSnapshot(first.roomId, second.playerSecret)
+
+    expect(hostMoved.playerId).toBe('p4')
+    expect(hostMoved.state).toMatchObject({ myPlayerId: 'p4', myIsHost: true })
+    expect(guestMoved.playerId).toBe('p1')
+    expect(guestMoved.state).toMatchObject({ myPlayerId: 'p1', myIsHost: false })
+    expect(hostSnapshot.state).toMatchObject({ myPlayerId: 'p4', myIsHost: true })
+    expect(guestSnapshot.state).toMatchObject({ myPlayerId: 'p1', myIsHost: false })
+    expect(hostEvents.at(-1)).toMatchObject({ state: { myPlayerId: 'p4', myIsHost: true } })
+    expect(() => roomStore.apply(first.roomId, second.playerSecret, { type: 'startGame', playerId: 'p1' })).toThrow(/只有房主/)
+
+    const started = roomStore.apply(first.roomId, first.playerSecret, { type: 'startGame', playerId: 'p4' })
+    expect(started.type).toBe('action')
+    if (started.type === 'action') {
+      expect(started.state.status).toBe('playing')
+      expect(started.state).toMatchObject({ myPlayerId: 'p4', myIsHost: true })
+    }
+    cleanupHost()
+  })
+
   it('adds and runs AI players in a classic Splendor room', async () => {
     const first = roomStore.createRoom({ gameType: 'classic' })
     roomStore.confirmSeat(first.roomId, first.playerSecret, '房主')
@@ -349,15 +380,16 @@ describe('room store', () => {
   })
 
   it('restarts a finished game in the same room with the same seats', () => {
-    const { first, second, state } = startTwoHumanRoom()
-    state.players.p1.tokens.ruby = 3
-    state.players.p1.tokenSlots = [
+    const { first, second } = startTwoHumanRoom()
+    const liveState = roomStore.getSnapshot(first.roomId).state
+    liveState.players.p1.tokens.ruby = 3
+    liveState.players.p1.tokenSlots = [
       { id: 'ruby-test-0', type: 'ruby' },
       { id: 'ruby-test-1', type: 'ruby' },
       { id: 'ruby-test-2', type: 'ruby' },
     ]
-    state.status = 'finished'
-    state.winner = { playerId: 'p1', reason: 'points' }
+    liveState.status = 'finished'
+    liveState.winner = { playerId: 'p1', reason: 'points' }
 
     expect(() => roomStore.restartRoom(first.roomId, second.playerSecret)).toThrow(/只有房主/)
     const restarted = roomStore.restartRoom(first.roomId, first.playerSecret)
@@ -389,8 +421,9 @@ describe('room store', () => {
   it('runs the AI when it is first player', async () => {
     const first = roomStore.createRoom()
     roomStore.confirmSeat(first.roomId, first.playerSecret, '红方')
-    first.state.firstPlayer = 'p2'
-    first.state.currentPlayer = 'p2'
+    const liveState = roomStore.getSnapshot(first.roomId).state
+    liveState.firstPlayer = 'p2'
+    liveState.currentPlayer = 'p2'
     const liveEvents: unknown[] = []
     roomStore.subscribe(first.roomId, first.seq, (event) => liveEvents.push(event), first.playerSecret)
     roomStore.addAiOpponent(first.roomId, first.playerSecret)
@@ -403,11 +436,12 @@ describe('room store', () => {
   it('runs the AI after a human action', async () => {
     const first = roomStore.createRoom()
     roomStore.confirmSeat(first.roomId, first.playerSecret, '红方')
-    first.state.firstPlayer = 'p1'
-    first.state.currentPlayer = 'p1'
+    const liveState = roomStore.getSnapshot(first.roomId).state
+    liveState.firstPlayer = 'p1'
+    liveState.currentPlayer = 'p1'
     roomStore.addAiOpponent(first.roomId, first.playerSecret)
     roomStore.apply(first.roomId, first.playerSecret, { type: 'startGame', playerId: 'p1' })
-    const tokenCell = first.state.board.find((cell: BoardCell) => cell.token?.type !== 'gold')
+    const tokenCell = liveState.board.find((cell: BoardCell) => cell.token?.type !== 'gold')
     expect(tokenCell).toBeTruthy()
     roomStore.apply(first.roomId, first.playerSecret, { type: 'takeTokens', playerId: 'p1', cellIds: [tokenCell!.id] })
 

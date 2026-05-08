@@ -44,6 +44,7 @@ interface Room {
   createdAt: number
   updatedAt: number
   emptySince?: number
+  hostSecret?: string
   seats: Partial<Record<RoomPlayerId, Seat>>
   connections: Partial<Record<RoomPlayerId, number>>
   state: GameState
@@ -148,14 +149,14 @@ function publicEvent(room: Room, type: PublicRoomStateEvent['type'], message: st
   return { seq: room.seq, type, message, state: room.state, action }
 }
 
-function viewStateForPlayer(state: AnyGameState, playerId?: RoomPlayerId): AnyGameState {
-  if (!playerId || (state.gameType !== 'classic' && state.gameType !== 'pokemon')) return state
-  return { ...state, myPlayerId: playerId }
+function viewStateForPlayer(state: AnyGameState, playerId?: RoomPlayerId, myIsHost = false): AnyGameState {
+  if (!playerId) return state
+  return { ...state, myPlayerId: playerId, myIsHost }
 }
 
-function viewEventForPlayer(event: PublicRoomEvent, playerId?: RoomPlayerId): PublicRoomEvent {
+function viewEventForPlayer(event: PublicRoomEvent, playerId?: RoomPlayerId, myIsHost = false): PublicRoomEvent {
   if (event.type === 'intent') return event
-  return { ...event, state: viewStateForPlayer(event.state, playerId) }
+  return { ...event, state: viewStateForPlayer(event.state, playerId, myIsHost) }
 }
 
 function clampUnit(value: unknown): number | undefined {
@@ -234,7 +235,9 @@ class RoomStore {
     const existing = secret ? Object.values(room.seats).find((seat) => seat?.secret === secret) : undefined
     const playerId = existing?.playerId ?? this.nextOpenSeat(room)
     if (!playerId) throw new RuleError('房间已满。')
+    const firstSeat = Object.values(room.seats).every((seat) => !seat)
     const playerSecret = existing?.secret ?? randomId(24)
+    if (!room.hostSecret && firstSeat) room.hostSecret = playerSecret
     room.seats[playerId] = { playerId, secret: playerSecret }
     room.emptySince = undefined
     const player = this.playerById(room, playerId)
@@ -287,28 +290,29 @@ class RoomStore {
       return this.addClassicAiOpponent(room, requester, difficulty, secondAi, resolvedSecondDifficulty)
     }
 
-    if (room.seats.p2) throw new RuleError('房间已满。')
+    const targetId = room.state.playerOrder.find((playerId) => playerId !== requester.playerId && !room.seats[playerId])
+    if (!targetId) throw new RuleError('房间已满。')
 
     const aiSecret = randomId(24)
-    room.seats.p2 = { playerId: 'p2', secret: aiSecret }
+    room.seats[targetId] = { playerId: targetId, secret: aiSecret }
     room.ai = {
-      p2: createAiController('p2', difficulty),
+      [targetId]: createAiController(targetId, difficulty),
     }
     if (secondAi) {
-      room.ai.p1 = createAiController('p1', resolvedSecondDifficulty)
-      room.state.players.p1.name = 'AI 甲'
-      room.state.players.p1.aiDifficulty = resolvedSecondDifficulty
-      room.state.players.p2.name = 'AI 乙'
-      room.state.players.p1.isAi = true
-      room.state.players.p1.seated = true
-      room.state.players.p1.connected = true
+      room.ai[requester.playerId] = createAiController(requester.playerId, resolvedSecondDifficulty)
+      room.state.players[requester.playerId].name = 'AI 甲'
+      room.state.players[requester.playerId].aiDifficulty = resolvedSecondDifficulty
+      room.state.players[targetId].name = 'AI 乙'
+      room.state.players[requester.playerId].isAi = true
+      room.state.players[requester.playerId].seated = true
+      room.state.players[requester.playerId].connected = true
     } else {
-      room.state.players.p2.name = 'AI 对手'
+      room.state.players[targetId].name = 'AI 对手'
     }
-    room.state.players.p2.isAi = true
-    room.state.players.p2.aiDifficulty = difficulty
-    room.state.players.p2.connected = true
-    room.state.players.p2.seated = true
+    room.state.players[targetId].isAi = true
+    room.state.players[targetId].aiDifficulty = difficulty
+    room.state.players[targetId].connected = true
+    room.state.players[targetId].seated = true
     this.emit(room, 'joined', secondAi ? '双 AI 已加入房间。' : 'AI 对手已加入房间。')
     return this.joinResult(room, requester.playerId, requester.secret)
   }
@@ -437,7 +441,7 @@ class RoomStore {
   getSnapshot(roomId: string, secret?: string): { state: AnyGameState; seq: number } {
     const room = this.getRoom(roomId)
     const seat = secret ? this.findSeat(room, secret) : undefined
-    return { state: viewStateForPlayer(room.state, seat?.playerId), seq: room.seq }
+    return { state: viewStateForPlayer(room.state, seat?.playerId, Boolean(seat && this.isHostSeat(room, seat))), seq: room.seq }
   }
 
   postChatMessage(roomId: string, secret: string, message: unknown): PublicRoomEvent {
@@ -454,30 +458,31 @@ class RoomStore {
       playerName: this.playerName(player),
       message: clipped,
     })
-    return viewEventForPlayer(event, seat.playerId)
+    return viewEventForPlayer(event, seat.playerId, this.isHostSeat(room, seat))
   }
 
   apply(roomId: string, secret: string, action: AnyGameAction): PublicRoomEvent {
     const room = this.getRoom(roomId)
     const seat = Object.values(room.seats).find((item) => item?.secret === secret)
     if (!seat) throw new RuleError('玩家身份无效，请重新加入房间。')
-    if (seat.playerId !== action.playerId) throw new RuleError('不能替其他玩家行动。')
     const duelAction = action as GameAction
     if (action.type === 'startGame') {
-      if (seat.playerId !== 'p1') throw new RuleError('只有房主可以开始游戏。')
+      if (!this.isHostSeat(room, seat)) throw new RuleError('只有房主可以开始游戏。')
+      const startAction = { ...duelAction, playerId: seat.playerId }
       this.resetAiChainActions(room)
-      room.state = applyAction(room.state, duelAction)
-      const event = this.emit(room, 'action', '游戏已开始。', duelAction)
+      room.state = applyAction(room.state, startAction)
+      const event = this.emit(room, 'action', '游戏已开始。', startAction)
       this.queueAiIfNeeded(room, AI_OPENING_ACTION_DELAY_MS)
-      return viewEventForPlayer(event, seat.playerId)
+      return viewEventForPlayer(event, seat.playerId, true)
     }
+    if (seat.playerId !== action.playerId) throw new RuleError('不能替其他玩家行动。')
     if (this.isAiPlayer(room, seat.playerId)) throw new RuleError('不能使用 AI 身份提交行动。')
     if (!room.state.players[seat.playerId as PlayerId].seated) throw new RuleError('请先输入名字并入座。')
     this.resetAiChainActions(room)
     room.state = applyAction(room.state, duelAction)
     const event = this.emit(room, 'action', '行动已执行。', duelAction)
     this.queueAiIfNeeded(room, aiDelayAfterAction(duelAction))
-    return viewEventForPlayer(event, seat.playerId)
+    return viewEventForPlayer(event, seat.playerId, this.isHostSeat(room, seat))
   }
 
   publishIntent(roomId: string, secret: string, intent: RoomIntent): PublicRoomEvent {
@@ -507,8 +512,10 @@ class RoomStore {
   subscribe(roomId: string, after: number, subscriber: Subscriber, secret?: string): () => void {
     const room = this.getRoom(roomId)
     const seat = secret ? this.findSeat(room, secret) : undefined
-    const playerId = seat?.playerId
-    const wrappedSubscriber: Subscriber = (event) => subscriber(viewEventForPlayer(event, playerId))
+    const wrappedSubscriber: Subscriber = (event) => {
+      const liveSeat = secret ? this.findSeat(room, secret) : undefined
+      subscriber(viewEventForPlayer(event, liveSeat?.playerId, Boolean(liveSeat && this.isHostSeat(room, liveSeat))))
+    }
     room.events.filter((event) => event.seq > after).forEach(wrappedSubscriber)
     room.subscribers.add(wrappedSubscriber)
     if (seat) this.markConnected(room, seat.playerId)
@@ -538,6 +545,7 @@ class RoomStore {
 
   moveSeat(roomId: string, secret: string, targetPlayerId: unknown): JoinResult {
     const room = this.getRoom(roomId)
+    this.ensureHostSecret(room)
     if (room.state.status !== 'waiting') throw new RuleError('游戏已经开始，不能换座。')
     const sourceSeat = this.findSeat(room, secret)
     if (!sourceSeat) throw new RuleError('玩家身份无效，请重新加入房间。')
@@ -609,7 +617,8 @@ class RoomStore {
   }
 
   private joinResult(room: Room, playerId: RoomPlayerId, playerSecret: string): JoinResult {
-    return { roomId: room.id, playerId, playerSecret, state: viewStateForPlayer(room.state, playerId), seq: room.seq }
+    const seat = room.seats[playerId]
+    return { roomId: room.id, playerId, playerSecret, state: viewStateForPlayer(room.state, playerId, Boolean(seat && this.isHostSeat(room, seat))), seq: room.seq }
   }
 
   private queueAiIfNeeded(room: Room, delayMs = AI_ACTION_DELAY_MS): void {
@@ -689,7 +698,12 @@ class RoomStore {
   }
 
   private isHostSeat(room: Room, seat: Seat): boolean {
-    return seat.playerId === 'p1'
+    return seat.secret === this.ensureHostSecret(room)
+  }
+
+  private ensureHostSecret(room: Room): string | undefined {
+    room.hostSecret ??= room.seats.p1?.secret
+    return room.hostSecret
   }
 
   private swapAiControllers(room: Room, sourceId: RoomPlayerId, targetId: RoomPlayerId, swapTarget: boolean): void {

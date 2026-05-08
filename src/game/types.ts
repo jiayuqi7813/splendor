@@ -148,6 +148,7 @@ export interface GameState {
   finalRound?: { triggerPlayerId: PlayerId; targetTurns: number; reason: VictoryReason; overtimeRounds?: number }
   winner?: { playerId: PlayerId; reason: VictoryReason }
   myPlayerId?: PlayerId
+  myIsHost?: boolean
   feed?: RoomFeedItem[]
   log: string[]
 }

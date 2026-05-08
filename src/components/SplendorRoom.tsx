@@ -196,17 +196,18 @@ export function SplendorRoom({
   const seatedCount = state.playerOrder.filter((id) => state.players[id].seated).length
   const readyCount = state.playerOrder.filter((id) => state.players[id].seated && state.players[id].connected).length
   const canStartWithCurrentPlayers = readyCount >= 2 && readyCount <= 4
+  const isHost = state.myIsHost === true
   const nameRequired = state.status === 'waiting' && viewer && !viewer.seated
   const isMyTurn = state.currentPlayer === playerId && state.status === 'playing' && !state.winner
   const canAct = isMyTurn && !interactionLocked && !state.pending
   const pokemonActionDone = state.gameType === 'pokemon' && Boolean(state.turnActions?.mandatoryDone)
   const canReserve = canAct && !pokemonActionDone && state.players[playerId].reserve.length < 3 && Boolean(goldCellId) && bankCounts(state).gold > 0
   const canEndTurn = state.gameType === 'pokemon' && isMyTurn && !interactionLocked && !state.pending && Boolean(state.turnActions?.mandatoryDone)
-  const canStart = state.status === 'waiting' && playerId === 'p1' && canStartWithCurrentPlayers && state.players.p1.seated && state.players.p1.connected && !nameRequired
+  const canStart = state.status === 'waiting' && isHost && canStartWithCurrentPlayers && Boolean(viewer?.seated && viewer.connected) && !nameRequired
   const nonHostSeats = state.playerOrder.filter((id) => id !== 'p1')
   const hasEmptyAiSeat = state.playerOrder.some((id) => id !== playerId && !state.players[id].seated && !state.players[id].connected)
-  const canPromoteHostToAi = playerId === 'p1' && !state.players.p1.isAi && nonHostSeats.length > 0 && nonHostSeats.every((id) => state.players[id].isAi)
-  const canAddAi = state.status === 'waiting' && playerId === 'p1' && !nameRequired && Boolean(onOpenAiDialog) && (hasEmptyAiSeat || canPromoteHostToAi)
+  const canPromoteHostToAi = isHost && playerId === 'p1' && !state.players.p1.isAi && nonHostSeats.length > 0 && nonHostSeats.every((id) => state.players[id].isAi)
+  const canAddAi = state.status === 'waiting' && isHost && !nameRequired && Boolean(onOpenAiDialog) && (hasEmptyAiSeat || canPromoteHostToAi)
   const initialLayout = state.status === 'waiting' || introAnimating
   const royalChoicePending = state.pending?.type === 'chooseRoyal' && state.pending.playerId === playerId ? state.pending : undefined
   const splendorGameType = state.gameType === 'pokemon' ? 'pokemon' : 'classic'
@@ -216,7 +217,7 @@ export function SplendorRoom({
   const turnLabel =
     state.status === 'waiting'
       ? canStartWithCurrentPlayers
-        ? playerId === 'p1'
+        ? isHost
           ? '等待开始'
           : '等待房主'
         : `等待入座 ${seatedCount}/${state.playerOrder.length}`
@@ -253,12 +254,12 @@ export function SplendorRoom({
             {aiBusy ? <Loader2 className="spin" size={17} /> : <Bot size={17} />}
           </button>
         )}
-        {state.status === 'waiting' && playerId === 'p1' && (
+        {state.status === 'waiting' && isHost && (
           <button className="hudIconButton startHudIconButton" onClick={() => onAction({ type: 'startGame', playerId })} disabled={!canStart} title={startTitle} aria-label={startTitle}>
             <Play size={17} />
           </button>
         )}
-        {state.status === 'finished' && playerId === 'p1' && (
+        {state.status === 'finished' && isHost && (
           <button className="hudIconButton" onClick={onRestart} title="同房间开启新一局" aria-label="同房间开启新一局">
             <RefreshCw size={17} />
           </button>

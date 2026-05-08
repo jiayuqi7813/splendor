@@ -163,6 +163,7 @@ function Room() {
   const [isMobileBoardLayout, setIsMobileBoardLayout] = useState(false)
   const [cardPeek, setCardPeek] = useState<CardPeek>()
   const seqRef = useRef(0)
+  const playerIdRef = useRef<PlayerId | undefined>(undefined)
   const roomMachineRef = useRef(readRoomMachineFromLocation())
   const stateRef = useRef<any>(undefined)
   const boardFocusOpenRef = useRef(false)
@@ -489,6 +490,10 @@ function Room() {
   }, [roomId, playerId])
 
   useEffect(() => {
+    playerIdRef.current = isPlayerId(playerId) ? playerId : undefined
+  }, [playerId])
+
+  useEffect(() => {
     const pending = pendingDeckReserveRevealRef.current
     if (!state || !playerId || !pending || pending.playerId !== playerId) return
     if (state.players[pending.playerId].reserve.length <= pending.index) return
@@ -546,6 +551,7 @@ function Room() {
       }
       setSecret(data.playerSecret)
       setPlayerId(data.playerId)
+      playerIdRef.current = isPlayerId(data.playerId) ? data.playerId : undefined
       if (!roomPlayer(data.state, data.playerId)?.seated) setPlayerNameInput(localStorage.getItem('splendor:playerName') ?? '')
       stateRef.current = data.state
       setState(data.state)
@@ -635,9 +641,9 @@ function Room() {
   }
 
   function openAiDialogOrSetHostAi() {
-    if (state && isSplendorRoomState(state) && state.status === 'waiting' && playerId === 'p1') {
+    if (state && isSplendorRoomState(state) && state.status === 'waiting' && state.myIsHost) {
       const nonHost = state.playerOrder.filter((id) => id !== 'p1')
-      const canSetHostAi = !state.players.p1.isAi && nonHost.length > 0 && nonHost.every((id) => state.players[id].isAi)
+      const canSetHostAi = playerId === 'p1' && !state.players.p1.isAi && nonHost.length > 0 && nonHost.every((id) => state.players[id].isAi)
       if (canSetHostAi) {
         void setHostAiPlayer()
       } else {
@@ -723,6 +729,7 @@ function Room() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error ?? '换座失败')
       setPlayerId(data.playerId)
+      playerIdRef.current = isPlayerId(data.playerId) ? data.playerId : undefined
       applyImmediateState(data.seq, data.state)
     } catch (err) {
       setError(err instanceof Error ? err.message : '换座失败')
@@ -1037,7 +1044,7 @@ function Room() {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
     }
-  }, [roomId, secret, Boolean(state)])
+  }, [roomId, secret, Boolean(state), playerId])
 
   function isInteractionLocked(): boolean {
     return Boolean(
@@ -1048,6 +1055,7 @@ function Room() {
     )
   }
 
+  const isHost = Boolean(state?.myIsHost)
   const nameRequired = Boolean(state && playerId && state.status === 'waiting' && !state.players[playerId].seated)
   const interactionLocked = isInteractionLocked()
   const isViewerTurn = Boolean(state && playerId && !nameRequired && state.currentPlayer === playerId && state.status === 'playing' && !state.winner)
@@ -1404,7 +1412,10 @@ function Room() {
     seqRef.current = Math.max(seqRef.current, nextSeq)
     committedSeqRef.current = nextSeq
     stateRef.current = nextState
-    if (isSplendorRoomState(nextState) && nextState.myPlayerId) setPlayerId(nextState.myPlayerId)
+    if (nextState.myPlayerId) {
+      setPlayerId(nextState.myPlayerId)
+      playerIdRef.current = nextState.myPlayerId
+    }
     setState(nextState)
   }
 
@@ -1773,7 +1784,8 @@ function Room() {
   }
 
   function handleRoomIntent(event: Extract<PublicRoomEvent, { type: 'intent' }>) {
-    if (!playerId || event.playerId === playerId) return
+    const currentPlayerId = playerIdRef.current
+    if (!currentPlayerId || event.playerId === currentPlayerId) return
     if (event.intent.type === 'cursorMove') {
       appendRemoteCursorIntent(event.playerId, event.intent)
       return
@@ -3228,7 +3240,7 @@ function Room() {
   const aiDifficulty = AI_DIFFICULTY_OPTIONS[aiDifficultyIndex] ?? AI_DIFFICULTY_OPTIONS[DEFAULT_AI_DIFFICULTY_INDEX]
   const secondAiDifficulty = AI_DIFFICULTY_OPTIONS[secondAiDifficultyIndex] ?? AI_DIFFICULTY_OPTIONS[DEFAULT_AI_DIFFICULTY_INDEX]
   const classicAiDialog = isSplendorRoomState(state)
-  const aiDialog = aiDialogOpen && !classicAiDialog && state.status === 'waiting' && playerId === 'p1' ? (
+  const aiDialog = aiDialogOpen && !classicAiDialog && state.status === 'waiting' && isHost ? (
     <div className="modalScrim" role="presentation" onMouseDown={() => !aiBusy && setAiDialogOpen(false)}>
       <form
         className="aiSetupDialog"
@@ -3356,7 +3368,7 @@ function Room() {
       ...classicBankMotionTokenTypes,
     ]
     const aiSeatControls =
-      state.status === 'waiting' && playerId === 'p1'
+      state.status === 'waiting' && isHost
         ? Object.fromEntries(
             state.playerOrder.flatMap((id) => {
               if (!state.players[id].isAi) return []
@@ -3472,7 +3484,7 @@ function Room() {
   const turnLabel =
     state.status === 'waiting'
       ? allPlayersSeated
-        ? playerId === 'p1'
+        ? isHost
           ? '等待开始'
           : '等待房主'
         : '等待入座'
@@ -3493,7 +3505,7 @@ function Room() {
   const discardHighlightKeys = discardPending ? discardTokenSlotKeys(state, playerId) : []
   const introLayout = state.status === 'waiting' || pendingIntroSeq !== undefined || Boolean(introAnimation)
   const introAnimating = Boolean(introAnimation)
-  const canStartGame = state.status === 'waiting' && playerId === 'p1' && allPlayersSeated && allPlayersOnline && !nameRequired
+  const canStartGame = state.status === 'waiting' && isHost && allPlayersSeated && allPlayersOnline && !nameRequired
   const startGameTitle = !allPlayersSeated ? '等待所有玩家输入名字并入座' : !allPlayersOnline ? '等待所有玩家在线' : '开始游戏'
   const renderedTutorialStep = playerId
     ? tutorialStepForInteraction({ baseStep: tutorialStep, tokenSelection, tokenCarry, cardCarry, privilegeCarry, activePrivilegeIndex, playerId, isMobileBoardLayout, boardFocusOpen })
@@ -3536,12 +3548,12 @@ function Room() {
         >
           <BookOpen size={17} />
         </button>
-        {state.status === 'waiting' && playerId === 'p1' && (
+        {state.status === 'waiting' && isHost && (
           <button className="hudIconButton" onClick={() => setAiDialogOpen(true)} disabled={aiBusy || nameRequired} title="配置 AI 对手" aria-label="配置 AI 对手">
             {aiBusy ? <Loader2 className="spin" size={17} /> : <Bot size={17} />}
           </button>
         )}
-        {state.status === 'waiting' && playerId === 'p1' && (
+        {state.status === 'waiting' && isHost && (
           <button
             className="hudIconButton startHudIconButton"
             onClick={() => void submit({ type: 'startGame', playerId })}
@@ -3552,7 +3564,7 @@ function Room() {
             <Play size={17} />
           </button>
         )}
-        {state.status === 'finished' && playerId === 'p1' && (
+        {state.status === 'finished' && isHost && (
           <button className="hudIconButton" onClick={restartCurrentRoom} disabled={restartBusy} title="同房间开启新一局" aria-label="同房间开启新一局">
             {restartBusy ? <Loader2 className="spin" size={17} /> : <RefreshCw size={17} />}
           </button>
