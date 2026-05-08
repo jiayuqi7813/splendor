@@ -14,6 +14,7 @@ function playingState(): GameState {
   state.players.p2.connected = true
   state.status = 'playing'
   state.currentPlayer = 'p1'
+  state.firstPlayer = 'p1'
   state.pending = undefined
   return state
 }
@@ -987,6 +988,27 @@ describe('rules engine', () => {
     expect(next.winner?.reason).toBe('points')
   })
 
+  it('finishes the Duel final circle without chasing extra-turn action counts', () => {
+    const state = playingState()
+    state.firstPlayer = 'p1'
+    state.players.p1.turnsTaken = 6
+    state.players.p2.turnsTaken = 2
+    state.players.p1.purchased = [{ cardId: 7103 }, { cardId: 2303 }, { cardId: 2125 }, { cardId: 1400 }, { cardId: 1401 }, { cardId: 1402 }, { cardId: 2101 }]
+    state.players.p2.purchased = [{ cardId: 7103 }, { cardId: 2303 }, { cardId: 1401 }, { cardId: 1402 }]
+    putTokens(state, ['ruby', 'sapphire'])
+
+    expect(playerStats(state, 'p1').points).toBe(22)
+    expect(playerStats(state, 'p2').points).toBe(15)
+    const afterTrigger = applyAction(state, { type: 'takeTokens', playerId: 'p1', cellIds: ['0:0'] })
+    expect(afterTrigger.status).toBe('playing')
+    expect(afterTrigger.finalRound).toMatchObject({ triggerPlayerId: 'p1', reason: 'points' })
+    expect(afterTrigger.currentPlayer).toBe('p2')
+
+    const next = applyAction(afterTrigger, { type: 'takeTokens', playerId: 'p2', cellIds: ['1:0'] })
+    expect(next.status).toBe('finished')
+    expect(next.winner).toEqual({ playerId: 'p1', reason: 'points' })
+  })
+
   it('recognizes same-color points victory with wild color assignment', () => {
     const state = playingState()
     state.players.p1.purchased = [
@@ -1016,6 +1038,7 @@ describe('rules engine', () => {
     expect(afterSecond.status).toBe('playing')
     expect(afterSecond.winner).toBeUndefined()
     expect(afterSecond.finalRound?.targetTurns).toBe(2)
+    expect(afterSecond.finalRound?.overtimeRounds).toBe(1)
     expect(afterSecond.currentPlayer).toBe('p1')
     expect(afterSecond.turnNumber).toBe(2)
   })
@@ -1049,6 +1072,7 @@ describe('rules engine', () => {
     expect(tied.status).toBe('playing')
     expect(tied.winner).toBeUndefined()
     expect(tied.finalRound?.targetTurns).toBe(2)
+    expect(tied.finalRound?.overtimeRounds).toBe(1)
     expect(tied.currentPlayer).toBe('p1')
     expect(tied.turnNumber).toBe(2)
 

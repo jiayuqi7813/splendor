@@ -4,6 +4,7 @@ import { CLASSIC_VICTORY_POINTS, playerStats, POKEMON_VICTORY_POINTS, royalCardO
 import { DEVELOPMENT_CARDS, NOBLES, POKEMON_DEVELOPMENT_CARDS, POKEMON_LEGACY_SPECIAL_CARD_IDS, POKEMON_LEGENDARY_CARDS, POKEMON_RARE_CARDS, type BasicColor, type Card, type Noble } from '@/game/multiplayerData'
 import type { CardSource, GameAction, GameState, GameType, GemType, PlayerId, PokemonSpecialDeck, Token, TokenType, VictoryReason } from '@/game/types'
 import { displayPlayerName } from '@/game/playerDisplay'
+import { turnHudLabels } from '@/game/turnHud'
 import { assetPath } from '@/utils/paths'
 
 const CLASSIC_CARD_BY_ID = new Map<number, Card>(DEVELOPMENT_CARDS.map((card) => [Number(card.id), card]))
@@ -209,6 +210,7 @@ export function SplendorRoom({
   const splendorGameType = state.gameType === 'pokemon' ? 'pokemon' : 'classic'
   const tableScale = useSplendorTableScale(splendorGameType)
   const startTitle = canStartWithCurrentPlayers ? '开始游戏' : '至少需要 2 位玩家输入名字并在线'
+  const turnLabels = turnHudLabels(state)
   const turnLabel =
     state.status === 'waiting'
       ? canStartWithCurrentPlayers
@@ -237,7 +239,9 @@ export function SplendorRoom({
       <aside className="gameHud" aria-label="房间信息">
         <span>房间 {roomId}</span>
         <span>{state.gameType === 'pokemon' ? '宝可梦' : '璀璨宝石'}</span>
-        <span>回合 {state.turnNumber}</span>
+        {turnLabels.map((label) => (
+          <span key={label}>{label}</span>
+        ))}
         <span>{displayPlayerName(viewer)}</span>
         <strong>{turnLabel}</strong>
       </aside>
