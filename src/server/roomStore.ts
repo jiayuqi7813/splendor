@@ -12,7 +12,8 @@ const AI_OPENING_ACTION_DELAY_MS = 2600
 const AI_MAX_CHAIN_ACTIONS = 40
 const EMPTY_ROOM_TTL_MS = 1000 * 60
 const TEMPORARY_AI_DISCONNECT_MS = 1000 * 20
-const ROOM_FEED_LIMIT = 200
+const ROOM_EVENT_LIMIT = 80
+const ROOM_FEED_LIMIT = 120
 const CHAT_MESSAGE_LIMIT = 280
 const ROOM_MACHINE_COOKIE = 'splendor_room_machine'
 const ROOM_MACHINE_HEADER = 'X-Splendor-Room-Machine'
@@ -505,7 +506,8 @@ class RoomStore {
   subscribe(roomId: string, after: number, subscriber: Subscriber, secret?: string): () => void {
     const room = this.getRoom(roomId)
     const seat = secret ? this.findSeat(room, secret) : undefined
-    const wrappedSubscriber: Subscriber = (event) => subscriber(viewEventForPlayer(event, secret ? this.findSeat(room, secret)?.playerId : undefined))
+    const playerId = seat?.playerId
+    const wrappedSubscriber: Subscriber = (event) => subscriber(viewEventForPlayer(event, playerId))
     room.events.filter((event) => event.seq > after).forEach(wrappedSubscriber)
     room.subscribers.add(wrappedSubscriber)
     if (seat) this.markConnected(room, seat.playerId)
@@ -578,26 +580,24 @@ class RoomStore {
     this.appendFeed(room, feed ?? this.feedItemForStateEvent(type, message, action))
     const event = publicEvent(room, type, message, action)
     room.events.push(event)
-    if (room.events.length > 250) room.events.splice(0, room.events.length - 250)
+    if (room.events.length > ROOM_EVENT_LIMIT) room.events.splice(0, room.events.length - ROOM_EVENT_LIMIT)
     room.subscribers.forEach((subscriber) => subscriber(event))
     return event
   }
 
   private appendFeed(room: Room, item: Pick<RoomFeedItem, 'kind' | 'message' | 'playerId' | 'playerName'> | undefined): void {
     if (!item?.message) return
-    const feed = room.state.feed ?? []
-    room.state.feed = [
-      ...feed,
-      {
-        id: `${room.id}:${room.seq}:${feed.length}`,
-        seq: room.seq,
-        at: Date.now(),
-        kind: item.kind,
-        message: item.message,
-        playerId: item.playerId,
-        playerName: item.playerName,
-      },
-    ].slice(-ROOM_FEED_LIMIT)
+    const feed = (room.state.feed ??= [])
+    feed.push({
+      id: `${room.id}:${room.seq}:${feed.length}`,
+      seq: room.seq,
+      at: Date.now(),
+      kind: item.kind,
+      message: item.message,
+      playerId: item.playerId,
+      playerName: item.playerName,
+    })
+    if (feed.length > ROOM_FEED_LIMIT) feed.splice(0, feed.length - ROOM_FEED_LIMIT)
   }
 
   private feedItemForStateEvent(type: PublicRoomStateEvent['type'], message: string, action?: AnyGameAction): Pick<RoomFeedItem, 'kind' | 'message' | 'playerId' | 'playerName'> | undefined {

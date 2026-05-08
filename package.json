@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "vite build && node scripts/precompress-assets.mjs",
     "start": "node server.mjs",
     "test": "vitest run",
     "typecheck": "tsgo --noEmit",
