@@ -245,6 +245,16 @@ export function SplendorRoom({
           <span key={label}>{label}</span>
         ))}
         <span>{displayPlayerName(viewer)}</span>
+        {state.gameType === 'pokemon' && state.status === 'playing' && (
+          <button
+            className={`hudTextButton endTurnButton ${canEndTurn ? 'activeHudTextButton' : ''}`}
+            onClick={canEndTurn ? onEndTurn : undefined}
+            disabled={!canEndTurn}
+            type="button"
+          >
+            结束回合
+          </button>
+        )}
         <strong>{turnLabel}</strong>
       </aside>
       <nav className="roomOps" aria-label="房间操作">
@@ -261,11 +271,6 @@ export function SplendorRoom({
         {state.status === 'finished' && playerId === 'p1' && (
           <button className="hudIconButton" onClick={onRestart} title="同房间开启新一局" aria-label="同房间开启新一局">
             <RefreshCw size={17} />
-          </button>
-        )}
-        {state.gameType === 'pokemon' && state.status === 'playing' && (
-          <button className={`hudTextButton ${canEndTurn ? 'activeHudTextButton' : ''}`} onClick={canEndTurn ? onEndTurn : undefined} disabled={!canEndTurn} type="button">
-            结束回合
           </button>
         )}
         <button className="hudIconButton" onClick={onCopyRoomLink} title={copiedLink ? '已复制' : '复制邀请链接'} aria-label={copiedLink ? '已复制邀请链接' : '复制邀请链接'}>
