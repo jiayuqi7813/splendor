@@ -384,6 +384,7 @@ function SplendorSeat({
   onDiscardToken,
   onConfirmTokenDraft,
   onCancelTokenDraft,
+  onEndTurn,
   onReservePointerDown,
   onReservePointerEnter,
   onReservePointerLeave,
