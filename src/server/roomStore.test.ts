@@ -111,9 +111,10 @@ describe('room store', () => {
       y: -0.4,
       visible: true,
       click: true,
+      panel: { playerId: 'p2', x: 1.5, y: -0.2 },
       path: [
-        { x: 0.1, y: 0.2, at: 10, visible: true },
-        { x: 4, y: -2, at: 100000, visible: true },
+        { x: 0.1, y: 0.2, at: 10, visible: true, panel: { playerId: 'p1', x: 0.4, y: 0.5 } },
+        { x: 4, y: -2, at: 100000, visible: true, panel: { playerId: 'broken' as PlayerId, x: 0.2, y: 0.3 } },
       ],
     })
 
@@ -126,9 +127,11 @@ describe('room store', () => {
         y: 0,
         visible: true,
         click: true,
+        panel: { playerId: 'p2', x: 1, y: 0 },
       },
     })
-    expect(event.type === 'intent' && event.intent.type === 'cursorMove' ? event.intent.path?.at(-1) : undefined).toEqual({ x: 1, y: 0, at: 5000, visible: true })
+    expect(event.type === 'intent' && event.intent.type === 'cursorMove' ? event.intent.path?.[0] : undefined).toEqual({ x: 0.1, y: 0.2, at: 10, visible: true, panel: { playerId: 'p1', x: 0.4, y: 0.5 } })
+    expect(event.type === 'intent' && event.intent.type === 'cursorMove' ? event.intent.path?.at(-1) : undefined).toEqual({ x: 1, y: 0, at: 5000, visible: true, panel: { playerId: 'p2', x: 1, y: 0 } })
     expect(liveEvents).toContain(event)
   })
 

@@ -164,16 +164,35 @@ function clampUnit(value: unknown): number | undefined {
   return Math.max(0, Math.min(1, value))
 }
 
+function sanitizeCursorPanel(value: unknown): { playerId: RoomPlayerId; x: number; y: number } | undefined {
+  if (!value || typeof value !== 'object') return undefined
+  const panel = value as { playerId?: unknown; x?: unknown; y?: unknown }
+  if (!isRoomPlayerId(panel.playerId)) return undefined
+  const x = clampUnit(panel.x)
+  const y = clampUnit(panel.y)
+  if (x === undefined || y === undefined) return undefined
+  return { playerId: panel.playerId, x, y }
+}
+
 function sanitizeCursorPathAt(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return 0
   return Math.max(0, Math.min(CURSOR_PATH_DURATION_LIMIT_MS, value))
 }
 
 function sameCursorPoint(
-  left: { x: number; y: number; visible: boolean },
-  right: { x: number; y: number; visible: boolean },
+  left: { x: number; y: number; visible: boolean; panel?: { playerId: RoomPlayerId; x: number; y: number } },
+  right: { x: number; y: number; visible: boolean; panel?: { playerId: RoomPlayerId; x: number; y: number } },
 ): boolean {
-  return left.visible === right.visible && Math.abs(left.x - right.x) <= 0.0001 && Math.abs(left.y - right.y) <= 0.0001
+  const samePanel = !left.panel && !right.panel
+    ? true
+    : Boolean(
+        left.panel
+        && right.panel
+        && left.panel.playerId === right.panel.playerId
+        && Math.abs(left.panel.x - right.panel.x) <= 0.0001
+        && Math.abs(left.panel.y - right.panel.y) <= 0.0001,
+      )
+  return left.visible === right.visible && Math.abs(left.x - right.x) <= 0.0001 && Math.abs(left.y - right.y) <= 0.0001 && samePanel
 }
 
 function sanitizeCursorIntent(intent: Extract<RoomIntent, { type: 'cursorMove' }>): Extract<RoomIntent, { type: 'cursorMove' }> | undefined {
@@ -186,10 +205,12 @@ function sanitizeCursorIntent(intent: Extract<RoomIntent, { type: 'cursorMove' }
         const pointX = clampUnit(point.x)
         const pointY = clampUnit(point.y)
         if (pointX === undefined || pointY === undefined) return []
-        return [{ x: pointX, y: pointY, at: sanitizeCursorPathAt(point.at), visible: point.visible === true }]
+        const panel = sanitizeCursorPanel(point.panel)
+        return [{ x: pointX, y: pointY, at: sanitizeCursorPathAt(point.at), visible: point.visible === true, ...(panel ? { panel } : {}) }]
       })
     : []
-  const latest = { x, y, at: path[path.length - 1]?.at ?? 0, visible }
+  const latestPanel = sanitizeCursorPanel(intent.panel)
+  const latest = { x, y, at: path[path.length - 1]?.at ?? 0, visible, ...(latestPanel ? { panel: latestPanel } : {}) }
   if (path.length === 0 || !sameCursorPoint(path[path.length - 1], latest)) {
     path.push(latest)
   }
@@ -200,6 +221,7 @@ function sanitizeCursorIntent(intent: Extract<RoomIntent, { type: 'cursorMove' }
     x: sample.x,
     y: sample.y,
     visible: sample.visible,
+    ...(sample.panel ? { panel: sample.panel } : {}),
     path: trimmed,
     ...(intent.click === true ? { click: true } : {}),
   }

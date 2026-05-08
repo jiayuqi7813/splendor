@@ -191,7 +191,15 @@ export type RoomIntent =
   | { type: 'purchaseTarget'; source: CardSource; gem?: GemType; valid: boolean }
   | { type: 'goldTarget'; cellId: string; source?: CardSource }
   | { type: 'privilegeTarget'; cellId?: string; index?: number }
-  | { type: 'cursorMove'; x: number; y: number; visible: boolean; path?: { x: number; y: number; at: number; visible: boolean }[]; click?: boolean }
+  | {
+      type: 'cursorMove'
+      x: number
+      y: number
+      visible: boolean
+      panel?: { playerId: PlayerId; x: number; y: number }
+      path?: { x: number; y: number; at: number; visible: boolean; panel?: { playerId: PlayerId; x: number; y: number } }[]
+      click?: boolean
+    }
   | { type: 'clear' }
 
 export type AnyGameState = any

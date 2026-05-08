@@ -67,11 +67,49 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value))
 }
 
+function sameRemoteCursorPanel(left: RemoteCursorPanelPoint | undefined, right: RemoteCursorPanelPoint | undefined): boolean {
+  if (!left && !right) return true
+  if (!left || !right) return false
+  return left.playerId === right.playerId && left.x === right.x && left.y === right.y
+}
+
 type RemoteCursorIntentPoint = {
   x: number
   y: number
   at: number
   visible: boolean
+  panel?: RemoteCursorPanelPoint
+}
+
+type RemoteCursorPanelPoint = {
+  playerId: PlayerId
+  x: number
+  y: number
+}
+
+type RemoteCursorPanelOrientation = 'normal' | 'left' | 'right'
+
+function cursorPanelOrientation(node: HTMLElement): RemoteCursorPanelOrientation {
+  const seat = node.closest('.splendorSeat')
+  if (seat?.classList.contains('splendorSeatLeft')) return 'left'
+  if (seat?.classList.contains('splendorSeatRight')) return 'right'
+  return 'normal'
+}
+
+function panelLocalPointFromViewportPoint(clientX: number, clientY: number, rect: DOMRect, orientation: RemoteCursorPanelOrientation): { x: number; y: number } {
+  const boxX = clamp01((clientX - rect.left) / rect.width)
+  const boxY = clamp01((clientY - rect.top) / rect.height)
+  if (orientation === 'left') return { x: boxY, y: 1 - boxX }
+  if (orientation === 'right') return { x: 1 - boxY, y: boxX }
+  return { x: boxX, y: boxY }
+}
+
+function panelViewportPointFromLocal(point: RemoteCursorPanelPoint, rect: DOMRect, orientation: RemoteCursorPanelOrientation): { x: number; y: number } {
+  const localX = clamp01(point.x)
+  const localY = clamp01(point.y)
+  if (orientation === 'left') return { x: rect.left + (1 - localY) * rect.width, y: rect.top + localX * rect.height }
+  if (orientation === 'right') return { x: rect.left + localY * rect.width, y: rect.top + (1 - localX) * rect.height }
+  return { x: rect.left + localX * rect.width, y: rect.top + localY * rect.height }
 }
 
 type ChatPanelPosition = {
@@ -415,11 +453,35 @@ function Room() {
     if (!cursorMapRect) setCursorMapRect(shellRect)
     const normalizedX = clamp01((clientX - shellRect.left) / shellRect.width)
     const normalizedY = clamp01((clientY - shellRect.top) / shellRect.height)
+    const panel = readCursorPanelPoint(clientX, clientY)
     return {
       x: normalizedX,
       y: normalizedY,
       at: Date.now(),
       visible: clientX >= shellRect.left && clientX <= shellRect.right && clientY >= shellRect.top && clientY <= shellRect.bottom,
+      ...(panel ? { panel } : {}),
+    }
+  }
+
+  function readCursorPanelPoint(clientX: number, clientY: number): RemoteCursorPanelPoint | undefined {
+    if (typeof document === 'undefined') return undefined
+    const panels = [...document.querySelectorAll<HTMLElement>('[data-player-panel]')]
+      .flatMap((node) => {
+        const playerId = node.dataset.playerPanel
+        if (!isPlayerId(playerId) || !node.isConnected) return []
+        const rect = node.getBoundingClientRect()
+        if (rect.width <= 0 || rect.height <= 0) return []
+        if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) return []
+        return [{ rect, area: rect.width * rect.height, orientation: cursorPanelOrientation(node), playerId }]
+      })
+      .sort((left, right) => left.area - right.area)
+    const match = panels[0]
+    if (!match) return undefined
+    const localPoint = panelLocalPointFromViewportPoint(clientX, clientY, match.rect, match.orientation)
+    return {
+      playerId: match.playerId,
+      x: localPoint.x,
+      y: localPoint.y,
     }
   }
 
@@ -1124,7 +1186,13 @@ function Room() {
   }, [])
 
   function appendCursorPoint(point: RemoteCursorIntentPoint, force = false): void {
-    const next = { ...point, x: clamp01(point.x), y: clamp01(point.y), visible: point.visible === true }
+    const next = {
+      ...point,
+      x: clamp01(point.x),
+      y: clamp01(point.y),
+      visible: point.visible === true,
+      ...(point.panel ? { panel: { ...point.panel, x: clamp01(point.panel.x), y: clamp01(point.panel.y) } } : {}),
+    }
     const now = Date.now()
     const last = cursorPathBufferRef.current[cursorPathBufferRef.current.length - 1]
     if (!force && last && now - cursorLastCaptureAtRef.current < CURSOR_TRACE_THROTTLE_MS && next.visible === last.visible && next.x === last.x && next.y === last.y) return
@@ -1167,11 +1235,18 @@ function Room() {
         || point.visible !== currentPath[index - 1].visible
         || point.at - currentPath[index - 1].at > CURSOR_TRACE_THROTTLE_MS
         || point.x !== currentPath[index - 1].x
-        || point.y !== currentPath[index - 1].y,
+        || point.y !== currentPath[index - 1].y
+        || !sameRemoteCursorPanel(point.panel, currentPath[index - 1].panel),
     )
     const baseAt = compactPath[0]?.at ?? now
     const sample = compactPath[compactPath.length - 1]
-    const pathPayload = compactPath.map((point) => ({ x: point.x, y: point.y, visible: point.visible, at: point.at - baseAt }))
+    const pathPayload = compactPath.map((point) => ({
+      x: point.x,
+      y: point.y,
+      visible: point.visible,
+      at: point.at - baseAt,
+      ...(point.panel ? { panel: point.panel } : {}),
+    }))
     const sendPath = pathPayload.length <= CURSOR_SEND_MAX_PATH_POINTS
       ? pathPayload
       : (() => {
@@ -1188,6 +1263,7 @@ function Room() {
       x: sample.x,
       y: sample.y,
       visible: sample.visible,
+      ...(sample.panel ? { panel: sample.panel } : {}),
       path: sendPath,
       ...(options?.click ? { click: true } : {}),
     })
@@ -1930,14 +2006,25 @@ function Room() {
     const now = Date.now()
     const path = intent.path
     const senderEndAt = path && path.length > 0 ? path[path.length - 1]?.at ?? 0 : 0
+    const normalizePanelPoint = (panel: RemoteCursorPanelPoint | undefined): RemoteCursorPanelPoint | undefined => {
+      if (!panel || !isPlayerId(panel.playerId)) return undefined
+      return { playerId: panel.playerId, x: clamp01(panel.x), y: clamp01(panel.y) }
+    }
     const normalizedPath = path && path.length > 0
-      ? path.map((point) => ({
-          x: clamp01(point.x),
-          y: clamp01(point.y),
-          visible: point.visible === true,
-          at: now - (senderEndAt - (point.at ?? 0)),
-        }))
-      : [{ x: clamp01(intent.x), y: clamp01(intent.y), visible: intent.visible === true, at: now }]
+      ? path.map((point) => {
+          const panel = normalizePanelPoint(point.panel)
+          return {
+            x: clamp01(point.x),
+            y: clamp01(point.y),
+            visible: point.visible === true,
+            at: now - (senderEndAt - (point.at ?? 0)),
+            ...(panel ? { panel } : {}),
+          }
+        })
+      : (() => {
+          const panel = normalizePanelPoint(intent.panel)
+          return [{ x: clamp01(intent.x), y: clamp01(intent.y), visible: intent.visible === true, at: now, ...(panel ? { panel } : {}) }]
+        })()
 
     setRemoteCursors((current) => {
       const previous = current[playerId]
@@ -1961,7 +2048,7 @@ function Room() {
       const clickId = `${playerId}:${now}:${Math.random().toString(36).slice(2, 7)}`
       setRemoteCursorClicks((current) => [
         ...current,
-        { id: clickId, playerId, x: latest.x, y: latest.y, at: now },
+        { id: clickId, playerId, x: latest.x, y: latest.y, panel: latest.panel, at: now },
       ].slice(-REMOTE_CURSOR_CLICK_LIMIT))
       remoteCursorClickTimersRef.current[clickId] = window.setTimeout(() => {
         setRemoteCursorClicks((current) => current.filter((effect) => effect.id !== clickId))
@@ -4502,6 +4589,7 @@ function RemoteCursorLayer({
     const trailPoints = visiblePoints.length > CURSOR_TRAIL_MAX_POINTS ? visiblePoints.slice(-CURSOR_TRAIL_MAX_POINTS) : visiblePoints
     const current = trailPoints[trailPoints.length - 1]
     if (!current) return []
+    const currentDisplay = remoteCursorDisplayPoint(current, shellRect)
     const currentPlayer = roomPlayer(state, id)
     const color = REMOTE_CURSOR_COLORS[id as PlayerId] ?? '#999'
     const playerName = currentPlayer ? displayPlayerName(currentPlayer) : id
@@ -4515,8 +4603,8 @@ function RemoteCursorLayer({
       '--trace-y': string
     } = {
       '--trace-color': color,
-      '--trace-x': `${current.x * 100}%`,
-      '--trace-y': `${current.y * 100}%`,
+      '--trace-x': `${currentDisplay.x * 100}%`,
+      '--trace-y': `${currentDisplay.y * 100}%`,
       left: `${shellRect.left}px`,
       top: `${shellRect.top}px`,
       width: `${shellRect.width}px`,
@@ -4552,6 +4640,7 @@ function RemoteCursorLayer({
   })
   const clicks = clickEffects.map((effect) => {
     const color = REMOTE_CURSOR_COLORS[effect.playerId] ?? '#999'
+    const displayPoint = remoteCursorDisplayPoint(effect, shellRect)
     return (
       <div
         key={effect.id}
@@ -4570,8 +4659,8 @@ function RemoteCursorLayer({
           style={
             {
               '--trace-color': color,
-              '--trace-x': `${effect.x * 100}%`,
-              '--trace-y': `${effect.y * 100}%`,
+              '--trace-x': `${displayPoint.x * 100}%`,
+              '--trace-y': `${displayPoint.y * 100}%`,
             } as CSSProperties
           }
         />
@@ -4580,6 +4669,21 @@ function RemoteCursorLayer({
   })
   if (tracks.length === 0 && clicks.length === 0) return null
   return <div className="remoteCursorLayer remote-trace-layer">{tracks}{clicks}</div>
+}
+
+function remoteCursorDisplayPoint(point: Pick<RemoteCursorPoint, 'x' | 'y' | 'panel'>, shellRect: DOMRect): { x: number; y: number } {
+  if (point.panel && typeof document !== 'undefined') {
+    const panel = document.querySelector<HTMLElement>(`[data-player-panel="${point.panel.playerId}"]`)
+    const rect = panel?.getBoundingClientRect()
+    if (panel && rect && rect.width > 0 && rect.height > 0) {
+      const viewportPoint = panelViewportPointFromLocal(point.panel, rect, cursorPanelOrientation(panel))
+      return {
+        x: clamp01((viewportPoint.x - shellRect.left) / shellRect.width),
+        y: clamp01((viewportPoint.y - shellRect.top) / shellRect.height),
+      }
+    }
+  }
+  return { x: clamp01(point.x), y: clamp01(point.y) }
 }
 
 function TurnNameGlow({ playerId, active, ownTurn }: { playerId: PlayerId; active: boolean; ownTurn: boolean }) {
@@ -4732,6 +4836,7 @@ type RemoteCursorPoint = {
   y: number
   at: number
   visible: boolean
+  panel?: RemoteCursorPanelPoint
 }
 
 type RemoteCursorState = {
@@ -4746,6 +4851,7 @@ type RemoteCursorClickEffect = {
   playerId: PlayerId
   x: number
   y: number
+  panel?: RemoteCursorPanelPoint
   at: number
 }
 
