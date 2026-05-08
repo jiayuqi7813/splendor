@@ -768,6 +768,23 @@ function Room() {
     stateRef.current = state
   }, [seq, state])
 
+  useEffect(() => {
+    const draft = classicTokenDraftRef.current
+    if (state && draft && (draft.playerId !== playerId || !canShowClassicTokenDraft(state, draft.playerId))) {
+      setClassicTokenDraft(undefined)
+    }
+    if (!state) return
+    let remoteChanged = false
+    const nextRemoteDrafts = { ...remoteClassicTokenDraftsRef.current }
+    for (const id of ALL_PLAYER_IDS) {
+      if (nextRemoteDrafts[id] && !canShowClassicTokenDraft(state, id)) {
+        nextRemoteDrafts[id] = undefined
+        remoteChanged = true
+      }
+    }
+    if (remoteChanged) setRemoteClassicTokenDrafts(nextRemoteDrafts)
+  }, [playerId, state])
+
   function clearRemoteActionHints() {
     setRemoteHoverCellId(undefined)
     setRemoteTokenSelection(undefined)
@@ -3266,7 +3283,7 @@ function Room() {
     const classicDraftViews: Partial<Record<PlayerId, ClassicTokenDraftView>> = {}
     for (const id of ALL_PLAYER_IDS) {
       const remoteDraft = remoteClassicTokenDrafts[id]
-      if (remoteDraft) {
+      if (remoteDraft && canShowClassicTokenDraft(state, id)) {
         classicDraftViews[id] = {
           tokenTypes: remoteDraft.tokenTypes,
           confirmable: isClassicDraftConfirmable(remoteDraft),
@@ -3276,18 +3293,24 @@ function Room() {
         }
       }
     }
-    if (classicTokenDraft && isPlayerId(playerId)) {
-      classicDraftViews[playerId] = {
-        tokenTypes: classicTokenDraft.tokenTypes,
-        confirmable: isClassicDraftConfirmable(classicTokenDraft),
+    const viewerPlayerId = isPlayerId(playerId) ? playerId : undefined
+    const activeClassicTokenDraft = classicTokenDraft && viewerPlayerId && canShowClassicTokenDraft(state, viewerPlayerId)
+      ? classicTokenDraft
+      : undefined
+    if (activeClassicTokenDraft && viewerPlayerId) {
+      classicDraftViews[viewerPlayerId] = {
+        tokenTypes: activeClassicTokenDraft.tokenTypes,
+        confirmable: isClassicDraftConfirmable(activeClassicTokenDraft),
         controllable: true,
-        hoverTokenType: classicTokenDraft.hoverTokenType,
-        hoverSlotIndex: classicTokenDraft.hoverSlotIndex,
+        hoverTokenType: activeClassicTokenDraft.hoverTokenType,
+        hoverSlotIndex: activeClassicTokenDraft.hoverSlotIndex,
       }
     }
     const bankDraftTokenTypes = [
-      ...(classicTokenDraft?.tokenTypes ?? []),
-      ...ALL_PLAYER_IDS.flatMap((id) => remoteClassicTokenDrafts[id]?.tokenTypes ?? []),
+      ...(activeClassicTokenDraft?.tokenTypes ?? []),
+      ...ALL_PLAYER_IDS.flatMap((id) => (
+        canShowClassicTokenDraft(state, id) ? (remoteClassicTokenDrafts[id]?.tokenTypes ?? []) : []
+      )),
       ...classicBankMotionTokenTypes,
     ]
     const aiSeatControls =
@@ -3350,7 +3373,7 @@ function Room() {
           revealingReserveIndices={Object.fromEntries(state.playerOrder.map((id) => [id, revealingReserveIndicesFor(id)])) as Partial<Record<PlayerId, number[]>>}
           hiddenReserveIndices={classicHiddenReserveIndices}
           bankDraftTokenTypes={bankDraftTokenTypes}
-          disabledBankTokenTypes={disabledClassicBankTokenTypes(state, playerId, classicTokenDraft)}
+          disabledBankTokenTypes={disabledClassicBankTokenTypes(state, playerId, activeClassicTokenDraft)}
           hiddenBankTokenType={classicTokenCarry?.mode === 'bank' ? classicTokenCarry.tokenType : remoteClassicTokenAnchor?.tokenType ?? (tokenCarry?.classic || remoteGoldAnchor?.classic ? 'gold' : undefined)}
           introBankCounts={state.status === 'waiting' || pendingIntroSeq !== undefined || introAnimation ? (classicIntroBankCounts ?? emptyRouteBankCounts()) : undefined}
           hiddenTokenSlotKeys={[...spendingTokenSlotKeys, ...classicDraftMotionSlotKeys]}
@@ -5696,8 +5719,17 @@ function isClassicDraftConfirmable(draft: ClassicTokenDraft | undefined): boolea
   return false
 }
 
+function canShowClassicTokenDraft(state: GameState, playerId: PlayerId): boolean {
+  return isClassicShellGame(state)
+    && state.status === 'playing'
+    && state.currentPlayer === playerId
+    && !state.pending
+    && !state.winner
+    && !(state.gameType === 'pokemon' && state.turnActions?.mandatoryDone)
+}
+
 function canTakeClassicDraftToken(state: GameState, playerId: PlayerId, draft: ClassicTokenDraft | undefined, tokenType: GemType): boolean {
-  if (!isClassicShellGame(state) || state.status !== 'playing' || state.currentPlayer !== playerId || state.pending || state.winner) return false
+  if (!canShowClassicTokenDraft(state, playerId)) return false
   const currentDraft = draft?.playerId === playerId ? draft : undefined
   const initialCounts = currentDraft?.initialCounts ?? classicGemBankCounts(state)
   const availableNow = classicGemBankCounts(state)[tokenType] - classicDraftCount(currentDraft, tokenType)
