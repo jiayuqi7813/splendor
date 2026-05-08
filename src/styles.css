@@ -1,0 +1,6125 @@
+:root {
+  color-scheme: dark;
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #111312;
+  color: #f5f1e8;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100%;
+  background:
+    radial-gradient(ellipse at 52% 38%, rgba(255, 214, 148, 0.12), transparent 36rem),
+    linear-gradient(90deg, rgba(20, 9, 4, 0.2), transparent 22%, transparent 78%, rgba(20, 9, 4, 0.24)),
+    linear-gradient(180deg, rgba(9, 4, 2, 0.1), rgba(9, 4, 2, 0.2)),
+    var(--table-background-image) center / cover fixed;
+  user-select: none;
+}
+
+button,
+select {
+  font: inherit;
+}
+
+button {
+  border: 1px solid rgba(245, 241, 232, 0.16);
+  background: #272927;
+  color: #f5f1e8;
+  border-radius: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.gameShell,
+.gameShell *,
+.floatingTokenCarry,
+.floatingTokenCarry *,
+.floatingTokenSlotCarry,
+.floatingTokenSlotCarry *,
+.floatingPrivilegeCarry,
+.floatingPrivilegeCarry *,
+.floatingCardCarry,
+.floatingCardCarry *,
+.flyingTakenToken,
+.flyingTakenToken *,
+.flyingReservedCard,
+.flyingReservedCard *,
+.flyingPrivilegeScroll,
+.flyingPrivilegeScroll *,
+.remoteGoldToken,
+.remoteGoldToken *,
+.remotePrivilegeScroll,
+.remotePrivilegeScroll *,
+.introTokenFlight,
+.introTokenFlight *,
+.introCardFlight,
+.introCardFlight *,
+.marketReplacementCardFlight,
+.marketReplacementCardFlight *,
+.introRoyalFlight,
+.introRoyalFlight * {
+  cursor: default !important;
+}
+
+button:not(:disabled):active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.home,
+.loadingScreen,
+.roomErrorScreen {
+  height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow: hidden;
+}
+
+.homeCoverBackground {
+  place-items: center start;
+  padding-left: clamp(18px, 7vw, 104px);
+  background:
+    linear-gradient(90deg, rgba(9, 10, 10, 0.84), rgba(9, 10, 10, 0.58) 35%, rgba(9, 10, 10, 0.2) 66%, rgba(9, 10, 10, 0.46)),
+    linear-gradient(180deg, rgba(9, 10, 10, 0.26), rgba(9, 10, 10, 0.52)),
+    var(--home-cover-image) center / cover;
+}
+
+.homePanel {
+  width: min(520px, 100%);
+  background: rgba(18, 20, 19, 0.78);
+  border: 1px solid rgba(245, 241, 232, 0.14);
+  border-radius: 8px;
+  padding: 28px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(5px);
+}
+
+.roomErrorPanel {
+  width: min(460px, 100%);
+  display: grid;
+  gap: 14px;
+  padding: 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 141, 127, 0.32);
+  background: rgba(20, 22, 21, 0.92);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+}
+
+.roomErrorPanel strong {
+  font-size: 22px;
+}
+
+.roomErrorPanel p {
+  margin: 0;
+  color: #d7cfc2;
+}
+
+.roomErrorPanel div {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.homePanel h1 {
+  margin: 12px 0 10px;
+  font-size: 34px;
+  letter-spacing: 0;
+}
+
+.homePanel p {
+  color: #cfc7b9;
+  line-height: 1.7;
+}
+
+.homeGamePicker {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.homeGamePicker button {
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 10px;
+  white-space: normal;
+}
+
+.homeGamePicker .selectedGameType {
+  color: #111a14;
+  border-color: rgba(177, 255, 217, 0.66);
+  background: rgba(120, 219, 173, 0.9);
+}
+
+.homeGamePicker .comingSoonGameType {
+  opacity: 0.56;
+}
+
+.homePanel > .primaryButton {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.homePanel > .errorText {
+  margin-top: 12px;
+}
+
+.brandMark {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #314b48;
+  color: #f6d37a;
+}
+
+.multiShell {
+  height: 100dvh;
+  overflow: hidden;
+  position: relative;
+  padding: clamp(8px, 1vw, 12px);
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.24), transparent 16%, transparent 84%, rgba(0, 0, 0, 0.24)),
+    radial-gradient(ellipse at 50% 48%, rgba(203, 156, 75, 0.14), transparent 34rem),
+    var(--table-surface-image) center / cover;
+}
+
+.pokemonTable {
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.16), transparent 16%, transparent 84%, rgba(0, 0, 0, 0.16)),
+    radial-gradient(ellipse at 50% 48%, rgba(255, 241, 128, 0.16), transparent 34rem),
+    var(--table-surface-image) center / cover;
+}
+
+.multiTable {
+  height: 100%;
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 48px 118px 154px;
+}
+
+.multiCenter {
+  width: min(1120px, 100%);
+  display: grid;
+  gap: 10px;
+}
+
+.multiBank,
+.multiNobles,
+.multiMarket,
+.multiWaitingPanel,
+.multiActionDock {
+  border: 1px solid rgba(236, 203, 134, 0.18);
+  border-radius: 8px;
+  background: rgba(16, 18, 17, 0.74);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(8px);
+}
+
+.multiBank {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(86px, 1fr)) auto;
+  gap: 8px;
+  padding: 10px;
+  align-items: center;
+}
+
+.multiBankToken {
+  min-width: 0;
+  min-height: 54px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 8px;
+  text-align: left;
+}
+
+.multiBankToken img,
+.miniGemCount img,
+.multiCardBonus img,
+.multiCardCost img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.multiBankToken span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multiBankToken strong {
+  color: #f2d28a;
+}
+
+.selectedBankToken {
+  color: #081713;
+  border-color: rgba(177, 255, 217, 0.66);
+  background: rgba(120, 219, 173, 0.9);
+}
+
+.multiTakeButton {
+  height: 54px;
+}
+
+.multiNobles {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.multiNoble {
+  min-width: 116px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.multiNoble img {
+  grid-row: 1 / span 2;
+  width: 44px;
+  height: 58px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.multiNoble strong {
+  color: #f2d28a;
+  font-size: 20px;
+}
+
+.multiNoble div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 11px;
+  color: #d8cdbc;
+}
+
+.nobleChoiceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+}
+
+.nobleChoiceButton {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid rgba(242, 210, 138, 0.42);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nobleChoiceButton:hover,
+.nobleChoiceButton:focus-visible {
+  border-color: rgba(242, 210, 138, 0.86);
+  background: rgba(242, 210, 138, 0.16);
+}
+
+.multiMarket {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.multiReservedCards {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(120, 219, 173, 0.22);
+  border-radius: 8px;
+  background: rgba(16, 18, 17, 0.72);
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.22);
+}
+
+.multiReservedCards header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #e9dfcf;
+}
+
+.multiReservedCards header span {
+  color: #cfc7b9;
+  font-size: 12px;
+}
+
+.multiReservedCards > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(128px, 1fr));
+  gap: 8px;
+}
+
+.multiReservedCard {
+  display: grid;
+  gap: 6px;
+}
+
+.multiReservedCard button {
+  min-height: 32px;
+}
+
+.multiMarketRow {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 8px;
+  min-height: 126px;
+}
+
+.multiDeck {
+  height: 118px;
+  align-self: start;
+  display: grid;
+  gap: 6px;
+  align-content: center;
+  background:
+    linear-gradient(135deg, rgba(68, 81, 75, 0.34), rgba(25, 28, 27, 0.62)),
+    var(--deck-back-image);
+  background-size: cover;
+  background-position: center;
+}
+
+.multiDeck strong {
+  color: #f2d28a;
+  font-size: 22px;
+}
+
+.multiMarketCards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(118px, 1fr));
+  gap: 8px;
+}
+
+.specialMarketRow .multiMarketCards {
+  grid-template-columns: repeat(2, minmax(118px, 1fr));
+}
+
+.multiCardSlot {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.multiCard {
+  height: 118px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(245, 241, 232, 0.16);
+  border-radius: 8px;
+  background: rgba(34, 38, 36, 0.94);
+}
+
+.multiCardImage,
+.multiCardBackdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.multiCardBackdrop {
+  background:
+    radial-gradient(circle at 72% 28%, rgba(242, 210, 138, 0.22), transparent 38%),
+    linear-gradient(135deg, rgba(49, 75, 72, 0.9), rgba(21, 23, 22, 0.96));
+}
+
+.multiCardTop,
+.multiCardBonus,
+.multiCardCost {
+  position: absolute;
+  z-index: 1;
+}
+
+.multiCardTop {
+  inset: 0 0 auto;
+  min-height: 38px;
+  padding: 6px 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  background: linear-gradient(180deg, rgba(9, 10, 10, 0.76), transparent);
+}
+
+.multiCardTop strong {
+  color: #f2d28a;
+  font-size: 22px;
+}
+
+.multiCardTop span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.multiCardBonus {
+  right: 7px;
+  bottom: 7px;
+  display: flex;
+  gap: 3px;
+}
+
+.multiCardBonus img {
+  width: 24px;
+  height: 24px;
+}
+
+.multiCardCost {
+  left: 6px;
+  bottom: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  max-width: calc(100% - 62px);
+}
+
+.multiCardCost span {
+  min-height: 22px;
+  padding: 1px 4px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(8, 9, 9, 0.72);
+  font-size: 11px;
+}
+
+.multiCardCost img {
+  width: 18px;
+  height: 18px;
+}
+
+.multiCardActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.multiCardActions button {
+  min-height: 30px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.multiSeat {
+  position: absolute;
+  width: 280px;
+}
+
+.multiSeatLeft {
+  left: 4px;
+  top: 50%;
+  transform: translate(-38%, -50%) rotate(90deg);
+}
+
+.multiSeatRight {
+  right: 4px;
+  top: 50%;
+  transform: translate(38%, -50%) rotate(-90deg);
+}
+
+.multiSeatBottomA {
+  left: calc(50% - 294px);
+  bottom: 10px;
+}
+
+.multiSeatBottomB {
+  right: calc(50% - 294px);
+  bottom: 10px;
+}
+
+.multiPlayerPanel {
+  min-height: 128px;
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgba(245, 241, 232, 0.13);
+  border-radius: 8px;
+  background: rgba(18, 20, 19, 0.82);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    0 14px 38px rgba(0, 0, 0, 0.28);
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.multiPlayerPanel.activePlayer {
+  border-color: rgba(120, 219, 173, 0.72);
+  background: rgba(29, 35, 31, 0.86);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 0 0 1px rgba(120, 219, 173, 0.22),
+    0 16px 42px rgba(0, 0, 0, 0.3);
+}
+
+.multiPlayerPanel.viewerPanel {
+  border-color: rgba(236, 203, 134, 0.26);
+}
+
+.multiPlayerPanel.emptyPlayerPanel {
+  border-style: dashed;
+  background: rgba(18, 20, 19, 0.58);
+}
+
+.multiPlayerPanel.pendingPlayer {
+  border-color: rgba(255, 184, 112, 0.64);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.055),
+    0 0 0 1px rgba(255, 184, 112, 0.18),
+    0 16px 42px rgba(0, 0, 0, 0.3);
+}
+
+.multiPlayerPanel header,
+.multiScoreLine,
+.multiTokenLine,
+.multiBonusLine,
+.multiReserveLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.multiPlayerPanel header {
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.multiPlayerPanel header strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multiScoreLine span,
+.multiReserveLine span {
+  color: #cfc7b9;
+  font-size: 12px;
+}
+
+.multiPlayerStatus {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.multiPlayerStatus span {
+  min-height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(245, 241, 232, 0.12);
+  background: rgba(255, 255, 255, 0.055);
+  color: #cfc7b9;
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.seatMoveButton {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #e9dfcf;
+  background: rgba(255, 255, 255, 0.065);
+  border-color: rgba(236, 203, 134, 0.18);
+  font-size: 12px;
+}
+
+.seatMoveButton:not(:disabled):hover {
+  border-color: rgba(120, 219, 173, 0.56);
+  background: rgba(49, 75, 72, 0.56);
+}
+
+.multiPlayerStatus .multiViewerBadge {
+  color: #20170e;
+  border-color: rgba(255, 224, 155, 0.58);
+  background: rgba(224, 182, 94, 0.86);
+}
+
+.multiPlayerStatus .multiTurnBadge {
+  color: #081713;
+  border-color: rgba(177, 255, 217, 0.66);
+  background: rgba(120, 219, 173, 0.9);
+}
+
+.multiPlayerStatus .multiPendingBadge {
+  color: #26130c;
+  border-color: rgba(255, 218, 174, 0.68);
+  background: rgba(255, 184, 112, 0.9);
+}
+
+.multiScoreLine,
+.multiReserveLine {
+  justify-content: space-between;
+}
+
+.multiScoreLine strong {
+  color: #f2d28a;
+}
+
+.multiProgressTrack {
+  height: 5px;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.multiProgressTrack span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #c8964a, #ffe2a1);
+  transform-origin: left center;
+  transition: transform 180ms ease;
+}
+
+.multiReservedMiniLine {
+  display: flex;
+  gap: 5px;
+  min-height: 38px;
+  overflow: hidden;
+}
+
+.reservedMiniCard {
+  width: 28px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(245, 241, 232, 0.18);
+  border-radius: 4px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f2d28a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.reservedMiniCard img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.multiTokenLine,
+.multiBonusLine {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.miniGemCount {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 12px;
+}
+
+.miniGemCount img {
+  width: 20px;
+  height: 20px;
+}
+
+.bonusDot {
+  min-width: 28px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 12px;
+}
+
+.multiWaitingPanel {
+  width: min(520px, 100%);
+  justify-self: center;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 28px;
+  text-align: center;
+}
+
+.multiWaitingPanel strong {
+  font-size: 24px;
+}
+
+.multiWaitingPanel p {
+  margin: 0;
+  color: #cfc7b9;
+}
+
+.multiWaitingPanel div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.multiWaitingPanel span {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.07);
+  color: #cfc7b9;
+}
+
+.multiWaitingPanel .readySeatPill {
+  color: #081713;
+  background: rgba(120, 219, 173, 0.88);
+}
+
+.multiActionDock {
+  position: absolute;
+  z-index: 24;
+  left: 50%;
+  bottom: 150px;
+  transform: translateX(-50%);
+  width: min(560px, calc(100vw - 28px));
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.discardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.discardGrid label {
+  display: grid;
+  gap: 4px;
+  color: #cfc7b9;
+  font-size: 12px;
+}
+
+.discardGrid input {
+  min-width: 0;
+  height: 34px;
+  border: 1px solid rgba(245, 241, 232, 0.16);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.18);
+  color: #f5f1e8;
+  padding: 0 8px;
+}
+
+.evolutionTargets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
+}
+
+.evolutionTarget {
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+@media (max-width: 980px) {
+  .multiTable {
+    overflow-y: auto;
+    padding: 54px 10px 250px;
+    align-items: start;
+  }
+
+  .multiCenter {
+    margin-top: 0;
+  }
+
+  .multiSeat {
+    position: fixed;
+    z-index: 10;
+    width: calc(50vw - 16px);
+    transform: none;
+  }
+
+  .multiSeatLeft,
+  .multiSeatRight {
+    top: auto;
+    left: auto;
+    right: auto;
+  }
+
+  .multiSeatLeft {
+    left: 8px;
+    bottom: 144px;
+  }
+
+  .multiSeatRight {
+    right: 8px;
+    bottom: 144px;
+  }
+
+  .multiSeatBottomA {
+    left: 8px;
+    bottom: 8px;
+  }
+
+  .multiSeatBottomB {
+    right: 8px;
+    bottom: 8px;
+  }
+
+  .multiBank {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .multiTakeButton {
+    grid-column: 1 / -1;
+  }
+
+  .multiMarketRow,
+  .multiMarketCards,
+  .specialMarketRow .multiMarketCards,
+  .multiReservedCards > div {
+    grid-template-columns: 1fr;
+  }
+
+  .multiDeck {
+    height: 56px;
+  }
+}
+
+.primaryButton {
+  min-height: 44px;
+  background: #b88a36;
+  color: #181818;
+  font-weight: 700;
+}
+
+.ghostButton {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gameShell {
+  --board-size: clamp(258px, 34dvh, 356px);
+  --board-hint-height: clamp(34px, 4.8dvh, 48px);
+  --board-hint-gap: clamp(5px, 0.7dvh, 8px);
+  --board-play-size: calc(var(--board-size) - var(--board-hint-height) - var(--board-hint-gap));
+  --board-gap: clamp(5px, 0.9dvh, 9px);
+  --board-pad: clamp(10px, 1.6dvh, 16px);
+  --board-cell-size: calc((var(--board-play-size) - var(--board-pad) - var(--board-pad) - var(--board-gap) - var(--board-gap) - var(--board-gap) - var(--board-gap)) / 5);
+  --board-token-size: min(calc(var(--board-cell-size) * 0.72), 58px);
+  height: 100dvh;
+  padding: clamp(6px, 0.8vw, 10px);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+  position: relative;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.22), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.22)),
+    radial-gradient(circle at 50% 54%, rgba(0, 0, 0, 0.12), transparent 38rem),
+    var(--table-surface-image) center / cover;
+}
+
+.gameHud {
+  position: absolute;
+  z-index: 18;
+  top: clamp(8px, 1vw, 12px);
+  left: clamp(8px, 1vw, 12px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(720px, calc(100vw - 24px));
+  pointer-events: none;
+}
+
+.roomOps {
+  position: absolute;
+  z-index: 18;
+  top: clamp(8px, 1vw, 12px);
+  right: clamp(8px, 1vw, 12px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gameHud span,
+.gameHud strong {
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(236, 203, 134, 0.2);
+  background: rgba(13, 16, 15, 0.56);
+  color: #e9dfcf;
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.gameHud strong {
+  color: #1b1710;
+  background: rgba(224, 182, 94, 0.86);
+  border-color: rgba(255, 224, 155, 0.58);
+}
+
+.myTurn .gameHud strong,
+.viewerTurn .gameHud strong {
+  color: #081713;
+  background: rgba(120, 219, 173, 0.9);
+  border-color: rgba(177, 255, 217, 0.66);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.18),
+    0 0 18px rgba(120, 219, 173, 0.24);
+}
+
+.hudIconButton {
+  width: 34px;
+  height: 34px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 999px;
+  border-color: rgba(236, 203, 134, 0.22);
+  background: rgba(13, 16, 15, 0.56);
+  color: #e9dfcf;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.hudIconButton:not(:disabled):hover {
+  border-color: rgba(236, 203, 134, 0.46);
+  background: rgba(49, 75, 72, 0.68);
+}
+
+.hudIconButton.activeHudIconButton {
+  color: #111a14;
+  border-color: rgba(177, 255, 217, 0.66);
+  background: rgba(120, 219, 173, 0.9);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.18),
+    0 0 18px rgba(120, 219, 173, 0.24);
+}
+
+.hudTextButton {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border-color: rgba(236, 203, 134, 0.22);
+  background: rgba(13, 16, 15, 0.56);
+  color: rgba(233, 223, 207, 0.58);
+  font-size: 13px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.hudTextButton.activeHudTextButton {
+  color: #101815;
+  border-color: rgba(177, 255, 217, 0.7);
+  background: rgba(120, 219, 173, 0.92);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.18),
+    0 0 20px rgba(120, 219, 173, 0.26);
+}
+
+.startHudIconButton:not(:disabled) {
+  color: #081713;
+  border-color: rgba(177, 255, 217, 0.66);
+  background: rgba(120, 219, 173, 0.9);
+}
+
+.aiDifficultyControl {
+  min-height: 34px;
+  width: 190px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(236, 203, 134, 0.22);
+  background: rgba(13, 16, 15, 0.56);
+  color: #e9dfcf;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.aiDifficultyControl span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aiDifficultyControl input {
+  width: 100%;
+  accent-color: #78dbad;
+  cursor: pointer;
+}
+
+.modalScrim {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.54);
+  backdrop-filter: blur(4px);
+}
+
+.aiSetupDialog {
+  width: min(360px, calc(100vw - 32px));
+  padding: 16px;
+  border: 1px solid rgba(236, 203, 134, 0.28);
+  border-radius: 8px;
+  background: rgba(19, 21, 20, 0.96);
+  color: #e9dfcf;
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.44);
+  display: grid;
+  gap: 12px;
+}
+
+.aiSetupDialog header,
+.aiSetupDialog footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.aiSetupDialog header strong {
+  font-size: 16px;
+}
+
+.aiSetupDialog footer {
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+.aiSetupDialog footer button {
+  min-height: 36px;
+  padding: 0 14px;
+}
+
+.dialogIconButton {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(236, 203, 134, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  color: #e9dfcf;
+  display: grid;
+  place-items: center;
+}
+
+.dialogDifficultyControl {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 8px;
+  grid-template-columns: 78px minmax(0, 1fr);
+}
+
+.dialogCheckbox {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid rgba(236, 203, 134, 0.18);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+}
+
+.dialogCheckbox input {
+  width: 16px;
+  height: 16px;
+  accent-color: #78dbad;
+}
+
+.splendorFourShell {
+  --splendor-table-slice: 245;
+  --splendor-table-border-width: clamp(112px, 16vmin, 230px);
+  --board-size: clamp(238px, 31dvh, 320px);
+  --board-play-size: var(--board-size);
+  --board-cell-size: calc((var(--board-play-size) - var(--board-pad) - var(--board-pad) - var(--board-gap) * 4) / 5);
+  --classic-token-size: 26px;
+  --classic-token-slot-size: 30px;
+  --classic-token-slot-gap: 4px;
+  --splendor-seat-width: clamp(520px, 42vw, 620px);
+  --splendor-seat-height: clamp(270px, 34dvh, 340px);
+  --splendor-seat-width-half: clamp(260px, 21vw, 310px);
+  --splendor-seat-height-half: calc(var(--splendor-seat-height) / 2);
+  --splendor-player-gap: clamp(12px, 1.6dvh, 20px);
+  --splendor-bottom-center-gap: calc(var(--splendor-player-gap) / 2);
+  isolation: isolate;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.2), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.2)),
+    radial-gradient(circle at 50% 54%, rgba(0, 0, 0, 0.1), transparent 38rem),
+    #30170c;
+}
+
+.pokemonShell {
+  --splendor-seat-width: clamp(500px, 40vw, 625px);
+  --splendor-seat-height: clamp(266px, 31.5dvh, 336px);
+  --splendor-seat-width-half: clamp(250px, 20vw, 312.5px);
+  --splendor-seat-height-half: calc(var(--splendor-seat-height) / 2);
+  --splendor-player-gap: clamp(4px, 0.7dvh, 10px);
+}
+
+.pokemonShell .splendorTableLayout {
+  padding:
+    calc(clamp(46px, 5.2dvh, 62px) + env(safe-area-inset-top))
+    calc(var(--splendor-seat-height) + var(--splendor-player-gap) - 12px)
+    calc(var(--splendor-seat-height) + var(--splendor-player-gap) + 2px);
+}
+
+.splendorFourShell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-style: solid;
+  border-width: var(--splendor-table-border-width);
+  border-image-source: var(--table-surface-image);
+  border-image-slice: var(--splendor-table-slice) fill;
+  border-image-width: var(--splendor-table-border-width);
+  border-image-repeat: stretch;
+}
+
+.splendorTableLayout {
+  z-index: 1;
+  height: 100%;
+  min-height: 0;
+  position: relative;
+  padding:
+    40px
+    calc(var(--splendor-seat-height) + var(--splendor-player-gap) + 10px)
+    calc(var(--splendor-seat-height) + var(--splendor-player-gap) + 12px);
+  display: grid;
+  place-items: start center;
+}
+
+.splendorCenterAnchor {
+  --splendor-bank-stack-width: clamp(44px, 5.1dvh, 62px);
+  --classic-card-ratio: 0.7142857;
+  --market-card-width: clamp(64px, 9.6dvh, 98px);
+  --market-card-height: calc(var(--market-card-width) / var(--classic-card-ratio));
+  --classic-noble-size: var(--market-card-width);
+  --market-column-gap: clamp(8px, 0.95vw, 12px);
+  --market-row-gap: clamp(7px, 0.95dvh, 11px);
+  --splendor-center-gap: clamp(9px, 1.1dvh, 14px);
+  --splendor-market-height: calc(var(--classic-noble-size) + 8px + var(--market-card-height) * 3 + var(--market-row-gap) * 2);
+  --splendor-bank-top: calc(var(--splendor-market-height) + var(--splendor-center-gap));
+  position: relative;
+  width: max-content;
+  min-width: 0;
+  justify-self: center;
+  align-self: start;
+}
+
+.pokemonShell .splendorCenterAnchor {
+  --classic-card-ratio: 0.75;
+  --market-card-width: clamp(64px, 9.1dvh, 96px);
+  --market-card-height: calc(var(--market-card-width) / var(--classic-card-ratio));
+  --classic-noble-size: var(--market-card-width);
+  --splendor-market-height: calc(var(--market-card-height) * 4 + 8px + var(--market-row-gap) * 3);
+}
+
+.splendorCenterTable {
+  --splendor-bank-stack-width: clamp(44px, 5.1dvh, 62px);
+  width: max-content;
+  min-height: 0;
+  display: grid;
+  grid-template-areas:
+    'market'
+    'bank';
+  grid-template-columns: max-content;
+  grid-template-rows: auto auto;
+  gap: var(--splendor-center-gap);
+  align-items: start;
+  justify-content: center;
+}
+
+.splendorBankPanel {
+  grid-area: bank;
+  min-width: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(6, var(--splendor-bank-stack-width));
+  gap: clamp(12px, 1.4vw, 18px);
+  align-content: start;
+  justify-content: center;
+}
+
+.splendorBankPile {
+  min-width: 0;
+  min-height: 0;
+  padding: 2px 0;
+  display: grid;
+  place-items: center;
+}
+
+.splendorFourShell.myTurn .splendorBankPile:hover {
+  filter: brightness(1.08);
+}
+
+.splendorBankPile.remoteHover {
+  filter: brightness(1.08);
+}
+
+.splendorBankPile.goldDraggable,
+.splendorBankPile.bankTokenDraggable {
+  cursor: default;
+  touch-action: none;
+}
+
+.splendorBankPile.goldDraggable:active,
+.splendorBankPile.bankTokenDraggable:active {
+  cursor: default;
+}
+
+.splendorBankPile.bankTokenDisabled {
+  filter: grayscale(0.9) brightness(0.62);
+  opacity: 0.72;
+}
+
+.splendorFourShell.myTurn .splendorBankPile:hover .splendorStackedToken:last-of-type:not(.splendorEmptyBankToken),
+.splendorBankPile.remoteHover .splendorStackedToken:last-of-type:not(.splendorEmptyBankToken) {
+  transform: translateX(-50%) translateY(-3px) rotate(calc((var(--stack-index) - 1) * 0.28deg));
+  filter:
+    drop-shadow(0 0 10px rgba(255, 216, 112, 0.28))
+    drop-shadow(0 8px 12px rgba(0, 0, 0, 0.32));
+}
+
+.splendorFourShell.myTurn .splendorSeat > .playerPanel.viewerPanel .tokenSlot:hover .tokenImage {
+  transform: translateY(-3px) scale(1.04);
+  filter: saturate(1.08) brightness(1.04);
+  box-shadow:
+    0 0 12px rgba(255, 216, 112, 0.18),
+    0 8px 12px rgba(0, 0, 0, 0.28);
+}
+
+.splendorBankPile.carryHidden .splendorStackedToken {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-5px) scale(0.84);
+}
+
+.splendorBankPile.bankTopTokenHidden .splendorStackedToken:last-of-type {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-5px) scale(0.84);
+}
+
+.splendorTokenStack {
+  position: relative;
+  width: var(--splendor-bank-stack-width, clamp(40px, 4.4vw, 56px));
+  height: clamp(35px, 4dvh, 49px);
+}
+
+.splendorStackedToken {
+  --stack-index: 0;
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--stack-index) * var(--stack-index) * 0.9px);
+  width: var(--classic-token-size);
+  height: var(--classic-token-size);
+  display: grid;
+  place-items: center;
+  transform: translateX(-50%) rotate(calc((var(--stack-index) - 1) * 0.28deg));
+  filter: drop-shadow(0 5px 8px rgba(0, 0, 0, 0.28));
+  z-index: var(--stack-index);
+  transition:
+    opacity 160ms ease,
+    transform 180ms ease,
+    filter 180ms ease;
+}
+
+.splendorStackedToken .tokenImage {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.splendorEmptyBankToken {
+  opacity: 0.34;
+  filter: grayscale(1) brightness(0.48) contrast(0.84);
+}
+
+.splendorEmptyBankToken .tokenImage {
+  mix-blend-mode: luminosity;
+}
+
+.splendorTokenStack > strong {
+  position: absolute;
+  top: -4px;
+  right: 0;
+  z-index: 4;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  background: var(--classic-bank-badge-bg, rgba(10, 12, 11, 0.72));
+  color: var(--classic-bank-badge-fg, #fff8dc);
+  font-size: 11px;
+  line-height: 1;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.26);
+}
+
+.splendorBankPile.bankPile-white {
+  --classic-bank-badge-bg: linear-gradient(180deg, #f7f2df, #d8d1b9);
+  --classic-bank-badge-fg: #211f19;
+}
+
+.splendorBankPile.bankPile-blue {
+  --classic-bank-badge-bg: linear-gradient(180deg, #357edc, #164c9f);
+}
+
+.splendorBankPile.bankPile-green {
+  --classic-bank-badge-bg: linear-gradient(180deg, #42a85f, #1f7439);
+}
+
+.splendorBankPile.bankPile-red {
+  --classic-bank-badge-bg: linear-gradient(180deg, #d34a42, #94231f);
+}
+
+.splendorBankPile.bankPile-brown {
+  --classic-bank-badge-bg: linear-gradient(180deg, #4a4b51, #202228);
+}
+
+.splendorBankPile.bankPile-gold {
+  --classic-bank-badge-bg: linear-gradient(180deg, #f1c94f, #b88718);
+  --classic-bank-badge-fg: #271c08;
+}
+
+.pokemonShell .splendorBankPile.bankPile-white {
+  --classic-bank-badge-bg: linear-gradient(180deg, #ffd2de, #e981a0);
+  --classic-bank-badge-fg: #34131f;
+}
+
+.pokemonShell .splendorBankPile.bankPile-blue {
+  --classic-bank-badge-bg: linear-gradient(180deg, #4e91f0, #1f58bb);
+  --classic-bank-badge-fg: #f7fbff;
+}
+
+.pokemonShell .splendorBankPile.bankPile-green {
+  --classic-bank-badge-bg: linear-gradient(180deg, #ffe768, #e7b914);
+  --classic-bank-badge-fg: #211a04;
+}
+
+.pokemonShell .splendorBankPile.bankPile-red {
+  --classic-bank-badge-bg: linear-gradient(180deg, #f35b55, #bf231d);
+  --classic-bank-badge-fg: #fff8f4;
+}
+
+.pokemonShell .splendorBankPile.bankPile-brown {
+  --classic-bank-badge-bg: linear-gradient(180deg, #32343d, #111216);
+  --classic-bank-badge-fg: #ffe47a;
+}
+
+.pokemonShell .splendorBankPile.bankPile-gold {
+  --classic-bank-badge-bg: linear-gradient(180deg, #b780f0, #6b3abc);
+  --classic-bank-badge-fg: #fff7ff;
+}
+
+.splendorMarketPreview {
+  --market-gap: clamp(5px, 0.68dvh, 8px);
+  grid-area: market;
+  min-width: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: calc(var(--market-card-width) * 5 + var(--market-column-gap) * 4);
+  grid-template-rows: var(--classic-noble-size) auto;
+  gap: 8px;
+  align-items: start;
+  justify-content: start;
+}
+
+.splendorMarketPreview .marketPool {
+  grid-template-rows: repeat(3, var(--market-card-height));
+  align-content: start;
+}
+
+.splendorMarketPreview .marketRow {
+  grid-template-columns: var(--market-card-width) minmax(0, calc(var(--market-card-width) * 4 + var(--market-column-gap) * 3));
+  gap: var(--market-column-gap);
+  min-height: var(--market-card-height);
+}
+
+.splendorMarketPreview .marketCards {
+  grid-template-columns: repeat(4, var(--market-card-width));
+  grid-auto-flow: initial;
+}
+
+.splendorMarketPreview .deckStack {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+}
+
+.splendorMarketPreview .deckStack .deckBack {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #151716;
+}
+
+.splendorMarketPreview .marketCard .classicCard,
+.splendorMarketPreview .deckStack .deckBack {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+}
+
+.splendorMarketPreview .emptyMarket {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+}
+
+.splendorMarketPreview .marketCard.cardDraggable,
+.splendorMarketPreview .deckStack.deckReservable {
+  cursor: default;
+}
+
+.splendorMarketPreview .royalCardSlot.selectableRoyalCard {
+  cursor: default;
+}
+
+.splendorMarketPreview .marketCard.cardCarryHidden {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.splendorMarketPreview .deckStack.deckCarryHidden {
+  opacity: 1;
+  transform: none;
+}
+
+.splendorMarketPreview .deckStack.goldTargetedDeck .deckBack,
+.splendorMarketPreview .marketCard.goldTargetedCard .classicCard {
+  filter: saturate(1.12) brightness(1.05);
+}
+
+.classicCard {
+  aspect-ratio: var(--classic-card-ratio, 0.7142857);
+  background: #151716;
+}
+
+.classicCard img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.classicCardHorizontal img {
+  transform: rotate(90deg);
+}
+
+.classicNobleCard {
+  aspect-ratio: 1;
+  width: var(--classic-noble-size, var(--market-card-width));
+  height: var(--classic-noble-size, var(--market-card-width));
+}
+
+.classicTokenImage {
+  object-fit: cover;
+}
+
+.splendorScoreBadge {
+  min-width: clamp(54px, 7dvh, 72px);
+  padding: 0 7px;
+  display: grid;
+  grid-template-columns: auto minmax(22px, 1fr);
+  gap: 7px;
+  align-items: center;
+  border-radius: 7px;
+  border: 1px solid rgba(236, 203, 134, 0.16);
+  background: rgba(10, 12, 11, 0.28);
+}
+
+.splendorScoreBadge strong {
+  color: #f7edcf;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.splendorScoreBadge span {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #c8964a, #ffe2a1);
+  transform-origin: left center;
+}
+
+.splendorBonusLine {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.splendorBonusLine span {
+  min-width: 0;
+  min-height: 24px;
+  padding: 2px 5px;
+  display: grid;
+  grid-template-columns: clamp(16px, 2.4dvh, 22px) auto;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 7px;
+  border: 1px solid rgba(236, 203, 134, 0.12);
+  background: rgba(10, 12, 11, 0.22);
+}
+
+.splendorBonusLine .tokenImage {
+  width: clamp(16px, 2.4dvh, 22px);
+  height: clamp(16px, 2.4dvh, 22px);
+}
+
+.splendorBonusLine strong {
+  color: #f7edcf;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.splendorMarketPreview .splendorRoyals {
+  grid-template-columns: repeat(5, var(--market-card-width));
+  grid-template-rows: var(--classic-noble-size);
+  justify-content: start;
+  align-content: start;
+  min-height: var(--classic-noble-size);
+}
+
+.pokemonShell .splendorMarketPreview .splendorRoyals {
+  grid-template-rows: var(--market-card-height);
+  min-height: var(--market-card-height);
+}
+
+.pokemonShell .splendorMarketPreview {
+  grid-template-rows: var(--market-card-height) auto;
+}
+
+.splendorMarketPreview .royalCardSlot {
+  grid-column: var(--royal-slot-column, auto);
+  grid-row: 1;
+  width: var(--classic-noble-size);
+  height: var(--classic-noble-size);
+  justify-self: center;
+  align-self: center;
+}
+
+.splendorMarketPreview .royalCardSlot .classicNobleCard {
+  width: var(--classic-noble-size);
+  height: var(--classic-noble-size);
+  aspect-ratio: 1;
+}
+
+.splendorMarketPreview .royalCardSlot .classicNobleCard img {
+  object-fit: contain;
+}
+
+.splendorFourShell.introLayout .splendorMarketPreview .splendorRoyals {
+  grid-template-columns: repeat(5, var(--market-card-width));
+  justify-content: start;
+}
+
+.splendorFourShell.introLayout .splendorMarketPreview .splendorRoyals .royalCardSlot {
+  grid-column: 1;
+  grid-row: 1;
+  transform: translate(calc(var(--stack-i, 0) * 3px), calc(var(--stack-i, 0) * -2px)) rotate(calc((var(--stack-i, 0) - 2) * 0.45deg));
+  z-index: calc(6 - var(--stack-i, 0));
+}
+
+.splendorFourShell.introLayout .splendorMarketPreview .splendorRoyals .royalCardSlot:nth-child(1) {
+  --stack-i: 0;
+}
+
+.splendorFourShell.introLayout .splendorMarketPreview .splendorRoyals .royalCardSlot:nth-child(2) {
+  --stack-i: 1;
+}
+
+.splendorFourShell.introLayout .splendorMarketPreview .splendorRoyals .royalCardSlot:nth-child(3) {
+  --stack-i: 2;
+}
+
+.splendorFourShell.introLayout .splendorMarketPreview .splendorRoyals .royalCardSlot:nth-child(4) {
+  --stack-i: 3;
+}
+
+.splendorFourShell.introLayout .splendorMarketPreview .splendorRoyals .royalCardSlot:nth-child(5) {
+  --stack-i: 4;
+}
+
+.splendorFourShell.introLayout .splendorMarketPreview .splendorRoyals .splendorRoyalBackStack {
+  grid-column: 1;
+  grid-row: 1;
+  opacity: 1;
+  transform: none;
+  z-index: 8;
+}
+
+.splendorFourShell.introLayout .splendorMarketPreview .splendorRoyals .royalCardSlot:not(.splendorRoyalBackStack) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splendorFourShell.introAnimating .splendorMarketPreview .splendorRoyals {
+  grid-template-columns: repeat(5, var(--market-card-width));
+}
+
+.splendorFourShell.introAnimating .splendorMarketPreview .splendorRoyals .royalCardSlot {
+  grid-column: var(--royal-slot-column, auto);
+  grid-row: 1;
+  transform: none;
+}
+
+.splendorFourShell.introAnimating .splendorMarketPreview .splendorRoyals .splendorRoyalBackStack {
+  grid-column: 1;
+  grid-row: 1;
+  opacity: 1;
+  visibility: visible;
+}
+
+.splendorMarketPreview .splendorRoyalBackStack {
+  grid-column: 1;
+  grid-row: 1;
+  position: relative;
+  pointer-events: none;
+}
+
+.splendorMarketPreview .pokemonSpecialGroup {
+  display: contents;
+}
+
+.splendorMarketPreview .pokemonSpecialSlot,
+.splendorMarketPreview .pokemonSpecialDeckStack,
+.splendorMarketPreview .pokemonSpecialFace,
+.splendorMarketPreview .pokemonEvolutionPile {
+  grid-column: var(--royal-slot-column, auto);
+  grid-row: 1;
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+  justify-self: center;
+  align-self: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  position: relative;
+  transform: none;
+}
+
+.splendorMarketPreview .pokemonSpecialFace .classicCard,
+.splendorMarketPreview .pokemonSpecialDeckStack .reserveCardBack,
+.splendorMarketPreview .pokemonEvolutionPile .reserveCardBack {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+}
+
+.splendorMarketPreview .pokemonSpecialFace {
+  transition:
+    transform 180ms ease,
+    filter 180ms ease;
+  cursor: default;
+  touch-action: none;
+}
+
+.splendorMarketPreview .pokemonSpecialFace.cardDraggable {
+  cursor: grab;
+}
+
+.pokemonShell.myTurn .splendorMarketPreview .pokemonSpecialFace:hover,
+.splendorMarketPreview .pokemonSpecialFace.remoteHover {
+  transform: translateY(-6px);
+  z-index: 4;
+  filter: saturate(1.08);
+}
+
+.splendorMarketPreview .pokemonSpecialFace.goldTargetedCard {
+  z-index: 7;
+  transform: translateY(-6px);
+  filter: saturate(1.12) brightness(1.05) drop-shadow(0 0 12px rgba(255, 213, 103, 0.34));
+}
+
+.splendorMarketPreview .pokemonSpecialFace.goldTargetedCard::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 7px;
+  border: 2px solid rgba(255, 219, 115, 0.82);
+  box-shadow:
+    0 0 0 2px rgba(92, 52, 18, 0.18),
+    0 0 18px rgba(255, 218, 106, 0.42);
+  pointer-events: none;
+}
+
+.splendorMarketPreview .pokemonSpecialFace.cardDraggable:active {
+  cursor: grabbing;
+}
+
+.splendorMarketPreview .pokemonSpecialFace.cardCarryHidden {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.pokemonShell.introLayout .splendorMarketPreview .pokemonSpecialFace {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splendorMarketPreview .pokemonEvolutionPile {
+  opacity: 0.52;
+  filter: grayscale(1) saturate(0.55);
+}
+
+.splendorMarketPreview .pokemonEvolutionPile.filledEvolutionPile {
+  opacity: 0.76;
+}
+
+.splendorRoyalBackCard {
+  position: absolute;
+  inset: 0;
+  transform: translate(calc((var(--i, 0) * var(--i, 0)) * 0.18px + var(--i, 0) * 1.2px), calc(var(--i, 0) * -0.9px)) rotate(calc((var(--i, 0) - 1) * 0.35deg));
+  z-index: var(--i, 0);
+}
+
+.splendorRoyalBackCard .reserveCardBack {
+  width: var(--classic-noble-size);
+  height: var(--classic-noble-size);
+}
+
+.pokemonSpecialBackCard {
+  position: absolute;
+  inset: 0;
+  transform: translate(calc(var(--i, 0) * 1.4px), calc(var(--i, 0) * -1px)) rotate(calc((var(--i, 0) - 1) * 0.35deg));
+  z-index: var(--i, 0);
+}
+
+.splendorMarketPreview .pokemonSpecialDeckStack .pokemonSpecialBackCard .reserveCardBack,
+.splendorMarketPreview .pokemonSpecialDeckStack .pokemonSpecialBackCard .deckBack {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+}
+
+.splendorSeat {
+  position: absolute;
+  width: var(--splendor-seat-width);
+  height: var(--splendor-seat-height);
+  transform-origin: center;
+}
+
+.splendorSeat.splendorEmptySeatHidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.splendorSeat > .playerPanel {
+  --classic-card-ratio: 0.7142857;
+  --player-card-width: clamp(42px, 5.8dvh, 66px);
+  --player-card-height: calc(var(--player-card-width) / var(--classic-card-ratio));
+  --market-card-width: clamp(64px, 9.6dvh, 98px);
+  --market-card-height: calc(var(--market-card-width) / var(--classic-card-ratio));
+  --purchased-stack-step: clamp(18px, 3.1dvh, 30px);
+  --splendor-reserve-slot-width: var(--player-card-height);
+  --splendor-reserve-slot-height: var(--player-card-width);
+  --splendor-token-column-width: calc(var(--classic-token-slot-size) * 2 + var(--classic-token-slot-gap));
+  --splendor-overflow-token-column-width: calc(var(--classic-token-slot-size) + 12px);
+  --board-cell-size: var(--classic-token-size);
+  --board-token-size: var(--classic-token-size);
+  --board-gap: var(--classic-token-slot-gap);
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr) var(--splendor-token-column-width);
+  grid-template-rows: var(--splendor-reserve-slot-height) minmax(0, 1fr);
+  column-gap: clamp(8px, 0.9vw, 12px);
+  row-gap: 6px;
+  overflow: visible;
+}
+
+.pokemonShell .splendorSeat > .playerPanel {
+  --classic-card-ratio: 0.75;
+  --player-card-width: clamp(42px, 5.7dvh, 64px);
+  --player-card-height: calc(var(--player-card-width) / var(--classic-card-ratio));
+  --market-card-width: clamp(61px, 8.5dvh, 88px);
+  --market-card-height: calc(var(--market-card-width) / var(--classic-card-ratio));
+  --purchased-stack-step: clamp(14px, 2dvh, 20px);
+  --pokemon-purchased-gap: clamp(4px, 0.55vw, 7px);
+  --pokemon-purchased-width: calc(var(--market-card-width) * 5 + var(--pokemon-purchased-gap) * 4);
+  --pokemon-token-column-gap: clamp(8px, 0.8vw, 12px);
+  grid-template-columns: var(--pokemon-purchased-width) var(--pokemon-token-column-gap) var(--splendor-token-column-width);
+  justify-content: end;
+  column-gap: 0;
+}
+
+.splendorSeatBottomLeft {
+  top: calc(100% + var(--splendor-player-gap));
+  left: calc(50% - var(--splendor-bottom-center-gap) - var(--splendor-seat-width));
+}
+
+.splendorSeatBottomRight {
+  top: calc(100% + var(--splendor-player-gap));
+  left: calc(50% + var(--splendor-bottom-center-gap));
+}
+
+.splendorSeatLeft {
+  left: calc(0px - var(--splendor-seat-width-half) - var(--splendor-seat-height-half) - var(--splendor-player-gap));
+  top: calc(100% - var(--splendor-seat-width-half) - var(--splendor-seat-height-half));
+  transform: rotate(90deg);
+}
+
+.splendorSeatRight {
+  right: calc(0px - var(--splendor-seat-width-half) - var(--splendor-seat-height-half) - var(--splendor-player-gap));
+  top: calc(100% - var(--splendor-seat-width-half) - var(--splendor-seat-height-half));
+  transform: rotate(-90deg);
+}
+
+.splendorSeatMoveButton {
+  position: absolute;
+  z-index: 4;
+  top: -14px;
+  left: 10px;
+  right: auto;
+  width: auto;
+  min-width: 58px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(13, 16, 15, 0.74);
+  backdrop-filter: blur(6px);
+}
+
+.splendorSeatMoveButton span {
+  display: inline;
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.splendorSeatAiControls {
+  position: absolute;
+  z-index: 4;
+  top: -14px;
+  left: 78px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 6px 0 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(236, 203, 134, 0.18);
+  background: rgba(13, 16, 15, 0.74);
+  backdrop-filter: blur(6px);
+}
+
+.splendorSeatAiControls.withoutMoveButton {
+  left: 10px;
+}
+
+.splendorSeatAiDifficulty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 132px;
+  color: #e9dfcf;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.splendorSeatAiDifficulty input {
+  width: 76px;
+  accent-color: #78dbad;
+}
+
+.splendorSeatAiDifficulty span {
+  min-width: 28px;
+  white-space: nowrap;
+}
+
+.splendorSeatAiRemove {
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #ffd9cf;
+  border-color: rgba(255, 145, 123, 0.28);
+  background: rgba(120, 35, 28, 0.34);
+}
+
+.splendorSeat > .playerPanel header {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: minmax(82px, 1fr) auto var(--splendor-token-column-width);
+  align-items: center;
+  gap: clamp(7px, 0.8vw, 10px);
+  min-width: 0;
+}
+
+.splendorSeat > .playerPanel header strong {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.splendorReserveSlots {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(3, var(--splendor-reserve-slot-width));
+  gap: 5px;
+}
+
+.splendorReserveSlot {
+  width: var(--splendor-reserve-slot-width);
+  height: var(--splendor-reserve-slot-height);
+  border-radius: 6px;
+  border: 1px solid rgba(245, 241, 232, 0.16);
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+  position: relative;
+}
+
+.splendorReserveSlot.filledReserveSlot {
+  border-color: transparent;
+  background: transparent;
+  overflow: visible;
+}
+
+.splendorReserveSlot.ownReserveSlot {
+  cursor: default;
+  touch-action: none;
+}
+
+.splendorReserveSlot .splendorReserveCardItem {
+  width: var(--splendor-reserve-slot-width);
+  height: var(--splendor-reserve-slot-height);
+  position: relative;
+  overflow: visible;
+  touch-action: none;
+}
+
+.splendorReserveCardTarget {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--player-card-width);
+  height: var(--player-card-height);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center;
+}
+
+.splendorReserveCardItem.ownReserve {
+  cursor: default;
+}
+
+.splendorReserveCardItem.hiddenReserve {
+  pointer-events: none;
+}
+
+.splendorReserveCardItem.reserveCarryHidden {
+  opacity: 0;
+}
+
+.splendorReserveCardInner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--player-card-width);
+  height: var(--player-card-height);
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%) rotate(90deg);
+  transform-origin: center;
+  transition:
+    width 180ms ease,
+    height 180ms ease,
+    transform 180ms ease,
+    filter 180ms ease;
+}
+
+.splendorReserveCardItem.reserveReveal .splendorReserveCardInner {
+  transform-style: preserve-3d;
+  animation: splendorReserveRevealFlip var(--reserve-reveal-duration, 702ms) cubic-bezier(0.2, 0.76, 0.24, 1) both;
+}
+
+.splendorReserveCardItem.ownReserve:hover {
+  z-index: 12;
+}
+
+.splendorReserveCardInner .classicCard,
+.splendorReserveCardInner .reserveCardBack,
+.splendorReserveCardInner .reserveRevealFace {
+  width: var(--player-card-width);
+  height: var(--player-card-height);
+}
+
+.splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+  transform: translate(-50%, calc(-50% - clamp(24px, 4.2dvh, 42px))) rotate(0deg);
+  filter: saturate(1.08) brightness(1.05) drop-shadow(0 14px 18px rgba(0, 0, 0, 0.38));
+}
+
+.pokemonShell .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner {
+  width: clamp(60px, 8.7dvh, 90px);
+  height: calc(clamp(60px, 8.7dvh, 90px) / 0.75);
+}
+
+.splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner .classicCard,
+.splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner .reserveCardBack,
+.splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner .reserveRevealFace {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+}
+
+.pokemonShell .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner .classicCard,
+.pokemonShell .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner .reserveCardBack,
+.pokemonShell .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner .reserveRevealFace {
+  width: clamp(60px, 8.7dvh, 90px);
+  height: calc(clamp(60px, 8.7dvh, 90px) / 0.75);
+}
+
+.splendorSeat > .playerPanel .splendorPlayerScore {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: center;
+  align-self: center;
+  min-width: 42px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: rgba(10, 12, 11, 0.32);
+  color: #f7edcf;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.splendorSeat > .playerPanel .tokenSlots {
+  position: relative;
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  align-self: start;
+  display: grid;
+  grid-template-columns: repeat(2, var(--classic-token-slot-size));
+  grid-template-rows: repeat(5, var(--classic-token-slot-size));
+  grid-auto-flow: column;
+  grid-auto-rows: var(--classic-token-slot-size);
+  gap: var(--classic-token-slot-gap);
+  width: calc(var(--classic-token-slot-size) * 2 + var(--classic-token-slot-gap));
+  height: calc(var(--classic-token-slot-size) * 5 + var(--classic-token-slot-gap) * 4);
+  max-width: none;
+  overflow: hidden;
+}
+
+.pokemonShell .splendorSeat > .playerPanel .tokenSlots,
+.pokemonShell .splendorDraftActions {
+  grid-column: 3;
+}
+
+.pokemonShell .splendorSeat > .playerPanel .splendorPlayerScore {
+  grid-column: 3;
+}
+
+.splendorSeat > .playerPanel .tokenSlots.splendorTokenZoneDropPreview {
+  border-radius: 9px;
+  outline: 2px solid rgba(120, 219, 173, 0.82);
+  outline-offset: 4px;
+  box-shadow:
+    0 0 0 1px rgba(120, 219, 173, 0.18),
+    0 0 18px rgba(120, 219, 173, 0.18);
+}
+
+.splendorSeat > .playerPanel .tokenSlots.splendorDraftZoneActive {
+  border-radius: 9px;
+  outline: 2px solid rgba(255, 255, 255, 0.58);
+  outline-offset: 4px;
+  box-shadow:
+    0 0 0 1px rgba(247, 224, 168, 0.16),
+    0 0 26px rgba(255, 255, 255, 0.2),
+    0 0 20px rgba(247, 224, 168, 0.14);
+}
+
+.splendorSeat > .playerPanel .tokenSlot {
+  width: var(--classic-token-slot-size);
+  height: var(--classic-token-slot-size);
+  border-radius: 5px;
+}
+
+.splendorSeat > .playerPanel .tokenSlot .tokenImage {
+  width: var(--classic-token-size);
+  height: var(--classic-token-size);
+}
+
+.splendorSeat > .playerPanel .tokenSlot.splendorDraftTokenSlot {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.12)),
+    rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    inset 0 0 13px rgba(255, 255, 255, 0.22),
+    0 0 0 1px rgba(255, 239, 190, 0.18),
+    0 7px 12px rgba(0, 0, 0, 0.18);
+}
+
+.splendorSeat > .playerPanel .tokenSlot.splendorDiscardableTokenSlot {
+  cursor: pointer;
+}
+
+.splendorSeat > .playerPanel .tokenSlot.splendorDiscardableTokenSlot:hover {
+  border-color: rgba(255, 151, 123, 0.86);
+  box-shadow:
+    inset 0 0 13px rgba(255, 151, 123, 0.14),
+    0 0 0 2px rgba(255, 151, 123, 0.2),
+    0 8px 14px rgba(0, 0, 0, 0.22);
+}
+
+.splendorSeat > .playerPanel .tokenSlot.splendorDiscardableTokenSlot svg {
+  position: absolute;
+  right: -3px;
+  bottom: -2px;
+  width: 16px;
+  height: 16px;
+  padding: 2px;
+  border-radius: 999px;
+  color: #fff0e8;
+  background: rgba(136, 47, 39, 0.94);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.26);
+}
+
+.splendorDraftActions {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  align-self: end;
+  transform: none;
+  width: calc(var(--classic-token-slot-size) * 2 + var(--classic-token-slot-gap));
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  z-index: 6;
+}
+
+.splendorDraftActions button {
+  width: 100%;
+  min-height: 24px;
+  padding: 0 7px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(236, 203, 134, 0.34);
+  background: rgba(16, 18, 16, 0.78);
+  color: #f7edcf;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.splendorDraftActions button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.splendorOverflowTokens {
+  position: absolute;
+  top: calc(var(--splendor-reserve-slot-height) + 6px);
+  left: auto;
+  right: calc(var(--splendor-token-column-width) + var(--classic-token-slot-gap));
+  transform: none;
+  z-index: 9;
+}
+
+.splendorSeat > .playerPanel .splendorOverflowTokens {
+  top: calc(var(--splendor-reserve-slot-height) + 6px);
+  left: auto;
+  right: calc(var(--splendor-token-column-width) + var(--classic-token-slot-gap));
+  transform: none;
+  margin: 0;
+  min-height: 0;
+  width: var(--splendor-overflow-token-column-width);
+  max-width: var(--splendor-overflow-token-column-width);
+  height: calc(var(--classic-token-slot-size) * 5 + var(--classic-token-slot-gap) * 4);
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: var(--classic-token-slot-gap);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.splendorOverflowTokenButton {
+  width: var(--classic-token-slot-size);
+  height: var(--classic-token-slot-size);
+  padding: max(1px, calc((var(--classic-token-slot-size) - var(--classic-token-size)) / 2));
+}
+
+.splendorSeat > .playerPanel .playerCardArea {
+  grid-column: 1;
+  grid-row: 2;
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  min-height: 0;
+  height: 100%;
+  margin-top: 0;
+}
+
+.splendorSeat > .playerPanel .purchasedPanel {
+  grid-column: 1;
+  width: 100%;
+  height: 100%;
+  padding-right: 0;
+}
+
+.pokemonShell .splendorSeat > .playerPanel .playerCardArea,
+.pokemonShell .splendorSeat > .playerPanel .purchasedPanel,
+.pokemonShell .splendorSeat > .playerPanel .purchasedStacks {
+  width: var(--pokemon-purchased-width);
+  min-width: var(--pokemon-purchased-width);
+  overflow-x: visible;
+}
+
+.splendorSeat > .playerPanel .purchasedStacks {
+  min-width: 0;
+  height: 100%;
+  grid-template-columns: repeat(5, var(--market-card-width));
+  gap: var(--pokemon-purchased-gap, clamp(4px, 0.55vw, 7px));
+  padding: 0;
+}
+
+.splendorSeat > .playerPanel .purchasedColumn {
+  min-width: var(--market-card-width);
+}
+
+.playerNameScrim {
+  z-index: 72;
+}
+
+.playerNameDialog header svg {
+  color: #78dbad;
+}
+
+.playerNameDialog footer {
+  justify-content: stretch;
+}
+
+.playerNameDialog footer button {
+  width: 100%;
+}
+
+.playerNameField {
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+  color: #d7cfc2;
+}
+
+.playerNameField input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid rgba(236, 203, 134, 0.24);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f5f1e8;
+  padding: 0 12px;
+  font: inherit;
+  outline: none;
+}
+
+.playerNameField input:focus {
+  border-color: rgba(120, 219, 173, 0.72);
+  box-shadow: 0 0 0 3px rgba(120, 219, 173, 0.15);
+}
+
+.muted {
+  color: #bdb5a8;
+}
+
+.gameLayout {
+  display: grid;
+  grid-template-rows: minmax(0, 56fr) minmax(0, 44fr);
+  gap: clamp(6px, 0.8vw, 10px);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  align-items: stretch;
+}
+
+.playerPanel,
+.pendingPanel {
+  background: rgba(19, 21, 20, 0.88);
+  border: 1px solid rgba(236, 203, 134, 0.16);
+  border-radius: 8px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 14px 36px rgba(0, 0, 0, 0.26);
+}
+
+.playerPanel {
+  --player-card-width: clamp(56px, 8.8dvh, 92px);
+  --player-card-height: calc(var(--player-card-width) / 0.66);
+  --market-card-width: var(--player-card-width);
+  --market-card-height: var(--player-card-height);
+  --purchased-stack-step: clamp(18px, 3.1dvh, 30px);
+  padding: clamp(8px, 0.9vw, 12px);
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: visible;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  grid-template-rows: var(--board-cell-size) auto minmax(calc(var(--player-card-width) * 3 + 12px), 1fr);
+  column-gap: clamp(6px, 0.7vw, 10px);
+  row-gap: clamp(2px, 0.32vw, 4px);
+  align-items: center;
+  background: rgba(13, 16, 15, 0.24);
+  backdrop-filter: blur(4px);
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.playerPanel section {
+  grid-column: 1 / -1;
+  min-height: 0;
+  overflow: visible;
+}
+
+.playerPanel.activePlayer {
+  border-color: rgba(236, 203, 134, 0.26);
+  background: rgba(29, 35, 31, 0.38);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 18px rgba(236, 203, 134, 0.045),
+    0 14px 36px rgba(0, 0, 0, 0.26);
+}
+
+.playerPanel.activePlayer header strong {
+  width: fit-content;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(247, 224, 168, 0.72);
+  background:
+    linear-gradient(180deg, rgba(75, 58, 29, 0.78), rgba(30, 26, 18, 0.72)),
+    rgba(18, 18, 14, 0.76);
+  color: #fff3c7;
+  box-shadow:
+    0 0 0 1px rgba(247, 224, 168, 0.14),
+    0 0 16px rgba(247, 202, 103, 0.34),
+    inset 0 1px 0 rgba(255, 245, 198, 0.22);
+}
+
+.turnNameGlow {
+  position: fixed;
+  z-index: 71;
+  pointer-events: none;
+  opacity: 0;
+  border-radius: 999px;
+  border: 2px solid var(--turn-name-border, rgba(255, 232, 171, 0.86));
+  background: var(--turn-name-background, rgba(255, 218, 128, 0.06));
+  box-shadow:
+    0 0 0 1px var(--turn-name-outer-ring, rgba(255, 247, 203, 0.22)),
+    0 0 18px var(--turn-name-glow, rgba(255, 205, 87, 0.48)),
+    0 0 36px var(--turn-name-aura, rgba(255, 185, 57, 0.22)),
+    inset 0 1px 0 var(--turn-name-inset, rgba(255, 247, 203, 0.24));
+  transform: rotate(var(--turn-name-rotation, 0deg));
+  transform-origin: center;
+  transition:
+    left 420ms cubic-bezier(0.2, 0.76, 0.22, 1),
+    top 420ms cubic-bezier(0.2, 0.76, 0.22, 1),
+    transform 420ms cubic-bezier(0.2, 0.76, 0.22, 1),
+    width 420ms cubic-bezier(0.2, 0.76, 0.22, 1),
+    height 420ms cubic-bezier(0.2, 0.76, 0.22, 1),
+    opacity 150ms ease,
+    border-color 420ms ease,
+    background 420ms ease,
+    box-shadow 420ms ease;
+  will-change: left, top, transform, width, height, opacity, border-color, background, box-shadow;
+}
+
+.turnNameGlow.opponentTurnNameGlow {
+  --turn-name-border: rgba(255, 224, 155, 0.86);
+  --turn-name-background: rgba(224, 182, 94, 0.1);
+  --turn-name-outer-ring: rgba(255, 247, 203, 0.22);
+  --turn-name-glow: rgba(255, 205, 87, 0.48);
+  --turn-name-aura: rgba(255, 185, 57, 0.22);
+  --turn-name-inset: rgba(255, 247, 203, 0.24);
+}
+
+.turnNameGlow.ownTurnNameGlow {
+  --turn-name-border: rgba(177, 255, 217, 0.9);
+  --turn-name-background: rgba(120, 219, 173, 0.12);
+  --turn-name-outer-ring: rgba(203, 255, 230, 0.24);
+  --turn-name-glow: rgba(120, 219, 173, 0.5);
+  --turn-name-aura: rgba(95, 211, 162, 0.24);
+  --turn-name-inset: rgba(216, 255, 235, 0.26);
+}
+
+.turnNameGlow.visible {
+  opacity: 1;
+}
+
+.playerPanel.viewerPanel {
+  order: 1;
+}
+
+.playerPanel.opponentPanel {
+  order: 2;
+}
+
+.playerPanel header {
+  display: contents;
+}
+
+.playerPanel header strong {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.playerPanel header span {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.playerPanel h3 {
+  margin: 0 0 6px;
+  color: #bdb5a8;
+  font-size: 12px;
+}
+
+.playerPanel h3.panelHeadingSpacer {
+  height: 0;
+  margin: 0;
+}
+
+.discardTokenPanel {
+  position: absolute;
+  top: calc(clamp(8px, 0.9vw, 12px) + var(--board-cell-size) + clamp(2px, 0.32vw, 4px) + 2px);
+  right: clamp(8px, 0.9vw, 12px);
+  z-index: 10;
+  display: grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 143, 127, 0.34);
+  background: rgba(74, 35, 31, 0.58);
+  box-shadow:
+    inset 0 0 16px rgba(255, 143, 127, 0.08),
+    0 8px 16px rgba(0, 0, 0, 0.18);
+}
+
+.discardTokenPanel svg {
+  color: #fff0e8;
+}
+
+.discardTokenCount {
+  width: clamp(20px, 3dvh, 26px);
+  height: clamp(20px, 3dvh, 26px);
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 214, 186, 0.42);
+  background: rgba(126, 53, 42, 0.86);
+  color: #fff0e8;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.22);
+}
+
+.overflowTokenTray {
+  position: absolute;
+  top: calc(clamp(8px, 0.9vw, 12px) + var(--board-cell-size) + clamp(2px, 0.32vw, 4px) + 2px);
+  left: 50%;
+  z-index: 9;
+  min-width: 0;
+  max-width: calc(100% - clamp(16px, 1.8vw, 24px));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 5px 6px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 143, 127, 0.26);
+  background:
+    repeating-linear-gradient(-45deg, rgba(255, 143, 127, 0.08) 0 7px, rgba(255, 143, 127, 0.035) 7px 14px),
+    rgba(45, 28, 26, 0.54);
+  box-shadow: inset 0 0 14px rgba(255, 143, 127, 0.08);
+  transform: translateX(-50%);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.overflowTokenButton {
+  position: relative;
+  flex: 0 0 auto;
+  width: clamp(30px, 4.2dvh, 38px);
+  height: clamp(30px, 4.2dvh, 38px);
+  min-height: 0;
+  padding: 2px;
+  border-radius: 999px;
+  border-color: rgba(255, 190, 160, 0.34);
+  background: rgba(20, 18, 17, 0.56);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 6px 12px rgba(0, 0, 0, 0.24);
+}
+
+.overflowTokenButton:not(:disabled):hover {
+  border-color: rgba(255, 214, 186, 0.72);
+  background: rgba(103, 49, 41, 0.76);
+  transform: translateY(-2px);
+}
+
+.overflowTokenButton:disabled {
+  opacity: 1;
+}
+
+.overflowTokenButton .tokenImage {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  box-shadow: 0 4px 9px rgba(0, 0, 0, 0.22);
+}
+
+.discardableTokenSlot {
+  cursor: pointer;
+}
+
+.stealableTokenSlot {
+  cursor: pointer;
+}
+
+.discardableTokenSlot:hover {
+  border-color: rgba(255, 214, 186, 0.72);
+  background: rgba(103, 49, 41, 0.18);
+}
+
+.stealableTokenSlot:hover {
+  border-color: rgba(189, 235, 255, 0.72);
+  background: rgba(49, 87, 103, 0.18);
+}
+
+.discardableTokenSlot svg,
+.discardableTokenButton svg,
+.stealableTokenSlot svg,
+.stealableTokenButton svg {
+  position: absolute;
+  right: -3px;
+  bottom: -2px;
+  width: 16px;
+  height: 16px;
+  padding: 2px;
+  border-radius: 999px;
+  color: #fff0e8;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.26);
+}
+
+.discardableTokenSlot svg,
+.discardableTokenButton svg {
+  background: rgba(136, 47, 39, 0.94);
+}
+
+.stealableTokenSlot svg,
+.stealableTokenButton svg {
+  background: rgba(42, 104, 128, 0.94);
+  color: #e9f8ff;
+}
+
+.stealableTokenButton:not(:disabled):hover {
+  border-color: rgba(189, 235, 255, 0.72);
+  background: rgba(49, 87, 103, 0.76);
+  transform: translateY(-2px);
+}
+
+.stealMode .overflowTokenTray {
+  border-color: rgba(121, 212, 242, 0.26);
+  background:
+    repeating-linear-gradient(-45deg, rgba(121, 212, 242, 0.08) 0 7px, rgba(121, 212, 242, 0.035) 7px 14px),
+    rgba(25, 39, 45, 0.54);
+  box-shadow: inset 0 0 14px rgba(121, 212, 242, 0.08);
+}
+
+.stealMode .overflowTokenButton {
+  border-color: rgba(121, 212, 242, 0.34);
+}
+
+.victoryPanel {
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px;
+  align-items: stretch;
+  align-self: stretch;
+}
+
+.playerPrivilegeSlots {
+  display: flex;
+  gap: 0;
+  align-items: center;
+  align-self: stretch;
+  min-height: clamp(32px, 4.7dvh, 43px);
+  padding: 0 1px;
+}
+
+.playerPrivilegeSlot {
+  position: relative;
+  width: clamp(20px, 2.8dvh, 27px);
+  height: 100%;
+  min-height: clamp(30px, 4.3dvh, 40px);
+  display: grid;
+  place-items: center;
+  margin-left: -7px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.playerPrivilegeSlot:first-child {
+  margin-left: 0;
+}
+
+.playerPrivilegeSlot.filledPrivilegeSlot {
+  background: transparent;
+}
+
+.playerPrivilegeSlot.privilegeMovingHidden {
+  opacity: 0;
+}
+
+.highlightedAwardPrivilege {
+  z-index: 6;
+}
+
+.highlightedAwardPrivilege::after {
+  content: '';
+  position: absolute;
+  inset: -5px -4px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 229, 145, 0.94);
+  box-shadow:
+    0 0 0 2px rgba(112, 65, 24, 0.28),
+    0 0 16px rgba(255, 221, 128, 0.62),
+    inset 0 0 10px rgba(255, 236, 176, 0.2);
+  pointer-events: none;
+  animation: awardedPrivilegeGlow 980ms ease-in-out infinite alternate;
+}
+
+.interactivePrivilegeSlot {
+  cursor: grab;
+}
+
+.interactivePrivilegeSlot:hover img,
+.activePrivilegeSlot img {
+  filter: drop-shadow(0 0 8px rgba(255, 221, 139, 0.5)) drop-shadow(0 4px 4px rgba(0, 0, 0, 0.34));
+  transform: translate(-50%, calc(-50% - 4px)) rotate(var(--privilege-tilt, -8deg)) scale(1.08);
+}
+
+.playerPrivilegeSlot img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  height: 112%;
+  max-width: none;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.3));
+  transform: translate(-50%, -50%) rotate(var(--privilege-tilt, -8deg));
+  transform-origin: 50% 56%;
+  transition:
+    transform 160ms ease,
+    filter 160ms ease;
+}
+
+.victoryTracks {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 0.92fr)) minmax(66px, 0.84fr);
+  gap: 4px;
+}
+
+.victoryTrack,
+.colorlessPurchasedTrack {
+  min-width: 0;
+  display: grid;
+  align-items: center;
+  gap: 4px;
+  min-height: 18px;
+  padding: 1px 5px 1px 4px;
+  border-radius: 5px;
+  border: 1px solid rgba(236, 203, 134, 0.14);
+  background: rgba(10, 12, 11, 0.26);
+  font-size: 10px;
+}
+
+.victoryTrack {
+  grid-template-columns: clamp(15px, 2.2dvh, 20px) minmax(0, 1fr) auto;
+}
+
+.colorlessPurchasedTrack {
+  grid-template-columns: minmax(0, auto) auto;
+  justify-content: center;
+  color: #cfc7b9;
+  white-space: nowrap;
+}
+
+.colorlessPurchasedTrack.hasCards {
+  border-color: rgba(121, 212, 242, 0.36);
+  background: rgba(38, 71, 78, 0.24);
+  color: #e9f8ff;
+}
+
+.activeColorlessPurchaseTarget {
+  z-index: 8;
+  transform: translateY(-2px);
+  border-color: rgba(255, 226, 154, 0.72);
+  background: rgba(255, 226, 154, 0.11);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 226, 154, 0.76),
+    0 0 18px rgba(255, 218, 132, 0.24);
+}
+
+.remoteColorlessPurchaseTarget {
+  z-index: 7;
+  background: rgba(121, 212, 242, 0.1);
+  box-shadow:
+    inset 0 0 0 2px rgba(189, 235, 255, 0.72),
+    0 0 16px rgba(121, 212, 242, 0.2);
+}
+
+.invalidColorlessPurchaseTarget,
+.remoteInvalidColorlessPurchaseTarget {
+  background:
+    repeating-linear-gradient(-45deg, rgba(255, 119, 102, 0.14) 0 7px, rgba(255, 119, 102, 0.06) 7px 14px),
+    rgba(114, 31, 28, 0.16);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 143, 127, 0.86),
+    0 0 18px rgba(255, 104, 92, 0.18);
+}
+
+.victoryTrack.complete {
+  border-color: rgba(255, 226, 154, 0.64);
+  background: rgba(128, 91, 36, 0.24);
+  color: #ffe2a1;
+}
+
+.victoryTrackLabel {
+  width: clamp(15px, 2.2dvh, 20px);
+  height: clamp(15px, 2.2dvh, 20px);
+  display: grid;
+  place-items: center;
+  color: #d7cfc2;
+}
+
+.victoryTrackLabel img {
+  width: 116%;
+  height: 116%;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.32));
+}
+
+.victoryTrackBar {
+  height: 4px;
+  min-width: 24px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.victoryTrackBar span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #c8964a, #ffe2a1);
+  transform-origin: left center;
+}
+
+.victoryTrack strong,
+.colorlessPurchasedTrack strong {
+  font-size: 10px;
+  font-weight: 700;
+  color: #f7edcf;
+  white-space: nowrap;
+}
+
+.toast,
+.errorText {
+  color: #ff8d7f;
+}
+
+.playerCardArea {
+  display: grid;
+  grid-template-columns: calc(var(--player-card-height) + 8px) minmax(0, 1fr);
+  gap: clamp(8px, 0.9vw, 12px);
+  align-items: stretch;
+  min-height: calc(var(--player-card-width) * 3 + 12px);
+  height: 100%;
+  overflow: hidden;
+  margin-top: -8px;
+}
+
+.reservePanel,
+.purchasedPanel {
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+}
+
+.reservePanel {
+  width: calc(var(--player-card-height) + 8px);
+}
+
+.reserveList {
+  display: flex;
+  gap: 6px;
+}
+
+.reserveList {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  width: calc(var(--player-card-height) + 8px);
+  min-height: calc(var(--player-card-width) * 3 + 12px);
+  overflow: visible;
+}
+
+.purchasedPanel {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 3px;
+  scrollbar-width: thin;
+}
+
+.purchasedStacks {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(var(--player-card-width), 1fr));
+  gap: clamp(5px, 0.65vw, 8px);
+  align-items: start;
+  min-width: calc(var(--player-card-width) * 5 + 20px);
+  min-height: var(--player-card-height);
+  padding: 2px 2px 8px;
+}
+
+.purchasedColumn {
+  min-width: var(--player-card-width);
+  display: grid;
+  grid-template-rows: clamp(15px, 2.1dvh, 20px) auto;
+  gap: 2px;
+  border-radius: 7px;
+  position: relative;
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.purchasedColumnHeader {
+  height: clamp(15px, 2.1dvh, 20px);
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(10, 12, 11, 0.22);
+  border: 1px solid rgba(245, 241, 232, 0.12);
+}
+
+.purchasedColumnHeader .tokenImage {
+  width: clamp(14px, 1.9dvh, 18px);
+  height: clamp(14px, 1.9dvh, 18px);
+  border-radius: 999px;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.22);
+}
+
+.purchasedCardStack {
+  --purchased-stack-step: clamp(18px, 3.1dvh, 30px);
+  min-height: var(--market-card-height);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: visible;
+}
+
+.pokemonShell .purchasedCardStack {
+  --purchased-stack-step: clamp(14px, 2dvh, 20px);
+}
+
+.purchasedCardItem {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+  flex: 0 0 auto;
+  position: relative;
+  transition:
+    transform 170ms ease,
+    filter 170ms ease;
+}
+
+.purchasedCardItem + .purchasedCardItem {
+  margin-top: calc((var(--market-card-height) - var(--purchased-stack-step)) * -1);
+}
+
+.purchasedCardItem .card {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+}
+
+.purchasedCardItem:hover {
+  z-index: 100 !important;
+  transform: translateY(-6px);
+  filter: saturate(1.08);
+}
+
+.purchasedCardItem.purchasedCardMotionHidden {
+  opacity: 0;
+}
+
+.eligiblePurchaseColumn {
+  background: rgba(255, 226, 154, 0.055);
+  box-shadow: inset 0 0 0 1px rgba(255, 226, 154, 0.2);
+}
+
+.activePurchaseColumn {
+  z-index: 8;
+  transform: translateY(-2px);
+  background: rgba(255, 226, 154, 0.11);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 226, 154, 0.76),
+    0 0 18px rgba(255, 218, 132, 0.24);
+}
+
+.remotePurchaseColumn {
+  z-index: 7;
+  background: rgba(121, 212, 242, 0.1);
+  box-shadow:
+    inset 0 0 0 2px rgba(189, 235, 255, 0.72),
+    0 0 16px rgba(121, 212, 242, 0.2);
+}
+
+.invalidPurchaseTarget .purchasedColumn,
+.remoteInvalidPurchaseTarget .purchasedColumn {
+  box-shadow: inset 0 0 0 1px rgba(255, 143, 127, 0.32);
+}
+
+.invalidPurchaseTarget .activePurchaseColumn {
+  background:
+    repeating-linear-gradient(-45deg, rgba(255, 119, 102, 0.14) 0 7px, rgba(255, 119, 102, 0.06) 7px 14px),
+    rgba(114, 31, 28, 0.16);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 143, 127, 0.86),
+    0 0 18px rgba(255, 104, 92, 0.18);
+}
+
+.tokenSlots {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  display: grid;
+  grid-template-columns: repeat(10, var(--board-cell-size));
+  grid-auto-rows: var(--board-cell-size);
+  gap: var(--board-gap);
+  width: max-content;
+  max-width: 100%;
+  overflow: visible;
+}
+
+.tokenSlot {
+  position: relative;
+  width: var(--board-cell-size);
+  height: var(--board-cell-size);
+  aspect-ratio: 1;
+  min-width: 0;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid rgba(245, 241, 232, 0.18);
+  box-shadow:
+    inset 0 0 16px rgba(0, 0, 0, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.sortableTokenSlot {
+  cursor: grab;
+  touch-action: none;
+}
+
+.sortableTokenSlot:active {
+  cursor: grabbing;
+}
+
+.tokenSlotDropTarget {
+  border-color: rgba(120, 219, 173, 0.82);
+  background: rgba(120, 219, 173, 0.08);
+  box-shadow:
+    inset 0 0 16px rgba(120, 219, 173, 0.14),
+    0 0 0 2px rgba(120, 219, 173, 0.2),
+    0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.tokenSlotCarried .tokenImage {
+  opacity: 0;
+  transform: scale(0.82);
+}
+
+.boardCell {
+  width: 48px;
+  height: 48px;
+  aspect-ratio: 1;
+}
+
+.token {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  box-shadow:
+    inset 0 -10px 16px rgba(0, 0, 0, 0.3),
+    0 10px 18px rgba(0, 0, 0, 0.26);
+  cursor: grab;
+  overflow: hidden;
+  transition:
+    transform 180ms ease,
+    filter 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.tokenImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  display: block;
+  pointer-events: none;
+}
+
+.tokenSlot .tokenImage {
+  width: var(--board-token-size);
+  height: var(--board-token-size);
+  border-radius: 999px;
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.22);
+  transition:
+    transform 160ms ease,
+    filter 160ms ease,
+    box-shadow 160ms ease,
+    opacity 160ms ease;
+}
+
+.tokenSlotSpendPreview {
+  position: relative;
+  z-index: 35;
+  border-color: rgba(255, 226, 154, 0.88);
+  background: rgba(255, 217, 139, 0.08);
+  box-shadow:
+    inset 0 0 16px rgba(255, 218, 132, 0.15),
+    0 0 0 2px rgba(255, 218, 132, 0.22),
+    0 8px 16px rgba(0, 0, 0, 0.24);
+}
+
+.tokenSlotSpendPreview .tokenImage {
+  transform: translateY(-5px) scale(1.08);
+  filter: saturate(1.12) brightness(1.06);
+  box-shadow:
+    0 0 18px rgba(255, 215, 118, 0.28),
+    0 10px 16px rgba(0, 0, 0, 0.28);
+}
+
+.tokenSlotSpending .tokenImage {
+  opacity: 0;
+  transform: translateY(-5px) scale(0.92);
+}
+
+.myTurn .boardCell:hover .token,
+.boardCell.remoteHover .token,
+.boardCell.abilityTokenTarget .token,
+.boardCell.privilegeEligible .token,
+.boardCell.privilegeTarget .token,
+.boardCell.remotePrivilegeTarget .token {
+  transform: translateY(-3px) scale(1.08);
+  filter: saturate(1.15);
+}
+
+.boardCell.abilityTokenTarget {
+  cursor: pointer;
+  z-index: 13;
+  border-color: rgba(170, 236, 255, 0.96);
+  box-shadow:
+    inset 0 0 18px rgba(121, 212, 242, 0.24),
+    0 0 0 3px rgba(121, 212, 242, 0.44),
+    0 0 26px rgba(121, 212, 242, 0.5),
+    0 10px 22px rgba(0, 0, 0, 0.3);
+  animation: abilityTokenTargetPulse 620ms ease-in-out infinite alternate;
+}
+
+.boardCell.abilityTokenTarget::before {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  z-index: -1;
+  border-radius: 999px;
+  border: 2px solid rgba(170, 236, 255, 0.86);
+  background: rgba(121, 212, 242, 0.1);
+  box-shadow: 0 0 24px rgba(121, 212, 242, 0.48);
+  animation: abilityTokenRingPulse 620ms ease-in-out infinite alternate;
+}
+
+.boardCell.abilityTokenTarget .token {
+  transform: translateY(-5px) scale(1.16);
+  filter: saturate(1.28) brightness(1.12);
+  box-shadow:
+    inset 0 -10px 16px rgba(0, 0, 0, 0.3),
+    0 0 30px rgba(121, 212, 242, 0.66),
+    0 12px 22px rgba(0, 0, 0, 0.32);
+}
+
+.tokenBoard.abilityTokenChoiceMode .boardCell.filled:not(.abilityTokenTarget) .token {
+  opacity: 0.86;
+  filter: saturate(0.96) brightness(0.92);
+  transform: scale(0.96);
+}
+
+.boardCell.privilegeEligible {
+  border-color: rgba(142, 232, 161, 0.58);
+  box-shadow:
+    inset 0 0 14px rgba(118, 221, 139, 0.12),
+    0 0 0 1px rgba(118, 221, 139, 0.2),
+    0 6px 14px rgba(0, 0, 0, 0.22);
+}
+
+.boardCell.privilegeTarget,
+.boardCell.remotePrivilegeTarget {
+  border-color: rgba(255, 226, 154, 0.92);
+  box-shadow:
+    inset 0 0 18px rgba(255, 219, 141, 0.18),
+    0 0 0 2px rgba(255, 226, 154, 0.3),
+    0 8px 18px rgba(0, 0, 0, 0.26);
+}
+
+.myTurn .boardCell:active .token {
+  cursor: grabbing;
+}
+
+.tableArea {
+  display: grid;
+  grid-template-columns: minmax(382px, clamp(398px, 44dvh, 454px)) auto;
+  gap: clamp(14px, 1.35vw, 22px);
+  justify-content: center;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  overflow: visible;
+  position: relative;
+}
+
+.boardPanel {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: clamp(6px, 0.8dvh, 10px);
+  padding: clamp(6px, 0.8vw, 10px) 0 clamp(6px, 0.8vw, 10px) clamp(6px, 0.8vw, 10px);
+  min-height: 0;
+  height: 100%;
+  overflow: visible;
+}
+
+.mobileBoardFocusButton,
+.mobileBoardCloseButton {
+  display: none;
+}
+
+.boardStage {
+  position: relative;
+  display: grid;
+  place-items: center start;
+  min-height: 0;
+  height: 100%;
+}
+
+.boardPlayArea {
+  display: grid;
+  grid-template-columns: clamp(52px, 7.2dvh, 70px) minmax(0, var(--board-play-size));
+  align-items: center;
+  gap: clamp(8px, 1.1dvh, 12px);
+  width: max-content;
+  max-width: 100%;
+}
+
+.boardWithPrivilegeHints {
+  width: var(--board-play-size);
+  height: calc(var(--board-play-size) + var(--board-hint-height) + var(--board-hint-gap));
+  position: relative;
+  display: block;
+  overflow: visible;
+}
+
+.boardPrivilegeHints {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 12;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  align-items: center;
+  width: 100%;
+  height: var(--board-hint-height);
+  min-height: var(--board-hint-height);
+  max-height: var(--board-hint-height);
+  overflow: visible;
+}
+
+.boardPrivilegeHint {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  width: 100%;
+  height: var(--board-hint-height);
+  max-height: var(--board-hint-height);
+  border-radius: 7px;
+  opacity: 0.88;
+  filter: drop-shadow(0 5px 7px rgba(0, 0, 0, 0.24));
+  transition:
+    transform 160ms ease,
+    filter 160ms ease,
+    opacity 160ms ease;
+}
+
+.boardPrivilegeHint img {
+  width: auto;
+  max-width: 108%;
+  height: 100%;
+  max-height: var(--board-hint-height);
+  object-fit: contain;
+  display: block;
+  pointer-events: none;
+}
+
+.boardPrivilegeHint.activeRuleHint {
+  z-index: 5;
+  opacity: 1;
+  transform: translateY(-2px) scale(1.04);
+  filter: drop-shadow(0 0 11px rgba(255, 226, 134, 0.72)) drop-shadow(0 7px 10px rgba(0, 0, 0, 0.3));
+}
+
+.boardPrivilegeHint.activeRuleHint::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 8px;
+  border: 2px solid rgba(255, 229, 145, 0.94);
+  box-shadow:
+    0 0 0 2px rgba(112, 65, 24, 0.28),
+    0 0 16px rgba(255, 221, 128, 0.62),
+    inset 0 0 10px rgba(255, 236, 176, 0.2);
+  pointer-events: none;
+  animation: awardedPrivilegeGlow 980ms ease-in-out infinite alternate;
+}
+
+.gemBagPanel {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 7px;
+  min-width: 0;
+  color: #f7edcf;
+}
+
+.gemBagShell {
+  position: relative;
+  width: clamp(50px, 7.2dvh, 68px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.gemBagIcon {
+  width: 116%;
+  height: 116%;
+  object-fit: contain;
+  filter:
+    drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55))
+    drop-shadow(0 8px 12px rgba(0, 0, 0, 0.44));
+}
+
+.gemBagShell strong {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  z-index: 1;
+  min-width: 25px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  background: rgba(22, 15, 10, 0.86);
+  border: 1px solid rgba(255, 226, 154, 0.46);
+  color: #ffe2a1;
+  font-size: clamp(13px, 1.8dvh, 16px);
+  line-height: 1.15;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.28);
+}
+
+.privilegeSupply {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin-top: 7px;
+  min-height: clamp(36px, 5.2dvh, 48px);
+}
+
+.privilegeScroll {
+  position: relative;
+  width: clamp(18px, 2.5dvh, 24px);
+  height: clamp(34px, 5dvh, 46px);
+  display: grid;
+  place-items: center;
+  margin-left: -5px;
+  opacity: 0.2;
+  filter: grayscale(0.35) brightness(0.62);
+  transform: rotate(-12deg);
+  transform-origin: 50% 56%;
+}
+
+.privilegeScroll:first-child {
+  margin-left: 0;
+}
+
+.privilegeScroll:nth-child(2) {
+  transform: rotate(3deg);
+}
+
+.privilegeScroll:nth-child(3) {
+  transform: rotate(14deg);
+}
+
+.privilegeScroll.available {
+  opacity: 1;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.28));
+}
+
+.privilegeScroll.highlightedAwardPrivilege {
+  opacity: 1;
+  filter: drop-shadow(0 0 9px rgba(255, 226, 134, 0.68)) drop-shadow(0 3px 5px rgba(0, 0, 0, 0.3));
+}
+
+.privilegeScroll.privilegeMovingHidden {
+  opacity: 0;
+}
+
+.privilegeScroll img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  height: 112%;
+  max-width: none;
+  display: block;
+  object-fit: contain;
+  transform: translate(-50%, -50%);
+}
+
+.flyingPrivilegeScroll {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 61;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  filter: drop-shadow(0 9px 11px rgba(0, 0, 0, 0.34));
+  animation: privilegeFlyToSlot var(--flight-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
+}
+
+.flyingPrivilegeScroll img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  height: 112%;
+  max-width: none;
+  display: block;
+  object-fit: contain;
+  transform-origin: 50% 56%;
+  animation: privilegeFlyTilt var(--flight-duration) cubic-bezier(0.2, 0.76, 0.24, 1) both;
+}
+
+.emptyBag {
+  opacity: 0.72;
+}
+
+.tokenBoard {
+  width: var(--board-play-size);
+  aspect-ratio: 1;
+  margin-top: calc(var(--board-hint-height) + var(--board-hint-gap));
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: var(--board-gap);
+  position: relative;
+  z-index: 1;
+  padding: var(--board-pad);
+  border-radius: 8px;
+  background:
+    linear-gradient(90deg, rgba(88, 46, 28, 0.94), rgba(137, 75, 46, 0.92) 38%, rgba(82, 42, 29, 0.96)),
+    repeating-linear-gradient(90deg, rgba(255, 226, 176, 0.05) 0 2px, transparent 2px 42px),
+    #6d3e29;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 232, 178, 0.2),
+    inset 0 0 34px rgba(35, 14, 8, 0.48),
+    0 16px 34px rgba(0, 0, 0, 0.32);
+}
+
+.boardSpaces,
+.boardPathHints,
+.boardTakeOverlay {
+  position: absolute;
+  inset: var(--board-pad);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: var(--board-gap);
+  pointer-events: none;
+}
+
+.boardSpaces {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: var(--board-gap);
+  z-index: 0;
+}
+
+.boardSpace {
+  border-radius: 7px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 255, 255, 0.86), rgba(248, 236, 205, 0.94) 55%, rgba(215, 184, 143, 0.92)),
+    #efe0bd;
+  border: 2px solid rgba(119, 75, 55, 0.78);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.28),
+    inset 0 0 12px rgba(91, 50, 34, 0.25),
+    0 2px 2px rgba(42, 17, 10, 0.38);
+}
+
+.centerSpace {
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 232, 151, 0.9), rgba(225, 181, 87, 0.92) 64%, rgba(158, 95, 51, 0.86)),
+    #e9ba64;
+  border-color: rgba(126, 64, 41, 0.9);
+}
+
+.boardPathHints {
+  display: block;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.boardPathLine {
+  fill: none;
+  stroke: rgba(64, 38, 24, 0.58);
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter:
+    drop-shadow(0 1px 0 rgba(255, 237, 200, 0.2))
+    drop-shadow(0 0 3px rgba(43, 24, 16, 0.18));
+}
+
+.boardPathArrow {
+  fill: none;
+  stroke: rgba(64, 38, 24, 0.82);
+  stroke-width: 3.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(1px 1px 0 rgba(255, 237, 200, 0.18));
+}
+
+.boardTakeOverlay {
+  z-index: 4;
+  overflow: visible;
+}
+
+.boardTakeTile {
+  position: relative;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 246, 201, 0.46), rgba(232, 178, 70, 0.32) 48%, rgba(232, 178, 70, 0.1) 72%),
+    rgba(255, 218, 132, 0.16);
+  border: 2px solid rgba(255, 238, 182, 0.95);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.24),
+    inset 0 0 22px rgba(244, 204, 107, 0.28),
+    0 0 0 3px rgba(132, 83, 35, 0.3),
+    0 0 22px rgba(255, 218, 132, 0.3),
+    0 10px 20px rgba(0, 0, 0, 0.26);
+  animation: takeTileIn 210ms ease-out both;
+}
+
+.remoteTakeOverlay .boardTakeTile {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(190, 233, 255, 0.38), rgba(75, 158, 196, 0.25) 48%, rgba(75, 158, 196, 0.08) 72%),
+    rgba(93, 185, 218, 0.1);
+  border-color: rgba(189, 235, 255, 0.9);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.16),
+    inset 0 0 20px rgba(121, 212, 242, 0.18),
+    0 0 0 3px rgba(46, 106, 128, 0.24),
+    0 0 22px rgba(121, 212, 242, 0.24),
+    0 10px 20px rgba(0, 0, 0, 0.26);
+}
+
+.boardTakeTile::before {
+  content: '';
+  position: absolute;
+  inset: 15%;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 241, 189, 0.95);
+  box-shadow:
+    0 0 14px rgba(255, 215, 118, 0.58),
+    inset 0 0 9px rgba(255, 224, 143, 0.34);
+}
+
+.boardTakeTile::after {
+  content: '';
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ffe08f;
+  box-shadow: 0 0 12px rgba(255, 221, 133, 0.9);
+}
+
+.remoteTakeOverlay .boardTakeTile::before {
+  border-color: rgba(212, 242, 255, 0.92);
+  box-shadow:
+    0 0 14px rgba(121, 212, 242, 0.46),
+    inset 0 0 9px rgba(121, 212, 242, 0.22);
+}
+
+.remoteTakeOverlay .boardTakeTile::after {
+  background: #bdefff;
+  box-shadow: 0 0 10px rgba(121, 212, 242, 0.78);
+}
+
+.invalidTake .boardTakeTile {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 204, 195, 0.38), rgba(226, 62, 54, 0.24) 48%, rgba(226, 62, 54, 0.08) 72%),
+    rgba(161, 45, 39, 0.16);
+  border-color: rgba(255, 143, 127, 0.92);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.14),
+    inset 0 0 20px rgba(255, 107, 92, 0.2),
+    0 0 0 3px rgba(91, 24, 21, 0.32),
+    0 0 20px rgba(255, 104, 92, 0.24),
+    0 10px 20px rgba(0, 0, 0, 0.26);
+}
+
+.invalidTake .boardTakeTile::before {
+  border-color: rgba(255, 154, 139, 0.94);
+  box-shadow:
+    0 0 12px rgba(255, 104, 92, 0.52),
+    inset 0 0 9px rgba(255, 132, 118, 0.24);
+}
+
+.invalidTake .boardTakeTile::after {
+  background: #ff8a7b;
+  box-shadow: 0 0 10px rgba(255, 104, 92, 0.84);
+}
+
+.boardTakeTile.invalidTarget {
+  border-style: dashed;
+  background:
+    repeating-linear-gradient(-45deg, rgba(255, 119, 102, 0.18) 0 7px, rgba(255, 119, 102, 0.08) 7px 14px),
+    rgba(114, 31, 28, 0.18);
+}
+
+.boardTakeCross {
+  position: absolute;
+  inset: 34%;
+  transform: rotate(45deg);
+}
+
+.boardTakeCross::before,
+.boardTakeCross::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto auto 50%;
+  width: 4px;
+  height: 100%;
+  border-radius: 999px;
+  background: rgba(255, 237, 232, 0.96);
+  box-shadow: 0 0 8px rgba(255, 104, 92, 0.72);
+  transform: translateX(-50%);
+}
+
+.boardTakeCross::after {
+  transform: translateX(-50%) rotate(90deg);
+}
+
+.boardCell {
+  padding: 0;
+  width: auto;
+  height: auto;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: auto;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  overflow: visible;
+  position: relative;
+  z-index: 3;
+  touch-action: none;
+}
+
+.boardCell.filled {
+  background: transparent;
+}
+
+.boardCell .token {
+  width: var(--board-token-size);
+  height: var(--board-token-size);
+}
+
+.boardCell.takeSelected .token {
+  filter: saturate(1.15) brightness(1.05);
+  transform: translateY(-2px) scale(1.08);
+  box-shadow:
+    inset 0 -10px 16px rgba(0, 0, 0, 0.3),
+    0 0 22px rgba(239, 199, 94, 0.34),
+    0 10px 18px rgba(0, 0, 0, 0.26);
+}
+
+.boardCell.carryHidden .token {
+  opacity: 0;
+  transform: scale(0.82);
+}
+
+.boardCell.goldDraggable .token {
+  cursor: grab;
+}
+
+.notMyTurn .token,
+.notMyTurn .marketCard {
+  cursor: default;
+}
+
+.selectedTokenActions {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  bottom: calc((36px + 10px) * -1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 4px 5px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 226, 154, 0.74);
+  background: rgba(23, 20, 15, 0.72);
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(7px);
+  touch-action: none;
+  transform: translateX(-50%);
+}
+
+.selectedTokenPreview {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 3px 0 2px;
+}
+
+.selectedTokenHandleToken {
+  width: clamp(24px, 4.3dvh, 34px);
+  height: clamp(24px, 4.3dvh, 34px);
+  flex: 0 0 auto;
+  border-radius: 999px;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.28);
+}
+
+.selectedTokenHandleToken + .selectedTokenHandleToken {
+  margin-left: -6px;
+}
+
+.selectedTokenHandleToken .tokenImage {
+  border-radius: 999px;
+}
+
+.selectedTokenActionButton {
+  min-height: 28px;
+  height: 28px;
+  padding: 0 8px;
+  gap: 4px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.selectedTokenActionButton.take {
+  border-color: rgba(116, 221, 139, 0.44);
+  background: rgba(58, 123, 70, 0.84);
+  color: #f2fff0;
+}
+
+.selectedTokenActionButton.cancel {
+  border-color: rgba(255, 166, 135, 0.34);
+  background: rgba(98, 53, 40, 0.8);
+  color: #fff0e8;
+}
+
+.floatingTokenCarry,
+.floatingPrivilegeCarry,
+.remoteGoldToken,
+.remotePrivilegeScroll {
+  position: fixed;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.34));
+}
+
+.floatingTokenCarry:has(.splendorFloatingToken) {
+  contain: layout paint style;
+  filter: none;
+}
+
+.floatingTokenCarry .splendorFloatingToken {
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.34));
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.floatingTokenCarry .token,
+.floatingTokenSlotCarry .token,
+.remoteGoldToken .token {
+  width: 100%;
+  height: 100%;
+  cursor: grabbing;
+}
+
+.floatingTokenCarry .splendorFloatingToken,
+.remoteGoldToken .splendorFloatingToken,
+.flyingTakenToken .splendorFlyingToken,
+.introTokenFlight .splendorFlyingToken {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.floatingTokenCarry .splendorFloatingToken .tokenImage,
+.remoteGoldToken .splendorFloatingToken .tokenImage,
+.flyingTakenToken .splendorFlyingToken .tokenImage,
+.introTokenFlight .splendorFlyingToken .tokenImage {
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  display: block;
+  object-fit: cover;
+}
+
+.floatingPrivilegeCarry img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  height: 112%;
+  max-width: none;
+  display: block;
+  object-fit: contain;
+  cursor: grabbing;
+  transform: translate(-50%, -50%) rotate(var(--privilege-tilt, -8deg));
+  transform-origin: 50% 56%;
+}
+
+.remotePrivilegeScroll img {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: auto;
+  height: 112%;
+  max-width: none;
+  display: block;
+  object-fit: contain;
+  transform: translate(-50%, -50%) rotate(var(--privilege-tilt, -8deg));
+  transform-origin: 50% 56%;
+}
+
+.remoteGoldToken,
+.remotePrivilegeScroll {
+  z-index: 60;
+  left: 0;
+  top: 0;
+  will-change: transform;
+}
+
+.remoteGoldToken {
+  transform: translate(var(--remote-gold-x), var(--remote-gold-y));
+  transition: transform var(--remote-gold-duration) cubic-bezier(0.2, 0.76, 0.24, 1);
+  contain: layout paint style;
+  filter: none;
+  overflow: visible;
+}
+
+.remoteGoldToken .token,
+.remoteGoldToken .splendorFloatingToken {
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.34));
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.remotePrivilegeScroll {
+  transform: translate(var(--remote-privilege-x), var(--remote-privilege-y));
+  transition: transform var(--remote-privilege-duration) cubic-bezier(0.2, 0.76, 0.24, 1);
+}
+
+.flyingTakenToken {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 58;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.36));
+  animation: tokenFlyToSlot var(--flight-duration) cubic-bezier(0.22, 0.78, 0.26, 1) var(--flight-delay, 0ms) both;
+}
+
+.flyingTakenToken:has(.splendorFlyingToken) {
+  contain: layout paint style;
+  filter: none;
+}
+
+.flyingTakenToken .token {
+  width: 100%;
+  height: 100%;
+  cursor: default;
+  animation: tokenFlyLift var(--flight-duration) ease-in-out var(--flight-delay, 0ms) both;
+}
+
+.flyingTakenToken .splendorFlyingToken {
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.34));
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  animation: none;
+}
+
+.flyingReservedCard {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 59;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  filter: none;
+  animation: cardFlyToReserve var(--flight-duration) cubic-bezier(0.2, 0.76, 0.24, 1) var(--flight-delay, 0ms) both;
+}
+
+.flyingReservedCard.classicReserveFlight {
+  contain: layout paint style;
+  filter: none;
+}
+
+.flyingReservedCard.classicReserveFlight .flyingReserveCardInner {
+  filter: none;
+}
+
+.flyingReservedCard.pokemonCardFlight,
+.introCardFlight.pokemonCardFlight,
+.marketReplacementCardFlight.pokemonCardFlight {
+  --classic-card-ratio: 0.75;
+}
+
+.flyingReservedCard.pokemonCardFlight .classicCard,
+.flyingReservedCard.pokemonCardFlight .reserveCardBack,
+.flyingReservedCard.pokemonCardFlight .deckBack,
+.introCardFlight.pokemonCardFlight .classicCard,
+.introCardFlight.pokemonCardFlight .reserveCardBack,
+.introCardFlight.pokemonCardFlight .deckBack,
+.marketReplacementCardFlight.pokemonCardFlight .classicCard,
+.marketReplacementCardFlight.pokemonCardFlight .reserveCardBack,
+.marketReplacementCardFlight.pokemonCardFlight .deckBack {
+  width: 100%;
+  height: 100%;
+}
+
+.flyingReservedCard.reservePurchaseRevealFlight {
+  animation-name: cardFlyReserveRevealToPurchase;
+}
+
+.flyingReservedCard.colorlessPurchaseCardFlight {
+  animation-name: cardFlyColorlessPurchase;
+}
+
+.flyingReservedCard.rotatedPurchaseCardFlight {
+  animation-name: cardFlyToRotatedPurchase;
+}
+
+.flyingReservedCard .card {
+  width: 100%;
+  height: 100%;
+}
+
+.flyingReserveCardInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  transform-style: preserve-3d;
+  animation: reserveCardStayVertical var(--flight-duration) linear var(--flight-delay, 0ms) both;
+}
+
+.flyingReservedCard.horizontalCardFlight .flyingReserveCardInner {
+  width: var(--reserve-card-width);
+  height: var(--reserve-card-height);
+  animation-name: reserveCardTurnHorizontal;
+  animation-timing-function: cubic-bezier(0.2, 0.76, 0.24, 1);
+}
+
+.flyingReservedCard.classicReserveFlight.horizontalCardFlight .flyingReserveCardInner {
+  width: var(--source-width);
+  height: var(--source-height);
+  animation-name: classicCardTurnToReserve;
+  animation-timing-function: cubic-bezier(0.2, 0.76, 0.24, 1);
+}
+
+.flyingReservedCard.classicReserveFlight.horizontalCardFlight:not(.reservePurchaseCardFlight) {
+  animation-name: classicCardFlyToReserveCenter;
+}
+
+.flyingReservedCard.classicReserveFlight .flyingReserveCardFace {
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.flyingReservedCard.classicReserveFlight .reserveCardBack {
+  background-color: transparent;
+}
+
+.flyingReservedCard.horizontalCardFlight.faceDownReserveFlight .flyingReserveCardInner {
+  animation-name: reserveCardTurnHorizontalFaceDown;
+}
+
+.flyingReservedCard.classicReserveFlight.horizontalCardFlight.faceDownReserveFlight .flyingReserveCardInner {
+  animation-name: classicCardTurnToReserveFaceDownStable;
+}
+
+.flyingReservedCard.classicReserveFlight.horizontalCardFlight.faceDownReserveFlight:not(.backOnlyReserveFlight) .flyingReserveCardFace {
+  backface-visibility: visible;
+  -webkit-backface-visibility: visible;
+}
+
+.flyingReservedCard.classicReserveFlight.horizontalCardFlight.faceDownReserveFlight:not(.backOnlyReserveFlight) .flyingReserveCardBack {
+  opacity: 0;
+  transform: none;
+  animation: classicReserveFlightBackReveal var(--flight-duration) linear var(--flight-delay, 0ms) both;
+}
+
+.flyingReservedCard.classicReserveFlight.horizontalCardFlight.faceDownReserveFlight:not(.backOnlyReserveFlight) .flyingReserveCardFront {
+  animation: classicReserveFlightFrontHide var(--flight-duration) linear var(--flight-delay, 0ms) both;
+}
+
+.flyingReservedCard.horizontalCardFlight.backOnlyReserveFlight .flyingReserveCardInner {
+  animation-name: reserveCardTurnHorizontal;
+}
+
+.flyingReservedCard.classicReserveFlight.horizontalCardFlight.backOnlyReserveFlight .flyingReserveCardInner {
+  animation-name: classicCardTurnToReserve;
+}
+
+.flyingReservedCard.reservePurchaseCardFlight .flyingReserveCardInner {
+  width: var(--target-width);
+  height: var(--target-height);
+  animation-name: reserveCardTurnVertical;
+  animation-timing-function: cubic-bezier(0.2, 0.76, 0.24, 1);
+}
+
+.flyingReservedCard.reservePurchaseRevealFlight .flyingReserveCardInner {
+  animation-name: reserveCardRevealThenTurnVertical;
+}
+
+.flyingReserveCardFace {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+.flyingReserveCardBack {
+  transform: rotateY(180deg);
+}
+
+.flyingReservedCard.backOnlyReserveFlight .flyingReserveCardFront {
+  visibility: hidden;
+}
+
+.flyingReservedCard.backOnlyReserveFlight .flyingReserveCardBack {
+  transform: none;
+}
+
+.flyingReserveCardFace .card,
+.flyingReserveCardFace .reserveCardBack {
+  width: 100%;
+  height: 100%;
+}
+
+.flyingReservedCard.returningCardFlight {
+  animation-timing-function: cubic-bezier(0.18, 0.8, 0.22, 1);
+}
+
+.flyingReservedCard.evolutionBaseCardFlight {
+  animation-name: pokemonEvolutionBaseFly;
+  animation-timing-function: cubic-bezier(0.18, 0.72, 0.2, 1);
+  filter: none;
+}
+
+.flyingReservedCard.evolutionBaseCardFlight .flyingReserveCardInner {
+  animation-name: pokemonEvolutionBaseFlip;
+  animation-timing-function: cubic-bezier(0.2, 0.72, 0.22, 1);
+}
+
+.flyingReservedCard.evolutionBaseCardFlight .flyingReserveCardBack,
+.pokemonEvolutionPile.filledEvolutionPile .reserveCardBack,
+.pokemonEvolutionPile.filledEvolutionPile .deckBack {
+  filter: grayscale(0.82) brightness(0.68) contrast(0.9);
+}
+
+.introLayout .boardCell .token,
+.introLayout .marketCard {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.flyingReserveCardFace .classicCard,
+.flyingReserveCardFace .reserveCardBack,
+.introCardFace .classicCard,
+.introCardFace .reserveCardBack {
+  width: 100%;
+  height: 100%;
+}
+
+.introLayout .replenishButton {
+  display: none;
+}
+
+.introTokenFlight,
+.introCardFlight,
+.marketReplacementCardFlight,
+.introRoyalFlight {
+  position: fixed;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  transform: translate(var(--from-x), var(--from-y));
+  opacity: 0;
+}
+
+.introTokenFlight {
+  z-index: 47;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.36));
+  animation: introTokenFly var(--flight-duration) cubic-bezier(0.22, 0.78, 0.26, 1) var(--flight-delay) both;
+}
+
+.introTokenFlight.classicIntroTokenFlight {
+  contain: layout paint style;
+  filter: none;
+  animation-iteration-count: var(--flight-repeat-count, 1);
+}
+
+.introTokenFlight.classicIntroTokenFlight .splendorFlyingToken {
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.34));
+  animation-iteration-count: var(--flight-repeat-count, 1);
+}
+
+.introTokenFlight .token,
+.introTokenFlight .splendorFlyingToken {
+  width: 100%;
+  height: 100%;
+  animation: introTokenPop var(--flight-duration) ease-in-out var(--flight-delay) both;
+}
+
+.introCardFlight,
+.marketReplacementCardFlight,
+.introRoyalFlight {
+  z-index: 45;
+  perspective: 900px;
+  filter: none;
+  animation: introCardFly var(--flight-duration) cubic-bezier(0.2, 0.76, 0.24, 1) var(--flight-delay) both;
+}
+
+.introRoyalFlight {
+  z-index: 46;
+  animation-name: introRoyalFly;
+}
+
+.introRoyalFlight.classicRoyalDealFlight {
+  contain: layout paint style;
+  filter: none;
+  animation-name: introRoyalFly;
+  perspective: 900px;
+}
+
+.introCardFlight.classicCardDealFlight,
+.marketReplacementCardFlight.classicCardDealFlight {
+  contain: layout paint style;
+  filter: none;
+}
+
+.introCardFlight.classicCardDealFlight .introCardInner,
+.marketReplacementCardFlight.classicCardDealFlight .introCardInner,
+.introRoyalFlight.classicRoyalDealFlight .introRoyalInner {
+  filter: none;
+}
+
+.introRoyalInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: introRoyalFlip var(--flight-duration) ease-in-out var(--flight-delay) both;
+}
+
+.introRoyalFace {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+.introRoyalFront {
+  transform: rotateY(180deg);
+}
+
+.marketReplacementCardFlight {
+  z-index: 46;
+}
+
+.introCardInner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  animation: introCardFlip var(--flight-duration) ease-in-out var(--flight-delay) both;
+}
+
+.introCardFace {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+.introCardFront {
+  transform: rotateY(180deg);
+}
+
+.introCardBack {
+  position: absolute;
+  inset: 0;
+}
+
+.introCardBack .deckBack {
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  left: 0;
+  top: 0;
+}
+
+.introCardFace .card,
+.introRoyalFlight .classicNobleCard,
+.introRoyalFlight .reserveCardBack,
+.introRoyalFlight .card {
+  width: 100%;
+  height: 100%;
+}
+
+.pendingPanel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.replenishButton {
+  position: static;
+  z-index: 6;
+  width: clamp(30px, 4dvh, 36px);
+  height: clamp(30px, 4dvh, 36px);
+  min-height: 0;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(20, 24, 22, 0.52);
+  border-color: rgba(236, 203, 134, 0.28);
+  color: #ead39b;
+  transform: none;
+  backdrop-filter: blur(8px);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.replenishButton:not(:disabled):hover,
+.replenishButton.remoteHover {
+  background: rgba(49, 75, 72, 0.74);
+  border-color: rgba(236, 203, 134, 0.5);
+}
+
+.inlineControl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #cfc7b9;
+}
+
+.inlineControl select {
+  min-height: 34px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #202321;
+  color: #f5f1e8;
+}
+
+.pendingPanel,
+.market {
+  padding: clamp(8px, 0.9vw, 12px);
+}
+
+.pendingPanel {
+  position: absolute;
+  z-index: 8;
+  inset: clamp(8px, 1vw, 12px) clamp(8px, 1vw, 12px) auto;
+  min-height: auto;
+  max-height: 42%;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  border-color: rgba(224, 182, 94, 0.44);
+  background:
+    radial-gradient(circle at 18% 20%, rgba(224, 182, 94, 0.18), transparent 18rem),
+    rgba(16, 18, 17, 0.92);
+  animation: panelPop 350ms ease-out;
+}
+
+.market {
+  --market-gap: clamp(5px, 0.68dvh, 8px);
+  --market-card-width: clamp(56px, 8.8dvh, 92px);
+  --market-card-height: calc(var(--market-card-width) / 0.66);
+  --market-column-gap: clamp(8px, 0.95vw, 12px);
+  --market-row-gap: clamp(7px, 0.95dvh, 11px);
+  display: grid;
+  grid-template-columns: auto calc(var(--market-card-width) * 2 + var(--market-column-gap));
+  gap: clamp(8px, 0.9vw, 12px);
+  align-items: center;
+  justify-content: start;
+  min-height: 0;
+  overflow: visible;
+  position: relative;
+  z-index: 2;
+  height: 100%;
+}
+
+.playersArea {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(8px, 1vw, 12px);
+  min-height: 0;
+  overflow: visible;
+}
+
+.marketPool {
+  display: grid;
+  grid-template-rows: repeat(3, var(--market-card-height));
+  gap: var(--market-row-gap);
+  align-content: center;
+  justify-content: start;
+  min-width: 0;
+  min-height: 0;
+  overflow: visible;
+}
+
+.marketRow {
+  display: grid;
+  grid-template-columns: var(--market-card-width) minmax(0, calc(var(--market-card-width) * 5 + var(--market-column-gap) * 4));
+  gap: clamp(8px, 0.9vw, 12px);
+  align-items: center;
+  justify-content: start;
+  min-height: var(--market-card-height);
+  overflow: visible;
+}
+
+.marketCards {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: var(--market-card-width);
+  gap: var(--market-column-gap);
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+  height: var(--market-card-height);
+  overflow: visible;
+}
+
+.deckStack {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+  max-width: none;
+  align-self: center;
+  justify-self: center;
+  position: relative;
+  isolation: isolate;
+}
+
+.deckStack.deckReservable {
+  cursor: copy;
+}
+
+.deckStack.goldTargetedDeck {
+  z-index: 7;
+  filter: saturate(1.12) brightness(1.05) drop-shadow(0 0 12px rgba(255, 213, 103, 0.34));
+}
+
+.deckStack.goldTargetedDeck::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 7px;
+  border: 2px solid rgba(255, 219, 115, 0.82);
+  box-shadow:
+    0 0 0 2px rgba(92, 52, 18, 0.18),
+    0 0 18px rgba(255, 218, 106, 0.42);
+  pointer-events: none;
+}
+
+.deckStack.deckCarryHidden {
+  opacity: 1;
+  transform: none;
+}
+
+.deckStack.emptyDeck {
+  visibility: hidden;
+}
+
+.deckBack {
+  position: absolute;
+  width: 100%;
+  aspect-ratio: 0.66;
+  left: calc((var(--i) * var(--i)) * 0.18px + var(--i) * 1.2px);
+  top: calc(var(--i) * -0.9px);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  transform: rotate(calc((var(--i) - 1) * 0.35deg));
+  box-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.45),
+    0 12px 24px rgba(0, 0, 0, 0.28);
+  background-image: var(--deck-back-image);
+  background-size: cover;
+  background-position: center;
+  z-index: var(--i);
+}
+
+.marketCard {
+  min-width: 0;
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  position: relative;
+  transition:
+    transform 180ms ease,
+    filter 180ms ease;
+  cursor: default;
+  touch-action: none;
+}
+
+.marketCard.cardDraggable {
+  cursor: grab;
+}
+
+.myTurn .marketCard:hover,
+.marketCard.remoteHover {
+  transform: translateY(-6px);
+  z-index: 4;
+  filter: saturate(1.08);
+}
+
+.marketCard.goldTargetedCard {
+  z-index: 7;
+  transform: translateY(-6px);
+  filter: saturate(1.12) brightness(1.05) drop-shadow(0 0 12px rgba(255, 213, 103, 0.34));
+}
+
+.marketCard.goldTargetedCard::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 7px;
+  border: 2px solid rgba(255, 219, 115, 0.82);
+  box-shadow:
+    0 0 0 2px rgba(92, 52, 18, 0.18),
+    0 0 18px rgba(255, 218, 106, 0.42);
+  pointer-events: none;
+}
+
+.myTurn .marketCard.cardDraggable:active {
+  cursor: grabbing;
+}
+
+.marketCard.cardCarryHidden {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.card,
+.cardMini,
+.cardBack,
+.emptyMarket {
+  border-radius: 6px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+}
+
+.card {
+  aspect-ratio: 0.66;
+  width: var(--market-card-width, auto);
+  max-width: none;
+  height: var(--market-card-height, 100%);
+  justify-self: center;
+  position: relative;
+  background: #171917;
+}
+
+.floatingCardCarry {
+  position: fixed;
+  z-index: 31;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  filter: none;
+}
+
+.floatingCardCarry .card {
+  width: 100%;
+  height: 100%;
+}
+
+.floatingCardCarry.horizontalCardCarry .card {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+  transform: rotate(90deg);
+}
+
+.floatingCardCarry,
+.flyingReservedCard,
+.introCardFlight,
+.marketReplacementCardFlight,
+.introRoyalFlight {
+  contain: layout paint style;
+  filter: none;
+}
+
+.floatingCardCarry .card,
+.floatingCardCarry .classicCard,
+.floatingCardCarry .reserveCardBack,
+.floatingCardCarry .card *,
+.floatingCardCarry .classicCard *,
+.floatingCardCarry .reserveCardBack *,
+.flyingReservedCard .card,
+.flyingReservedCard .classicCard,
+.flyingReservedCard .reserveCardBack,
+.flyingReservedCard .deckBack,
+.flyingReservedCard .card *,
+.flyingReservedCard .classicCard *,
+.flyingReservedCard .reserveCardBack *,
+.flyingReservedCard .deckBack *,
+.introCardFlight .card,
+.introCardFlight .classicCard,
+.introCardFlight .reserveCardBack,
+.introCardFlight .deckBack,
+.introCardFlight .card *,
+.introCardFlight .classicCard *,
+.introCardFlight .reserveCardBack *,
+.introCardFlight .deckBack *,
+.marketReplacementCardFlight .card,
+.marketReplacementCardFlight .classicCard,
+.marketReplacementCardFlight .reserveCardBack,
+.marketReplacementCardFlight .deckBack,
+.marketReplacementCardFlight .card *,
+.marketReplacementCardFlight .classicCard *,
+.marketReplacementCardFlight .reserveCardBack *,
+.marketReplacementCardFlight .deckBack *,
+.introRoyalFlight .card,
+.introRoyalFlight .classicNobleCard,
+.introRoyalFlight .reserveCardBack,
+.introRoyalFlight .deckBack,
+.introRoyalFlight .card *,
+.introRoyalFlight .classicNobleCard *,
+.introRoyalFlight .reserveCardBack *,
+.introRoyalFlight .deckBack * {
+  box-shadow: none;
+  filter: none;
+}
+
+.cardMini {
+  width: clamp(30px, 2.8vw, 42px);
+  height: clamp(45px, 4.2vw, 64px);
+  flex: 0 0 auto;
+  transition: transform 160ms ease;
+}
+
+.cardMini:hover,
+.reserveCardItem.ownReserve:hover .reserveCardInner {
+  transform: translateY(-3px);
+}
+
+.cardBack,
+.emptyMarket {
+  display: grid;
+  place-items: center;
+  color: #bdb5a8;
+  font-size: 12px;
+}
+
+.reserveCardItem {
+  width: var(--player-card-height);
+  height: var(--player-card-width);
+  flex: 0 0 auto;
+  position: relative;
+  display: grid;
+  place-items: center;
+  overflow: visible;
+  touch-action: none;
+}
+
+.reserveCardInner {
+  width: var(--player-card-width);
+  height: var(--player-card-height);
+  display: grid;
+  place-items: center;
+  transform: rotate(90deg);
+  transform-origin: center;
+  transition:
+    transform 250ms ease,
+    filter 250ms ease;
+}
+
+.reserveCardItem.ownReserve {
+  cursor: grab;
+}
+
+.reserveCardItem.ownReserve:hover {
+  z-index: 8;
+}
+
+.reserveCardItem.ownReserve:hover .reserveCardInner {
+  transform: rotate(0deg) translateY(-6px);
+  filter: saturate(1.08);
+}
+
+.reserveCardItem.hiddenReserve.remoteHover .reserveCardInner {
+  filter: saturate(1.06) brightness(1.06) drop-shadow(0 0 8px rgba(255, 225, 145, 0.26));
+}
+
+.reserveCardItem.ownReserve:active {
+  cursor: grabbing;
+}
+
+.reserveCardItem.reserveCarryHidden {
+  opacity: 0;
+}
+
+.reserveCardItem .card,
+.reserveCardItem .cardBack,
+.reserveCardItem .reserveCardBack {
+  width: var(--player-card-width);
+  height: var(--player-card-height);
+}
+
+.reserveCardItem.reserveReveal .reserveCardInner {
+  position: relative;
+  transform-style: preserve-3d;
+  animation: reserveRevealFlip var(--reserve-reveal-duration, 702ms) cubic-bezier(0.2, 0.76, 0.24, 1) both;
+}
+
+.reserveRevealFace {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+}
+
+.reserveRevealBack {
+  transform: rotateY(180deg);
+}
+
+.reserveCardBack {
+  position: relative;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #171917;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+}
+
+.reserveCardBack .deckBack {
+  inset: 0;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: auto;
+  border: 0;
+  transform: none;
+  box-shadow: none;
+}
+
+.emptyMarket {
+  aspect-ratio: 0.66;
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+  justify-self: center;
+}
+
+.cardArt {
+  width: 100%;
+  height: 100%;
+}
+
+.winBanner,
+.toast {
+  position: absolute;
+  z-index: 20;
+  top: clamp(12px, 1.4vw, 18px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, calc(100vw - 24px));
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(184, 138, 54, 0.18);
+  border: 1px solid rgba(184, 138, 54, 0.5);
+}
+
+.winBanner {
+  animation: winPulse 1200ms ease-out;
+  display: grid;
+  gap: 3px;
+  justify-items: center;
+  text-align: center;
+  background:
+    linear-gradient(180deg, rgba(45, 35, 20, 0.92), rgba(15, 14, 12, 0.9)),
+    rgba(12, 12, 10, 0.92);
+  border-color: rgba(236, 203, 134, 0.62);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.44),
+    inset 0 1px 0 rgba(255, 235, 185, 0.16);
+  backdrop-filter: blur(8px);
+}
+
+.winBanner span {
+  color: #f7edcf;
+  font-size: 13px;
+}
+
+.toast {
+  background: rgba(120, 40, 40, 0.4);
+  border-color: rgba(255, 141, 127, 0.4);
+}
+
+.tutorialLayer {
+  position: fixed;
+  inset: 0;
+  z-index: 82;
+  pointer-events: none;
+}
+
+.tutorialScrim {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+}
+
+.tutorialSpotlight {
+  position: fixed;
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 2px rgba(120, 219, 173, 0.88),
+    0 0 24px rgba(120, 219, 173, 0.42);
+}
+
+.tutorialBubble {
+  position: fixed;
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(177, 255, 217, 0.5);
+  background: rgba(13, 18, 16, 0.94);
+  color: #f4efe5;
+  box-shadow:
+    0 16px 32px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+}
+
+.tutorialBubble strong {
+  color: #9be8bd;
+  font-size: 13px;
+  line-height: 1.15;
+}
+
+.tutorialBubble span {
+  color: #efe7d9;
+  font-size: 13px;
+  line-height: 1.38;
+}
+
+.royals {
+  display: grid;
+  grid-template-columns: repeat(2, var(--market-card-width));
+  grid-template-rows: repeat(2, var(--market-card-height));
+  gap: var(--market-row-gap) var(--market-column-gap);
+  align-content: center;
+  justify-content: center;
+  min-height: 0;
+  overflow: visible;
+}
+
+.royalCardSlot {
+  position: relative;
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  display: grid;
+  place-items: stretch;
+  cursor: default;
+}
+
+.royalCardSlot:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.royalCardSlot .card {
+  width: 100%;
+  height: 100%;
+}
+
+.royalCardSlot.selectableRoyalCard {
+  cursor: default;
+  z-index: 4;
+}
+
+.royalCardSlot.selectableRoyalCard .card {
+  box-shadow:
+    0 0 0 2px rgba(255, 232, 158, 0.76),
+    0 0 22px rgba(255, 218, 132, 0.46),
+    0 12px 24px rgba(0, 0, 0, 0.28);
+  animation: royalChoicePulse 820ms ease-in-out infinite alternate;
+}
+
+.royalCardSlot.claimedRoyalCard .card,
+.royalCardSlot.claimedRoyalCard .classicNobleCard {
+  filter: saturate(1.08) brightness(1.04);
+  box-shadow:
+    0 0 0 2px rgba(149, 232, 188, 0.7),
+    0 0 22px rgba(113, 221, 163, 0.34),
+    0 12px 24px rgba(0, 0, 0, 0.28);
+}
+
+.royalCardSlot.claimedBy-p2 .card,
+.royalCardSlot.claimedBy-p2 .classicNobleCard {
+  box-shadow:
+    0 0 0 2px rgba(121, 196, 255, 0.72),
+    0 0 22px rgba(121, 196, 255, 0.34),
+    0 12px 24px rgba(0, 0, 0, 0.28);
+}
+
+.royalCardSlot.claimedBy-p3 .card,
+.royalCardSlot.claimedBy-p3 .classicNobleCard {
+  box-shadow:
+    0 0 0 2px rgba(255, 193, 115, 0.72),
+    0 0 22px rgba(255, 193, 115, 0.34),
+    0 12px 24px rgba(0, 0, 0, 0.28);
+}
+
+.royalCardSlot.claimedBy-p4 .card,
+.royalCardSlot.claimedBy-p4 .classicNobleCard {
+  box-shadow:
+    0 0 0 2px rgba(203, 161, 255, 0.72),
+    0 0 22px rgba(203, 161, 255, 0.34),
+    0 12px 24px rgba(0, 0, 0, 0.28);
+}
+
+.royalClaimBadge {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  z-index: 2;
+  min-width: 0;
+  padding: 3px 5px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(11, 18, 15, 0.78);
+  color: #f4fff8;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.1;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(6px);
+}
+
+.claimedBy-p2 .royalClaimBadge {
+  background: rgba(10, 18, 27, 0.78);
+}
+
+.claimedBy-p3 .royalClaimBadge {
+  background: rgba(32, 19, 9, 0.78);
+}
+
+.claimedBy-p4 .royalClaimBadge {
+  background: rgba(23, 13, 34, 0.78);
+}
+
+.royals.royalStack .royalCardSlot {
+  grid-column: 1;
+  grid-row: 1;
+  transform: translate(calc(var(--stack-i, 0) * 3px), calc(var(--stack-i, 0) * -2px)) rotate(calc((var(--stack-i, 0) - 1.5) * 0.45deg));
+  z-index: calc(4 - var(--stack-i, 0));
+}
+
+.royals.royalStack .royalCardSlot:nth-child(1) {
+  --stack-i: 0;
+}
+
+.royals.royalStack .royalCardSlot:nth-child(2) {
+  --stack-i: 1;
+}
+
+.royals.royalStack .royalCardSlot:nth-child(3) {
+  --stack-i: 2;
+}
+
+.royals.royalStack .royalCardSlot:nth-child(4) {
+  --stack-i: 3;
+}
+
+.introAnimating .royals.royalStack .royalCardSlot:nth-child(n + 2) {
+  opacity: 0;
+}
+
+.royalCards {
+  display: contents;
+}
+
+@keyframes takeTileIn {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+}
+
+@keyframes tokenFlyToSlot {
+  from {
+    transform: translate(var(--from-x), var(--from-y));
+  }
+  to {
+    transform: translate(var(--to-x), var(--to-y));
+  }
+}
+
+.tokenFlightVia {
+  z-index: 60;
+  animation-name: tokenFlyViaCard;
+}
+
+@keyframes tokenFlyViaCard {
+  0% {
+    transform: translate(var(--from-x), var(--from-y));
+  }
+  28% {
+    transform: translate(var(--via-x), var(--via-y));
+  }
+  100% {
+    transform: translate(var(--to-x), var(--to-y));
+  }
+}
+
+@keyframes privilegeFlyToSlot {
+  0% {
+    width: var(--source-width);
+    height: var(--source-height);
+    transform: translate(var(--from-x), var(--from-y));
+  }
+  100% {
+    width: var(--target-width);
+    height: var(--target-height);
+    transform: translate(var(--to-x), var(--to-y));
+  }
+}
+
+@keyframes privilegeFlyTilt {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(var(--privilege-tilt, -8deg));
+  }
+}
+
+@keyframes awardedPrivilegeGlow {
+  from {
+    opacity: 0.68;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes abilityTokenTargetPulse {
+  from {
+    filter: saturate(1.12) brightness(1);
+  }
+  to {
+    filter: saturate(1.42) brightness(1.16);
+  }
+}
+
+@keyframes abilityTokenRingPulse {
+  from {
+    opacity: 0.72;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes royalChoicePulse {
+  from {
+    filter: saturate(1.04) brightness(1);
+    transform: translateY(0);
+  }
+  to {
+    filter: saturate(1.18) brightness(1.08);
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes tokenFlyLift {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: translateY(-12px) scale(1.12);
+  }
+  100% {
+    transform: scale(0.98);
+  }
+}
+
+@keyframes cardFlyToReserve {
+  0% {
+    width: var(--market-card-width);
+    height: var(--market-card-height);
+    transform: translate(var(--from-x), var(--from-y)) scale(1);
+  }
+  100% {
+    width: var(--target-width);
+    height: var(--target-height);
+    transform: translate(var(--to-x), var(--to-y)) scale(1);
+  }
+}
+
+@keyframes pokemonEvolutionBaseFly {
+  0% {
+    width: var(--source-width);
+    height: var(--source-height);
+    transform: translate(var(--from-x), var(--from-y)) translateY(0) scale(1);
+  }
+  26% {
+    width: var(--source-width);
+    height: var(--source-height);
+    transform: translate(var(--from-x), var(--from-y)) translateY(-16px) scale(1.08);
+  }
+  100% {
+    width: var(--target-width);
+    height: var(--target-height);
+    transform: translate(var(--to-x), var(--to-y)) translateY(0) scale(1);
+  }
+}
+
+@keyframes classicCardFlyToReserveCenter {
+  0% {
+    transform: translate(
+      calc(var(--from-center-x) - var(--source-half-width)),
+      calc(var(--from-center-y) - var(--source-half-height))
+    );
+  }
+  100% {
+    transform: translate(
+      calc(var(--to-center-x) - var(--source-half-width)),
+      calc(var(--to-center-y) - var(--source-half-height))
+    );
+  }
+}
+
+@keyframes cardFlyReserveRevealToPurchase {
+  0%,
+  28% {
+    width: var(--source-width);
+    height: var(--source-height);
+    transform: translate(var(--from-x), var(--from-y)) scale(1);
+  }
+  100% {
+    width: var(--target-width);
+    height: var(--target-height);
+    transform: translate(var(--to-x), var(--to-y)) scale(1);
+  }
+}
+
+@keyframes cardFlyColorlessPurchase {
+  0% {
+    width: var(--source-width);
+    height: var(--source-height);
+    opacity: 1;
+    transform: translate(var(--from-x), var(--from-y)) scale(1);
+  }
+  76% {
+    width: var(--source-width);
+    height: var(--source-height);
+    opacity: 1;
+    transform: translate(var(--to-x), var(--to-y)) scale(1);
+  }
+  100% {
+    width: var(--source-width);
+    height: var(--source-height);
+    opacity: 0;
+    transform: translate(var(--to-x), var(--to-y)) scale(0.18);
+  }
+}
+
+@keyframes reserveCardStayVertical {
+  from,
+  to {
+    transform: rotate(0deg) rotateY(0deg);
+  }
+}
+
+@keyframes reserveCardTurnHorizontal {
+  0% {
+    transform: rotate(0deg) rotateY(0deg);
+  }
+  68% {
+    transform: rotate(var(--reserve-mid-rotation, 82deg)) rotateY(0deg);
+  }
+  100% {
+    transform: rotate(var(--reserve-target-rotation, 90deg)) rotateY(0deg);
+  }
+}
+
+@keyframes classicCardTurnToReserve {
+  0% {
+    width: var(--source-width);
+    height: var(--source-height);
+    transform: rotate(0deg) rotateY(0deg);
+  }
+  68% {
+    width: var(--reserve-card-width);
+    height: var(--reserve-card-height);
+    transform: rotate(var(--reserve-mid-rotation, 82deg)) rotateY(0deg);
+  }
+  100% {
+    width: var(--reserve-card-width);
+    height: var(--reserve-card-height);
+    transform: rotate(var(--reserve-target-rotation, 90deg)) rotateY(0deg);
+  }
+}
+
+@keyframes reserveCardTurnHorizontalFaceDown {
+  0% {
+    transform: rotate(0deg) rotateY(0deg);
+  }
+  62% {
+    transform: rotate(var(--reserve-mid-rotation, 84deg)) rotateY(0deg);
+  }
+  84% {
+    transform: rotate(var(--reserve-target-rotation, 90deg)) rotateY(92deg);
+  }
+  100% {
+    transform: rotate(var(--reserve-target-rotation, 90deg)) rotateY(180deg);
+  }
+}
+
+@keyframes pokemonEvolutionBaseFlip {
+  0%,
+  38% {
+    transform: rotateY(0deg);
+  }
+  68% {
+    transform: rotateY(92deg);
+  }
+  100% {
+    transform: rotateY(180deg);
+  }
+}
+
+@keyframes classicCardTurnToReserveFaceDown {
+  0% {
+    width: var(--source-width);
+    height: var(--source-height);
+    transform: rotate(0deg) rotateY(0deg);
+  }
+  62% {
+    width: var(--reserve-card-width);
+    height: var(--reserve-card-height);
+    transform: rotate(var(--reserve-mid-rotation, 84deg)) rotateY(0deg);
+  }
+  84% {
+    width: var(--reserve-card-width);
+    height: var(--reserve-card-height);
+    transform: rotate(var(--reserve-target-rotation, 90deg)) rotateY(92deg);
+  }
+  100% {
+    width: var(--reserve-card-width);
+    height: var(--reserve-card-height);
+    transform: rotate(var(--reserve-target-rotation, 90deg)) rotateY(180deg);
+  }
+}
+
+@keyframes classicCardTurnToReserveFaceDownStable {
+  0% {
+    width: var(--source-width);
+    height: var(--source-height);
+    transform: rotate(0deg) scaleX(1);
+  }
+  58% {
+    width: var(--reserve-card-width);
+    height: var(--reserve-card-height);
+    transform: rotate(var(--reserve-mid-rotation, 84deg)) scaleX(1);
+  }
+  76% {
+    width: var(--reserve-card-width);
+    height: var(--reserve-card-height);
+    transform: rotate(var(--reserve-target-rotation, 90deg)) scaleX(0.08);
+  }
+  100% {
+    width: var(--reserve-card-width);
+    height: var(--reserve-card-height);
+    transform: rotate(var(--reserve-target-rotation, 90deg)) scaleX(1);
+  }
+}
+
+@keyframes classicReserveFlightFrontHide {
+  0%,
+  75% {
+    opacity: 1;
+  }
+  76%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes classicReserveFlightBackReveal {
+  0%,
+  75% {
+    opacity: 0;
+  }
+  76%,
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes cardFlyToRotatedPurchase {
+  0% {
+    width: var(--source-width);
+    height: var(--source-height);
+    transform: translate(
+        calc(var(--from-center-x) - var(--source-half-width)),
+        calc(var(--from-center-y) - var(--source-half-height))
+      )
+      rotate(0deg);
+  }
+  100% {
+    width: var(--target-width);
+    height: var(--target-height);
+    transform: translate(
+        calc(var(--to-center-x) - var(--target-width) / 2),
+        calc(var(--to-center-y) - var(--target-height) / 2)
+      )
+      rotate(var(--reserve-target-rotation, 0deg));
+  }
+}
+
+@keyframes reserveCardTurnVertical {
+  0% {
+    transform: rotate(90deg) rotateY(0deg);
+  }
+  100% {
+    transform: rotate(0deg) rotateY(0deg);
+  }
+}
+
+@keyframes reserveCardRevealThenTurnVertical {
+  0% {
+    transform: rotate(90deg) rotateY(180deg);
+  }
+  28% {
+    transform: rotate(90deg) rotateY(0deg);
+  }
+  100% {
+    transform: rotate(0deg) rotateY(0deg);
+  }
+}
+
+@keyframes reserveRevealFlip {
+  0% {
+    transform: rotate(90deg) rotateY(180deg);
+  }
+  100% {
+    transform: rotate(90deg) rotateY(0deg);
+  }
+}
+
+@keyframes splendorReserveRevealFlip {
+  0% {
+    transform: translate(-50%, -50%) rotate(90deg) rotateY(180deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(90deg) rotateY(0deg);
+  }
+}
+
+@keyframes introTokenFly {
+  0% {
+    opacity: 0;
+    transform: translate(var(--from-x), var(--from-y)) scale(0.74);
+  }
+  16% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translate(var(--to-x), var(--to-y)) scale(1);
+  }
+}
+
+@keyframes introTokenPop {
+  0% {
+    transform: scale(0.76);
+  }
+  58% {
+    transform: translateY(-10px) scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes introCardFly {
+  0% {
+    opacity: 0;
+    transform: translate(var(--from-x), var(--from-y)) scale(0.96);
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translate(var(--to-x), var(--to-y)) scale(1);
+  }
+}
+
+@keyframes introCardFlip {
+  0%,
+  48% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(180deg);
+  }
+}
+
+@keyframes introRoyalFly {
+  0% {
+    opacity: 0;
+    transform: translate(var(--from-x), var(--from-y)) scale(0.98);
+  }
+  8% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: translate(var(--to-x), var(--to-y)) scale(1);
+  }
+}
+
+@keyframes introRoyalFlip {
+  0%,
+  42% {
+    transform: rotateY(0deg);
+  }
+  100% {
+    transform: rotateY(180deg);
+  }
+}
+
+@keyframes panelPop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.99);
+  }
+}
+
+@keyframes winPulse {
+  from {
+    transform: scale(0.98);
+    box-shadow: 0 0 0 0 rgba(224, 182, 94, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(224, 182, 94, 0);
+  }
+}
+
+@media (max-width: 1120px) {
+  .gameShell {
+    --board-size: clamp(224px, 30dvh, 292px);
+  }
+
+  .market {
+    --market-card-width: clamp(42px, 7.2dvh, 64px);
+    --market-column-gap: 6px;
+    --market-row-gap: 6px;
+  }
+
+  .gameLayout {
+    grid-template-rows: minmax(0, 56fr) minmax(0, 44fr);
+  }
+
+  .playerPanel {
+    position: static;
+    grid-template-rows: var(--board-cell-size) auto;
+    gap: 8px;
+  }
+
+  .tableArea {
+    grid-template-columns: minmax(314px, clamp(326px, 39dvh, 380px)) auto;
+    gap: 10px;
+  }
+
+  .boardPlayArea {
+    grid-template-columns: clamp(44px, 6dvh, 58px) minmax(0, var(--board-play-size));
+    gap: 8px;
+  }
+
+  .tokenBoard {
+    width: var(--board-play-size);
+  }
+
+  .boardPanel {
+    padding: 10px;
+  }
+
+  .replenishButton {
+    width: 34px;
+    height: 34px;
+  }
+
+  .marketRow {
+    gap: 5px;
+    overflow: visible;
+  }
+
+  .deckStack {
+    width: var(--market-card-width);
+    max-width: none;
+  }
+
+  .deckBack {
+    width: 100%;
+  }
+
+  .card {
+    width: var(--market-card-width);
+    max-width: none;
+  }
+
+  .emptyMarket {
+    width: var(--market-card-width);
+  }
+
+  .playerPanel section {
+    display: none;
+  }
+
+  .playerPanel .victoryPanel {
+    display: grid;
+  }
+}
+
+@media (max-width: 760px) {
+  html,
+  body {
+    height: 100%;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: hidden;
+  }
+
+  .gameShell {
+    --board-size: clamp(198px, 29dvh, 248px);
+    --board-hint-height: clamp(28px, 3.8dvh, 34px);
+    --board-hint-gap: 5px;
+    --board-pad: 6px;
+    --board-gap: 4px;
+    --board-token-size: min(calc(var(--board-cell-size) * 0.76), 41px);
+    height: 100dvh;
+    min-height: 0;
+    padding: calc(env(safe-area-inset-top) + 76px) 6px calc(env(safe-area-inset-bottom) + 6px);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-x: hidden;
+    overflow-y: hidden;
+  }
+
+  .market {
+    --market-card-width: clamp(30px, 4.8dvh, 38px);
+    --market-column-gap: 5px;
+    --market-row-gap: 5px;
+    --market-pool-width: calc(var(--market-card-width) * 6 + var(--market-column-gap) * 5);
+    width: 100%;
+    height: auto;
+    padding: 0;
+    display: grid;
+    grid-template-columns: minmax(0, var(--market-pool-width)) auto;
+    gap: 7px;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+  }
+
+  .gameHud {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 6px);
+    left: 6px;
+    right: 6px;
+    z-index: 28;
+    width: auto;
+    max-width: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    pointer-events: none;
+  }
+
+  .roomOps {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 44px);
+    left: 6px;
+    right: 6px;
+    z-index: 28;
+    width: auto;
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .gameHud span,
+  .gameHud strong {
+    min-height: 26px;
+    padding: 0 8px;
+    font-size: 11px;
+  }
+
+  .hudIconButton {
+    width: 36px;
+    height: 36px;
+  }
+
+  .aiDifficultyControl {
+    width: min(176px, calc(100vw - 112px));
+    min-height: 36px;
+    grid-template-columns: 46px minmax(0, 1fr);
+    gap: 5px;
+    padding: 0 9px;
+    font-size: 11px;
+  }
+
+  .dialogDifficultyControl {
+    width: 100%;
+    min-height: 42px;
+    grid-template-columns: 72px minmax(0, 1fr);
+    font-size: 12px;
+  }
+
+  .winBanner,
+  .toast {
+    position: fixed;
+    top: calc(env(safe-area-inset-top) + 82px);
+    transform: none;
+    left: 8px;
+    right: 8px;
+    width: auto;
+  }
+
+  .winBanner {
+    animation: none;
+  }
+
+  .gameLayout {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: minmax(0, 1fr) clamp(202px, 34dvh, 284px);
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .tableArea {
+    height: 100%;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, var(--board-size)) minmax(0, auto);
+    align-content: center;
+    gap: 5px;
+    overflow: hidden;
+  }
+
+  .boardPanel {
+    position: relative;
+    display: grid;
+    height: var(--board-size);
+    min-height: 0;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .boardStage {
+    height: 100%;
+    min-height: 0;
+    place-items: center;
+  }
+
+  .boardPlayArea {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: 38px minmax(0, var(--board-play-size));
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .gemBagShell {
+    width: 38px;
+  }
+
+  .privilegeSupply {
+    min-height: 38px;
+    margin-top: 3px;
+  }
+
+  .marketRow {
+    width: max-content;
+    grid-template-columns: var(--market-card-width) minmax(0, calc(var(--market-card-width) * 5 + var(--market-column-gap) * 4));
+    gap: 6px;
+    overflow: visible;
+  }
+
+  .deckStack {
+    width: var(--market-card-width);
+  }
+
+  .marketPool {
+    width: var(--market-pool-width);
+    max-width: 100%;
+    justify-content: start;
+    overflow-x: hidden;
+    overflow-y: visible;
+    padding: 0;
+  }
+
+  .marketCards {
+    justify-content: start;
+  }
+
+  .royals {
+    grid-template-columns: repeat(2, var(--market-card-width));
+    grid-template-rows: repeat(2, var(--market-card-height));
+    justify-content: start;
+    overflow: visible;
+    padding: 0;
+  }
+
+  .tokenBoard {
+    width: var(--board-play-size);
+    justify-content: center;
+  }
+
+  .mobileBoardCloseButton {
+    position: absolute;
+    z-index: 14;
+    width: 34px;
+    height: 34px;
+    min-height: 0;
+    padding: 0;
+    border-radius: 999px;
+    background: rgba(13, 16, 15, 0.66);
+    backdrop-filter: blur(8px);
+  }
+
+  .mobileBoardFocusButton {
+    display: grid;
+    width: 32px;
+    height: 32px;
+    min-height: 0;
+    padding: 0;
+    border-radius: 999px;
+    background: rgba(13, 16, 15, 0.66);
+    backdrop-filter: blur(8px);
+    margin-top: -2px;
+  }
+
+  .introLayout .mobileBoardFocusButton,
+  .introAnimating .mobileBoardFocusButton {
+    display: none;
+  }
+
+  .mobileBoardCloseButton {
+    display: none;
+  }
+
+  .boardFocusOpen {
+    --board-size: min(94vw, calc(100dvh - 132px));
+    --board-hint-height: clamp(36px, 5dvh, 48px);
+    --board-token-size: min(calc(var(--board-cell-size) * 0.8), 58px);
+  }
+
+  .boardFocusOpen .boardPanel {
+    position: fixed;
+    inset: calc(env(safe-area-inset-top) + 6px) 6px calc(env(safe-area-inset-bottom) + 6px);
+    z-index: 76;
+    height: auto;
+    padding: 42px 8px 8px;
+    place-items: center;
+    border-radius: 8px;
+    background:
+      radial-gradient(circle at 50% 42%, rgba(236, 203, 134, 0.1), transparent 22rem),
+      rgba(10, 12, 11, 0.92);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(10px);
+  }
+
+  .boardFocusOpen .boardStage {
+    width: 100%;
+    height: 100%;
+  }
+
+  .boardFocusOpen .boardPlayArea {
+    grid-template-columns: 42px minmax(0, var(--board-play-size));
+  }
+
+  .boardFocusOpen .mobileBoardFocusButton {
+    display: none;
+  }
+
+  .boardFocusOpen .mobileBoardCloseButton {
+    display: grid;
+    right: 10px;
+    top: 8px;
+  }
+
+  .card {
+    width: var(--market-card-width);
+    max-width: none;
+  }
+
+  .playerPanel {
+    --player-card-width: clamp(30px, 6.2dvh, 48px);
+    --player-card-height: calc(var(--player-card-width) / 0.66);
+    --purchased-stack-step: clamp(11px, 2.1dvh, 16px);
+    order: 2;
+    height: 100%;
+    min-height: 0;
+    padding: 6px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 21px minmax(0, 78px) 28px minmax(0, 1fr);
+    row-gap: 4px;
+    column-gap: 5px;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  .playerPanel.viewerPanel {
+    order: 1;
+  }
+
+  .playerPanel.opponentPanel {
+    order: 2;
+  }
+
+  .playerPanel header {
+    display: contents;
+  }
+
+  .playerPanel header strong {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .playerPanel header span {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .playerPanel section {
+    display: block;
+  }
+
+  .playersArea {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .tokenSlots {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    justify-content: stretch;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+    gap: 4px;
+    width: 100%;
+    max-width: 100%;
+    height: 76px;
+    overflow-x: hidden;
+    overflow-y: hidden;
+  }
+
+  .tokenSlot {
+    width: 100%;
+    height: 36px;
+  }
+
+  .tokenSlot .tokenImage {
+    width: 28px;
+    height: 28px;
+  }
+
+  .overflowTokenTray,
+  .discardTokenPanel {
+    grid-column: 1 / -1;
+  }
+
+  .playerPanel section.overflowTokenTray {
+    display: flex;
+  }
+
+  .playerPanel section.discardTokenPanel {
+    display: grid;
+  }
+
+  .victoryPanel {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 4px;
+    align-items: center;
+  }
+
+  .playerPrivilegeSlots {
+    height: 28px;
+    min-height: 28px;
+    max-height: 28px;
+    padding: 0 1px;
+    align-self: center;
+    overflow: visible;
+  }
+
+  .playerPrivilegeSlot {
+    flex: 0 0 18px;
+    width: 18px;
+    height: 28px;
+    min-height: 28px;
+    max-height: 28px;
+    margin-left: -4px;
+  }
+
+  .playerPrivilegeSlot img {
+    height: 31px;
+    max-height: 31px;
+  }
+
+  .victoryTracks {
+    grid-template-columns: repeat(3, minmax(0, 0.82fr)) minmax(64px, 0.96fr);
+    gap: 3px;
+  }
+
+  .victoryTrack,
+  .colorlessPurchasedTrack {
+    min-height: 24px;
+    padding: 1px 3px;
+    display: grid;
+    place-items: center;
+  }
+
+  .victoryTrackLabel,
+  .victoryTrackBar {
+    display: none;
+  }
+
+  .victoryTrack strong,
+  .colorlessPurchasedTrack,
+  .colorlessPurchasedTrack strong {
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .playerCardArea {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    display: grid;
+    grid-template-columns: calc(var(--player-card-height) + 4px) minmax(0, 1fr);
+    gap: 5px;
+    height: 100%;
+    min-height: 0;
+    margin-top: 0;
+    overflow: hidden;
+  }
+
+  .reservePanel,
+  .purchasedPanel {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .reserveList {
+    width: calc(var(--player-card-height) + 4px);
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .reserveCardItem {
+    width: var(--player-card-height);
+    height: var(--player-card-width);
+  }
+
+  .purchasedPanel {
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    padding-right: 0;
+  }
+
+  .purchasedStacks {
+    min-width: 0;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+    padding: 0;
+  }
+
+  .purchasedColumn {
+    min-width: 0;
+    grid-template-rows: 14px auto;
+  }
+
+  .purchasedColumnHeader {
+    height: 14px;
+  }
+
+  .purchasedColumnHeader .tokenImage {
+    width: 14px;
+    height: 14px;
+  }
+
+  .purchasedCardItem {
+    width: var(--player-card-width);
+    height: var(--player-card-height);
+  }
+
+  .purchasedCardItem .card,
+  .reserveCardItem .card,
+  .reserveCardItem .cardBack,
+  .reserveCardItem .reserveCardBack {
+    width: var(--player-card-width);
+    height: var(--player-card-height);
+  }
+
+  .selectedTokenActions {
+    bottom: 8px;
+    min-height: 38px;
+    max-width: calc(100vw - 28px);
+    padding: 4px 6px;
+  }
+
+  .selectedTokenActionButton {
+    min-height: 32px;
+    height: 32px;
+    padding: 0 10px;
+  }
+
+  .tutorialBubble {
+    max-width: calc(100vw - 24px);
+  }
+
+  .tutorialBubble.mobileBottomSheet {
+    top: auto;
+    width: auto;
+    padding: 11px 12px;
+    border-radius: 8px;
+  }
+
+  .tutorialScrim {
+    height: 100dvh;
+  }
+}
