@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { jsonError, roomStore, RoomNotFoundError } from './roomStore'
+import { jsonError, replayToRoomMachine, roomStore, RoomNotFoundError, withRoomMachineRouting } from './roomStore'
 import { legalActions } from '@/game/ai'
 import type { BoardCell, PlayerId } from '@/game/types'
 
@@ -126,11 +126,11 @@ describe('room store', () => {
       roomStore.disconnect(first.roomId, first.playerSecret)
       expect(roomStore.getSnapshot(first.roomId).state.players.p1.connected).toBe(false)
 
-      now.mockReturnValue(startedAt + 1000 * 60 * 5 - 1)
+      now.mockReturnValue(startedAt + 1000 * 60 - 1)
       const rejoined = roomStore.joinRoom(first.roomId, first.playerSecret)
       expect(rejoined.playerId).toBe('p1')
 
-      now.mockReturnValue(startedAt + 1000 * 60 * 5 + 1)
+      now.mockReturnValue(startedAt + 1000 * 60 + 1)
       expect(roomStore.getSnapshot(first.roomId).state.players.p1.connected).toBe(true)
     } finally {
       now.mockRestore()
@@ -148,7 +148,7 @@ describe('room store', () => {
       roomStore.disconnect(first.roomId, first.playerSecret)
       expect(roomStore.getSnapshot(first.roomId).state.players.p1.connected).toBe(false)
 
-      now.mockReturnValue(startedAt + 1000 * 60 * 5 - 1)
+      now.mockReturnValue(startedAt + 1000 * 60 - 1)
       const rejoined = roomStore.joinRoom(first.roomId, first.playerSecret)
       expect(rejoined.playerId).toBe('p1')
       expect(rejoined.state.players.p1.seated).toBe(false)
@@ -158,7 +158,7 @@ describe('room store', () => {
     }
   })
 
-  it('expires an AI room after the human has been gone for five minutes', () => {
+  it('expires an AI room after the human has been gone for one minute', () => {
     const startedAt = Date.now()
     const now = vi.spyOn(Date, 'now').mockReturnValue(startedAt)
     try {
@@ -169,7 +169,7 @@ describe('room store', () => {
 
       cleanup()
       roomStore.disconnect(first.roomId, first.playerSecret)
-      now.mockReturnValue(startedAt + 1000 * 60 * 5)
+      now.mockReturnValue(startedAt + 1000 * 60)
 
       expect(() => roomStore.getSnapshot(first.roomId)).toThrow(/房间不存在或已过期/)
     } finally {
@@ -348,5 +348,34 @@ describe('room store', () => {
     const response = jsonError(new RoomNotFoundError('房间不存在或已过期。'))
     expect(response.status).toBe(404)
     await expect(response.json()).resolves.toEqual({ error: '房间不存在或已过期。' })
+  })
+
+  it('adds Fly machine routing metadata to room responses', () => {
+    const previousMachine = process.env.FLY_MACHINE_ID
+    try {
+      process.env.FLY_MACHINE_ID = 'machine_a'
+      const init = withRoomMachineRouting({ headers: { 'Cache-Control': 'no-store' } })
+      const headers = new Headers(init.headers)
+      expect(headers.get('X-Splendor-Room-Machine')).toBe('machine_a')
+      expect(headers.get('Set-Cookie')).toContain('splendor_room_machine=machine_a')
+      expect(headers.get('Cache-Control')).toBe('no-store')
+    } finally {
+      if (previousMachine === undefined) delete process.env.FLY_MACHINE_ID
+      else process.env.FLY_MACHINE_ID = previousMachine
+    }
+  })
+
+  it('replays room requests to the machine that owns the room', () => {
+    const previousMachine = process.env.FLY_MACHINE_ID
+    try {
+      process.env.FLY_MACHINE_ID = 'machine_a'
+      const replay = replayToRoomMachine(new Request('https://example.test/api/rooms/abc123/join?roomMachine=machine_b'))
+      expect(replay?.status).toBe(409)
+      expect(replay?.headers.get('Fly-Replay')).toBe('instance=machine_b')
+      expect(replayToRoomMachine(new Request('https://example.test/api/rooms/abc123/join?roomMachine=machine_a'))).toBeUndefined()
+    } finally {
+      if (previousMachine === undefined) delete process.env.FLY_MACHINE_ID
+      else process.env.FLY_MACHINE_ID = previousMachine
+    }
   })
 })

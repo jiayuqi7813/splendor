@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { Gem, Link as LinkIcon, Loader2, Sparkles, UsersRound } from 'lucide-react'
 import { useState, type CSSProperties } from 'react'
 import { appPath } from '@/utils/paths'
@@ -7,8 +7,15 @@ export const Route = createFileRoute('/')({
   component: Home,
 })
 
+const ROOM_MACHINE_HEADER = 'X-Splendor-Room-Machine'
+const ROOM_MACHINE_PARAM = 'roomMachine'
+
+function roomPath(roomId: string, machineId: string | null): string {
+  const suffix = machineId ? `?${ROOM_MACHINE_PARAM}=${encodeURIComponent(machineId)}` : ''
+  return appPath(`/room/${roomId}${suffix}`)
+}
+
 function Home() {
-  const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [gameType, setGameType] = useState<'duel' | 'classic' | 'pokemon'>('classic')
@@ -25,7 +32,7 @@ function Home() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error ?? '创建房间失败')
       localStorage.setItem(`splendor:${data.roomId}:secret`, data.playerSecret)
-      await navigate({ to: '/room/$roomId', params: { roomId: data.roomId } })
+      location.href = roomPath(data.roomId, response.headers.get(ROOM_MACHINE_HEADER))
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建房间失败')
     } finally {

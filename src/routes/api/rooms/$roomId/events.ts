@@ -1,11 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { roomStore } from '@/server/roomStore'
+import { replayToRoomMachine, roomStore, withRoomMachineRouting } from '@/server/roomStore'
 import type { PublicRoomEvent } from '@/game/types'
 
 export const Route = createFileRoute('/api/rooms/$roomId/events')({
   server: {
     handlers: {
       GET: async ({ request, params }) => {
+        const replay = replayToRoomMachine(request)
+        if (replay) return replay
         const url = new URL(request.url)
         const after = Number(url.searchParams.get('after') ?? 0)
         const playerSecret = url.searchParams.get('playerSecret') ?? undefined
@@ -35,13 +37,13 @@ export const Route = createFileRoute('/api/rooms/$roomId/events')({
             closeStream()
           },
         })
-        return new Response(stream, {
+        return new Response(stream, withRoomMachineRouting({
           headers: {
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache, no-transform',
             Connection: 'keep-alive',
           },
-        })
+        }))
       },
     },
   },

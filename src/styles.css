@@ -1198,18 +1198,24 @@ button:not(:disabled):active {
 
 .splendorFourShell {
   --splendor-table-slice: 245;
-  --splendor-table-border-width: clamp(112px, 16vmin, 230px);
-  --board-size: clamp(238px, 31dvh, 320px);
+  --splendor-table-width: 1120px;
+  --splendor-table-height: 860px;
+  --splendor-table-scale: 1;
+  --splendor-table-y-offset: 50px;
+  --splendor-table-border-width: 180px;
+  --splendor-center-left: 320px;
+  --splendor-center-top: 8px;
+  --board-size: 300px;
   --board-play-size: var(--board-size);
   --board-cell-size: calc((var(--board-play-size) - var(--board-pad) - var(--board-pad) - var(--board-gap) * 4) / 5);
   --classic-token-size: 26px;
   --classic-token-slot-size: 30px;
   --classic-token-slot-gap: 4px;
-  --splendor-seat-width: clamp(520px, 42vw, 620px);
-  --splendor-seat-height: clamp(270px, 34dvh, 340px);
-  --splendor-seat-width-half: clamp(260px, 21vw, 310px);
+  --splendor-seat-width: 500px;
+  --splendor-seat-height: 270px;
+  --splendor-seat-width-half: 250px;
   --splendor-seat-height-half: calc(var(--splendor-seat-height) / 2);
-  --splendor-player-gap: clamp(12px, 1.6dvh, 20px);
+  --splendor-player-gap: 14px;
   --splendor-bottom-center-gap: calc(var(--splendor-player-gap) / 2);
   isolation: isolate;
   background:
@@ -1219,18 +1225,14 @@ button:not(:disabled):active {
 }
 
 .pokemonShell {
-  --splendor-seat-width: clamp(500px, 40vw, 625px);
-  --splendor-seat-height: clamp(266px, 31.5dvh, 336px);
-  --splendor-seat-width-half: clamp(250px, 20vw, 312.5px);
+  --splendor-table-height: 850px;
+  --splendor-center-left: 330px;
+  --splendor-center-top: 8px;
+  --splendor-seat-width: 500px;
+  --splendor-seat-height: 270px;
+  --splendor-seat-width-half: 250px;
   --splendor-seat-height-half: calc(var(--splendor-seat-height) / 2);
-  --splendor-player-gap: clamp(4px, 0.7dvh, 10px);
-}
-
-.pokemonShell .splendorTableLayout {
-  padding:
-    calc(clamp(46px, 5.2dvh, 62px) + env(safe-area-inset-top))
-    calc(var(--splendor-seat-height) + var(--splendor-player-gap) - 12px)
-    calc(var(--splendor-seat-height) + var(--splendor-player-gap) + 2px);
+  --splendor-player-gap: 8px;
 }
 
 .splendorFourShell::before {
@@ -1239,6 +1241,13 @@ button:not(:disabled):active {
   inset: 0;
   z-index: 0;
   pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, 0.16), transparent 18%, transparent 82%, rgba(0, 0, 0, 0.16)),
+    var(--table-surface-image) center / cover;
+}
+
+.classicShell.splendorFourShell::before {
+  background: none;
   border-style: solid;
   border-width: var(--splendor-table-border-width);
   border-image-source: var(--table-surface-image);
@@ -1252,42 +1261,49 @@ button:not(:disabled):active {
   height: 100%;
   min-height: 0;
   position: relative;
-  padding:
-    40px
-    calc(var(--splendor-seat-height) + var(--splendor-player-gap) + 10px)
-    calc(var(--splendor-seat-height) + var(--splendor-player-gap) + 12px);
-  display: grid;
-  place-items: start center;
+  overflow: hidden;
+}
+
+.splendorTableScaler {
+  width: var(--splendor-table-width);
+  height: var(--splendor-table-height);
+  min-width: var(--splendor-table-width);
+  min-height: var(--splendor-table-height);
+  position: absolute;
+  left: 50%;
+  top: calc(50% + var(--splendor-table-y-offset));
+  transform: translate(-50%, -50%) scale(var(--splendor-table-scale));
+  transform-origin: center center;
 }
 
 .splendorCenterAnchor {
-  --splendor-bank-stack-width: clamp(44px, 5.1dvh, 62px);
+  --splendor-bank-stack-width: 54px;
   --classic-card-ratio: 0.7142857;
-  --market-card-width: clamp(64px, 9.6dvh, 98px);
+  --market-card-width: 88px;
   --market-card-height: calc(var(--market-card-width) / var(--classic-card-ratio));
   --classic-noble-size: var(--market-card-width);
-  --market-column-gap: clamp(8px, 0.95vw, 12px);
-  --market-row-gap: clamp(7px, 0.95dvh, 11px);
-  --splendor-center-gap: clamp(9px, 1.1dvh, 14px);
+  --market-column-gap: 10px;
+  --market-row-gap: 9px;
+  --splendor-center-gap: 12px;
   --splendor-market-height: calc(var(--classic-noble-size) + 8px + var(--market-card-height) * 3 + var(--market-row-gap) * 2);
   --splendor-bank-top: calc(var(--splendor-market-height) + var(--splendor-center-gap));
-  position: relative;
+  position: absolute;
+  left: var(--splendor-center-left);
+  top: calc(var(--splendor-center-top) + env(safe-area-inset-top));
   width: max-content;
   min-width: 0;
-  justify-self: center;
-  align-self: start;
 }
 
 .pokemonShell .splendorCenterAnchor {
   --classic-card-ratio: 0.75;
-  --market-card-width: clamp(64px, 9.1dvh, 96px);
+  --market-card-width: 84px;
   --market-card-height: calc(var(--market-card-width) / var(--classic-card-ratio));
   --classic-noble-size: var(--market-card-width);
   --splendor-market-height: calc(var(--market-card-height) * 4 + 8px + var(--market-row-gap) * 3);
 }
 
 .splendorCenterTable {
-  --splendor-bank-stack-width: clamp(44px, 5.1dvh, 62px);
+  --splendor-bank-stack-width: 54px;
   width: max-content;
   min-height: 0;
   display: grid;
@@ -1307,7 +1323,7 @@ button:not(:disabled):active {
   padding: 0;
   display: grid;
   grid-template-columns: repeat(6, var(--splendor-bank-stack-width));
-  gap: clamp(12px, 1.4vw, 18px);
+  gap: 16px;
   align-content: start;
   justify-content: center;
 }
@@ -1372,8 +1388,8 @@ button:not(:disabled):active {
 
 .splendorTokenStack {
   position: relative;
-  width: var(--splendor-bank-stack-width, clamp(40px, 4.4vw, 56px));
-  height: clamp(35px, 4dvh, 49px);
+  width: var(--splendor-bank-stack-width, 54px);
+  height: 49px;
 }
 
 .splendorStackedToken {
@@ -1485,7 +1501,7 @@ button:not(:disabled):active {
 }
 
 .splendorMarketPreview {
-  --market-gap: clamp(5px, 0.68dvh, 8px);
+  --market-gap: 6px;
   grid-area: market;
   min-width: 0;
   padding: 0;
@@ -1591,7 +1607,7 @@ button:not(:disabled):active {
 }
 
 .splendorScoreBadge {
-  min-width: clamp(54px, 7dvh, 72px);
+  min-width: 64px;
   padding: 0 7px;
   display: grid;
   grid-template-columns: auto minmax(22px, 1fr);
@@ -1629,7 +1645,7 @@ button:not(:disabled):active {
   min-height: 24px;
   padding: 2px 5px;
   display: grid;
-  grid-template-columns: clamp(16px, 2.4dvh, 22px) auto;
+  grid-template-columns: 20px auto;
   align-items: center;
   justify-content: center;
   gap: 4px;
@@ -1639,8 +1655,8 @@ button:not(:disabled):active {
 }
 
 .splendorBonusLine .tokenImage {
-  width: clamp(16px, 2.4dvh, 22px);
-  height: clamp(16px, 2.4dvh, 22px);
+  width: 20px;
+  height: 20px;
 }
 
 .splendorBonusLine strong {
@@ -1881,11 +1897,11 @@ button:not(:disabled):active {
 
 .splendorSeat > .playerPanel {
   --classic-card-ratio: 0.7142857;
-  --player-card-width: clamp(42px, 5.8dvh, 66px);
+  --player-card-width: 52px;
   --player-card-height: calc(var(--player-card-width) / var(--classic-card-ratio));
-  --market-card-width: clamp(64px, 9.6dvh, 98px);
+  --market-card-width: 74px;
   --market-card-height: calc(var(--market-card-width) / var(--classic-card-ratio));
-  --purchased-stack-step: clamp(18px, 3.1dvh, 30px);
+  --purchased-stack-step: 23px;
   --splendor-reserve-slot-width: var(--player-card-height);
   --splendor-reserve-slot-height: var(--player-card-width);
   --splendor-token-column-width: calc(var(--classic-token-slot-size) * 2 + var(--classic-token-slot-gap));
@@ -1893,24 +1909,25 @@ button:not(:disabled):active {
   --board-cell-size: var(--classic-token-size);
   --board-token-size: var(--classic-token-size);
   --board-gap: var(--classic-token-slot-gap);
+  padding: 10px;
   width: 100%;
   grid-template-columns: minmax(0, 1fr) var(--splendor-token-column-width);
   grid-template-rows: var(--splendor-reserve-slot-height) minmax(0, 1fr);
-  column-gap: clamp(8px, 0.9vw, 12px);
+  column-gap: 10px;
   row-gap: 6px;
   overflow: visible;
 }
 
 .pokemonShell .splendorSeat > .playerPanel {
   --classic-card-ratio: 0.75;
-  --player-card-width: clamp(42px, 5.7dvh, 64px);
+  --player-card-width: 52px;
   --player-card-height: calc(var(--player-card-width) / var(--classic-card-ratio));
-  --market-card-width: clamp(61px, 8.5dvh, 88px);
+  --market-card-width: 68px;
   --market-card-height: calc(var(--market-card-width) / var(--classic-card-ratio));
-  --purchased-stack-step: clamp(14px, 2dvh, 20px);
-  --pokemon-purchased-gap: clamp(4px, 0.55vw, 7px);
+  --purchased-stack-step: 16px;
+  --pokemon-purchased-gap: 5px;
   --pokemon-purchased-width: calc(var(--market-card-width) * 5 + var(--pokemon-purchased-gap) * 4);
-  --pokemon-token-column-gap: clamp(8px, 0.8vw, 12px);
+  --pokemon-token-column-gap: 10px;
   grid-template-columns: var(--pokemon-purchased-width) var(--pokemon-token-column-gap) var(--splendor-token-column-width);
   justify-content: end;
   column-gap: 0;
@@ -2020,7 +2037,7 @@ button:not(:disabled):active {
   display: grid;
   grid-template-columns: minmax(82px, 1fr) auto var(--splendor-token-column-width);
   align-items: center;
-  gap: clamp(7px, 0.8vw, 10px);
+  gap: 9px;
   min-width: 0;
 }
 
@@ -2128,13 +2145,13 @@ button:not(:disabled):active {
 .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner {
   width: var(--market-card-width);
   height: var(--market-card-height);
-  transform: translate(-50%, calc(-50% - clamp(24px, 4.2dvh, 42px))) rotate(0deg);
+  transform: translate(-50%, calc(-50% - 36px)) rotate(0deg);
   filter: saturate(1.08) brightness(1.05) drop-shadow(0 14px 18px rgba(0, 0, 0, 0.38));
 }
 
 .pokemonShell .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner {
-  width: clamp(60px, 8.7dvh, 90px);
-  height: calc(clamp(60px, 8.7dvh, 90px) / 0.75);
+  width: 70px;
+  height: calc(70px / 0.75);
 }
 
 .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner .classicCard,
@@ -2147,8 +2164,8 @@ button:not(:disabled):active {
 .pokemonShell .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner .classicCard,
 .pokemonShell .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner .reserveCardBack,
 .pokemonShell .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner .reserveRevealFace {
-  width: clamp(60px, 8.7dvh, 90px);
-  height: calc(clamp(60px, 8.7dvh, 90px) / 0.75);
+  width: 70px;
+  height: calc(70px / 0.75);
 }
 
 .splendorSeat > .playerPanel .splendorPlayerScore {
@@ -2360,7 +2377,7 @@ button:not(:disabled):active {
   min-width: 0;
   height: 100%;
   grid-template-columns: repeat(5, var(--market-card-width));
-  gap: var(--pokemon-purchased-gap, clamp(4px, 0.55vw, 7px));
+  gap: var(--pokemon-purchased-gap, 6px);
   padding: 0;
 }
 
@@ -3028,7 +3045,46 @@ button:not(:disabled):active {
 }
 
 .pokemonShell .purchasedCardStack {
-  --purchased-stack-step: clamp(14px, 2dvh, 20px);
+  --purchased-stack-step: 16px;
+}
+
+.splendorFourShell .playerPrivilegeSlots {
+  min-height: 40px;
+}
+
+.splendorFourShell .playerPrivilegeSlot {
+  width: 24px;
+  min-height: 36px;
+}
+
+.splendorFourShell .victoryTrack {
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+}
+
+.splendorFourShell .victoryTrackLabel {
+  width: 18px;
+  height: 18px;
+}
+
+.splendorFourShell .purchasedColumn {
+  grid-template-rows: 18px auto;
+}
+
+.splendorFourShell .purchasedColumnHeader {
+  height: 18px;
+}
+
+.splendorFourShell .purchasedColumnHeader .tokenImage {
+  width: 16px;
+  height: 16px;
+}
+
+.splendorFourShell .purchasedCardStack {
+  --purchased-stack-step: 23px;
+}
+
+.pokemonShell .purchasedCardStack {
+  --purchased-stack-step: 16px;
 }
 
 .purchasedCardItem {
@@ -6122,4 +6178,205 @@ button:not(:disabled):active {
   .tutorialScrim {
     height: 100dvh;
   }
+}
+
+/* Four-player Classic/Pokemon uses a fixed table coordinate system.
+   Keep this after generic responsive rules so Duel/mobile panel CSS cannot
+   reflow Splendor player areas at narrow viewport ratios. */
+.splendorFourShell {
+  --splendor-table-width: 1140px;
+  --splendor-table-height: 890px;
+  --splendor-center-left: 340px;
+  --splendor-seat-width: 570px;
+  --splendor-seat-height: 298px;
+  --splendor-seat-width-half: 285px;
+  --splendor-seat-height-half: 149px;
+  height: 100dvh;
+  padding: clamp(6px, 0.8vw, 10px);
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.pokemonShell {
+  --splendor-table-y-offset: 40px;
+  --splendor-table-height: 850px;
+  --splendor-center-left: 340px;
+  --splendor-seat-width: 540px;
+  --splendor-seat-height: 298px;
+  --splendor-seat-width-half: 270px;
+  --splendor-seat-height-half: 149px;
+}
+
+.splendorFourShell .splendorTableLayout {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  display: block;
+  overflow: hidden;
+}
+
+.splendorFourShell .splendorBankPanel {
+  gap: 12px;
+}
+
+.splendorFourShell .splendorBankPile {
+  padding: 0;
+}
+
+.splendorFourShell .splendorTokenStack {
+  height: var(--classic-token-size);
+}
+
+.splendorFourShell .splendorTokenStack > strong {
+  top: -3px;
+  right: 7px;
+  transform: translate(50%, 0);
+}
+
+.splendorFourShell .splendorSeat > .playerPanel {
+  --player-card-width: 52px;
+  --player-card-height: calc(var(--player-card-width) / var(--classic-card-ratio));
+  --market-card-width: 88px;
+  --market-card-height: calc(var(--market-card-width) / var(--classic-card-ratio));
+  --splendor-purchased-width: calc(var(--market-card-width) * 5 + 6px * 4);
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--splendor-purchased-width) var(--splendor-token-column-width);
+  grid-template-rows: var(--splendor-reserve-slot-height) minmax(0, 1fr);
+  justify-content: start;
+  column-gap: 10px;
+  row-gap: 6px;
+  padding: 10px;
+  overflow: visible;
+}
+
+.splendorFourShell .splendorSeat > .playerPanel header {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 42px;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.splendorFourShell .splendorSeat > .playerPanel header strong {
+  grid-column: 1;
+  min-width: 0;
+  padding-right: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.splendorFourShell .splendorSeat > .playerPanel .splendorReserveSlots {
+  grid-column: 2;
+  justify-self: end;
+}
+
+.splendorFourShell .splendorSeat > .playerPanel .splendorPlayerScore {
+  grid-column: 3;
+  justify-self: center;
+}
+
+.splendorFourShell .splendorSeat > .playerPanel .tokenSlots,
+.splendorFourShell .splendorDraftActions {
+  grid-column: 2;
+}
+
+.pokemonShell .splendorSeat > .playerPanel {
+  --player-card-width: 52px;
+  --player-card-height: calc(var(--player-card-width) / var(--classic-card-ratio));
+  --market-card-width: 84px;
+  --market-card-height: calc(var(--market-card-width) / var(--classic-card-ratio));
+  --pokemon-purchased-gap: 5px;
+  --pokemon-purchased-width: calc(var(--market-card-width) * 5 + var(--pokemon-purchased-gap) * 4);
+  --splendor-purchased-width: var(--pokemon-purchased-width);
+  grid-template-columns: var(--splendor-purchased-width) var(--splendor-token-column-width);
+}
+
+.splendorFourShell .splendorSeat > .playerPanel .playerCardArea {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin-top: 0;
+  overflow: visible;
+}
+
+.splendorFourShell .splendorSeat > .playerPanel .purchasedPanel {
+  grid-column: 1;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  max-height: none;
+  padding-right: 0;
+  overflow: visible;
+}
+
+.splendorFourShell .splendorSeat > .playerPanel .purchasedStacks {
+  display: grid;
+  grid-template-columns: repeat(5, var(--market-card-width));
+  gap: var(--pokemon-purchased-gap, 6px);
+  width: var(--splendor-purchased-width);
+  min-width: 0;
+  height: 100%;
+  min-height: var(--market-card-height);
+  padding: 0;
+  align-items: start;
+}
+
+.splendorFourShell .splendorSeat > .playerPanel .purchasedColumn {
+  min-width: var(--market-card-width);
+  grid-template-rows: 18px auto;
+}
+
+.splendorFourShell .splendorSeat > .playerPanel .purchasedColumnHeader {
+  height: 18px;
+}
+
+.splendorFourShell .splendorSeat > .playerPanel .purchasedColumnHeader .tokenImage {
+  width: 16px;
+  height: 16px;
+}
+
+.splendorFourShell .splendorSeat > .playerPanel .purchasedCardStack {
+  --purchased-stack-step: 23px;
+  min-height: var(--market-card-height);
+}
+
+.pokemonShell .splendorSeat > .playerPanel .purchasedCardStack {
+  --purchased-stack-step: 16px;
+}
+
+.splendorFourShell .splendorSeat > .playerPanel .purchasedCardItem,
+.splendorFourShell .splendorSeat > .playerPanel .purchasedCardItem .card,
+.splendorFourShell .splendorSeat > .playerPanel .purchasedCardItem .classicCard {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+}
+
+.splendorFourShell .splendorReserveCardInner .classicCard,
+.splendorFourShell .splendorReserveCardInner .reserveCardBack,
+.splendorFourShell .splendorReserveCardInner .reserveRevealFace {
+  width: var(--player-card-width);
+  height: var(--player-card-height);
+}
+
+.splendorFourShell .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
+  transform: translate(-50%, calc(-50% - 36px)) rotate(0deg);
+}
+
+.splendorFourShell .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner .classicCard,
+.splendorFourShell .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner .reserveCardBack,
+.splendorFourShell .splendorReserveCardItem.ownReserve:hover .splendorReserveCardInner .reserveRevealFace {
+  width: var(--market-card-width);
+  height: var(--market-card-height);
 }

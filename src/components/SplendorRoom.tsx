@@ -1,5 +1,5 @@
 import { ArrowLeftRight, Bot, Check, Copy, Home, Loader2, Play, RefreshCw, Trash2, UserRound, X } from 'lucide-react'
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 import { CLASSIC_VICTORY_POINTS, playerStats, POKEMON_VICTORY_POINTS, royalCardOwner, VICTORY_TARGETS } from '@/game/rules'
 import { DEVELOPMENT_CARDS, NOBLES, POKEMON_DEVELOPMENT_CARDS, POKEMON_LEGACY_SPECIAL_CARD_IDS, POKEMON_LEGENDARY_CARDS, POKEMON_RARE_CARDS, type BasicColor, type Card, type Noble } from '@/game/multiplayerData'
 import type { CardSource, GameAction, GameState, GameType, GemType, PlayerId, PokemonSpecialDeck, Token, TokenType, VictoryReason } from '@/game/types'
@@ -45,6 +45,11 @@ type AiSeatControlView = {
   busy?: boolean
   onDifficultyChange: (difficulty: string) => void
   onRemove: () => void
+}
+
+const SPLENDOR_TABLE_BASE_SIZE: Record<Extract<GameType, 'classic' | 'pokemon'>, { width: number; height: number }> = {
+  classic: { width: 1140, height: 890 },
+  pokemon: { width: 1140, height: 850 },
 }
 
 const CLASSIC_COLOR_TO_TOKEN: Record<BasicColor, ClassicMappedToken> = {
@@ -201,6 +206,8 @@ export function SplendorRoom({
   const canAddAi = state.status === 'waiting' && playerId === 'p1' && !nameRequired && Boolean(onOpenAiDialog) && (hasEmptyAiSeat || canPromoteHostToAi)
   const initialLayout = state.status === 'waiting' || introAnimating
   const royalChoicePending = state.pending?.type === 'chooseRoyal' && state.pending.playerId === playerId ? state.pending : undefined
+  const splendorGameType = state.gameType === 'pokemon' ? 'pokemon' : 'classic'
+  const tableScale = useSplendorTableScale(splendorGameType)
   const startTitle = canStartWithCurrentPlayers ? '开始游戏' : '至少需要 2 位玩家输入名字并在线'
   const turnLabel =
     state.status === 'waiting'
@@ -292,8 +299,9 @@ export function SplendorRoom({
         </div>
       )}
 
-      <section className="splendorTableLayout" aria-label="四人璀璨宝石桌面">
-        <section className="splendorCenterAnchor">
+      <section className="splendorTableLayout" aria-label="四人璀璨宝石桌面" style={{ '--splendor-table-scale': tableScale } as CSSProperties}>
+        <div className="splendorTableScaler">
+          <section className="splendorCenterAnchor">
           <SplendorSeat className="splendorSeatLeft" state={state} playerId={order.left} viewerId={playerId} busy={busy} classicDraft={classicDrafts[order.left]} aiControl={aiSeatControls[order.left]} purchaseTarget={purchaseTargetForPanel(purchaseTarget, order.left, playerId)} remotePurchaseTarget={purchaseTargetForPanel(remotePurchaseTarget, order.left)} revealingReserveIndices={revealingReserveIndices[order.left] ?? []} hiddenReserveIndices={hiddenReserveIndices[order.left] ?? []} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={reserveIndexFromRemoteHover(remoteHoverCardSourceKey, order.left, playerId)} onMoveSeat={onMoveSeat} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onReservePointerDown={onCardPointerDown} onReservePointerEnter={(_, index) => onCardPointerEnter?.({ type: 'reserve', index })} onReservePointerLeave={onCardPointerLeave} onReservePointerMove={onCardPointerMove} onReservePointerUp={onCardPointerUp} onReservePointerCancel={onCardPointerCancel} />
           <SplendorSeat className="splendorSeatRight" state={state} playerId={order.right} viewerId={playerId} busy={busy} classicDraft={classicDrafts[order.right]} aiControl={aiSeatControls[order.right]} purchaseTarget={purchaseTargetForPanel(purchaseTarget, order.right, playerId)} remotePurchaseTarget={purchaseTargetForPanel(remotePurchaseTarget, order.right)} revealingReserveIndices={revealingReserveIndices[order.right] ?? []} hiddenReserveIndices={hiddenReserveIndices[order.right] ?? []} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={reserveIndexFromRemoteHover(remoteHoverCardSourceKey, order.right, playerId)} onMoveSeat={onMoveSeat} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onReservePointerDown={onCardPointerDown} onReservePointerEnter={(_, index) => onCardPointerEnter?.({ type: 'reserve', index })} onReservePointerLeave={onCardPointerLeave} onReservePointerMove={onCardPointerMove} onReservePointerUp={onCardPointerUp} onReservePointerCancel={onCardPointerCancel} />
           <SplendorSeat className="splendorSeatBottomLeft" state={state} playerId={order.bottomLeft} viewerId={playerId} busy={busy} classicDraft={classicDrafts[order.bottomLeft]} aiControl={aiSeatControls[order.bottomLeft]} purchaseTarget={purchaseTargetForPanel(purchaseTarget, order.bottomLeft, playerId)} remotePurchaseTarget={purchaseTargetForPanel(remotePurchaseTarget, order.bottomLeft)} revealingReserveIndices={revealingReserveIndices[order.bottomLeft] ?? []} hiddenReserveIndices={hiddenReserveIndices[order.bottomLeft] ?? []} hiddenTokenSlotKeys={hiddenTokenSlotKeys} highlightedTokenSlotKeys={highlightedTokenSlotKeys} hiddenPurchasedCardKeys={hiddenPurchasedCardKeys} remoteHoveredReserveIndex={reserveIndexFromRemoteHover(remoteHoverCardSourceKey, order.bottomLeft, playerId)} onMoveSeat={onMoveSeat} onDraftTokenPointerDown={onDraftTokenPointerDown} onDiscardToken={onDiscardToken} onConfirmTokenDraft={onConfirmTokenDraft} onCancelTokenDraft={onCancelTokenDraft} onReservePointerDown={onCardPointerDown} onReservePointerEnter={(_, index) => onCardPointerEnter?.({ type: 'reserve', index })} onReservePointerLeave={onCardPointerLeave} onReservePointerMove={onCardPointerMove} onReservePointerUp={onCardPointerUp} onReservePointerCancel={onCardPointerCancel} />
@@ -320,10 +328,37 @@ export function SplendorRoom({
               onCardPointerCancel={onCardPointerCancel}
             />
           </section>
-        </section>
+          </section>
+        </div>
       </section>
     </main>
   )
+}
+
+function useSplendorTableScale(gameType: Extract<GameType, 'classic' | 'pokemon'>): number {
+  const [scale, setScale] = useState(1)
+
+  useEffect(() => {
+    const updateScale = () => {
+      const viewport = window.visualViewport
+      const width = viewport?.width ?? window.innerWidth
+      const height = viewport?.height ?? window.innerHeight
+      const base = SPLENDOR_TABLE_BASE_SIZE[gameType]
+      const safeInset = 16
+      const nextScale = Math.max(0.32, Math.min((width - safeInset * 2) / base.width, (height - safeInset * 2) / base.height))
+      setScale(Number(nextScale.toFixed(4)))
+    }
+
+    updateScale()
+    window.addEventListener('resize', updateScale)
+    window.visualViewport?.addEventListener('resize', updateScale)
+    return () => {
+      window.removeEventListener('resize', updateScale)
+      window.visualViewport?.removeEventListener('resize', updateScale)
+    }
+  }, [gameType])
+
+  return scale
 }
 
 function SplendorSeat({

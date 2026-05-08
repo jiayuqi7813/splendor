@@ -10,7 +10,11 @@ const AI_ACTION_DELAY_MS = 1600
 const AI_FAST_PENDING_DELAY_MS = 900
 const AI_OPENING_ACTION_DELAY_MS = 2600
 const AI_MAX_CHAIN_ACTIONS = 40
-const EMPTY_ROOM_TTL_MS = 1000 * 60 * 5
+const EMPTY_ROOM_TTL_MS = 1000 * 60
+const ROOM_MACHINE_COOKIE = 'splendor_room_machine'
+const ROOM_MACHINE_HEADER = 'X-Splendor-Room-Machine'
+const ROOM_MACHINE_PARAM = 'roomMachine'
+const ROOM_MACHINE_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 12
 
 interface Seat {
   playerId: RoomPlayerId
@@ -52,6 +56,84 @@ export interface JoinResult {
 
 function randomId(size = 8): string {
   return crypto.randomUUID().replaceAll('-', '').slice(0, size)
+}
+
+function currentFlyMachineId(): string | undefined {
+  return process.env.FLY_MACHINE_ID || undefined
+}
+
+function isValidMachineId(value: string | undefined): value is string {
+  return typeof value === 'string' && /^[A-Za-z0-9_-]+$/.test(value)
+}
+
+function parseCookieHeader(cookieHeader: string | null): Record<string, string> {
+  const cookies: Record<string, string> = {}
+  for (const part of (cookieHeader ?? '').split(';')) {
+    const trimmed = part.trim()
+    const separator = trimmed.indexOf('=')
+    if (separator <= 0) continue
+    const key = trimmed.slice(0, separator).trim()
+    let value = trimmed.slice(separator + 1).trim()
+    try {
+      value = decodeURIComponent(value)
+    } catch {
+      // Ignore malformed cookie escaping and use the raw value.
+    }
+    if (key) cookies[key] = value
+  }
+  return cookies
+}
+
+function machineFromUrl(value: string | null): string | undefined {
+  if (!value) return undefined
+  try {
+    const url = new URL(value)
+    const machine = url.searchParams.get(ROOM_MACHINE_PARAM) ?? undefined
+    return isValidMachineId(machine) ? machine : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function requestedRoomMachine(request: Request): string | undefined {
+  const requestUrlMachine = machineFromUrl(request.url)
+  if (requestUrlMachine) return requestUrlMachine
+
+  const headerMachine = request.headers.get(ROOM_MACHINE_HEADER) ?? undefined
+  if (isValidMachineId(headerMachine)) return headerMachine
+
+  const referrerMachine = machineFromUrl(request.headers.get('referer'))
+  if (referrerMachine) return referrerMachine
+
+  const cookieMachine = parseCookieHeader(request.headers.get('cookie'))[ROOM_MACHINE_COOKIE]
+  return isValidMachineId(cookieMachine) ? cookieMachine : undefined
+}
+
+export function replayToRoomMachine(request: Request): Response | undefined {
+  const currentMachine = currentFlyMachineId()
+  const targetMachine = requestedRoomMachine(request)
+  if (!currentMachine || !targetMachine || targetMachine === currentMachine || request.headers.has('fly-replay-failed')) return undefined
+
+  return new Response(null, {
+    status: 409,
+    headers: {
+      'Fly-Replay': `instance=${targetMachine}`,
+      'Cache-Control': 'no-store',
+    },
+  })
+}
+
+export function withRoomMachineRouting(init?: ResponseInit): ResponseInit {
+  const machineId = currentFlyMachineId()
+  if (!machineId) return init ?? {}
+
+  const headers = new Headers(init?.headers)
+  headers.set(ROOM_MACHINE_HEADER, machineId)
+  headers.append(
+    'Set-Cookie',
+    `${ROOM_MACHINE_COOKIE}=${encodeURIComponent(machineId)}; Path=/; Max-Age=${ROOM_MACHINE_COOKIE_MAX_AGE_SECONDS}; SameSite=Lax; HttpOnly; Secure`,
+  )
+  return { ...init, headers }
 }
 
 function publicEvent(room: Room, type: PublicRoomStateEvent['type'], message: string, action?: AnyGameAction): PublicRoomStateEvent {
@@ -656,11 +738,11 @@ const roomStoreGlobal = globalThis as typeof globalThis & {
 export const roomStore = (roomStoreGlobal.__gemDuelArenaRoomStore ??= new RoomStore())
 
 export function jsonOk(data: unknown, init?: ResponseInit): Response {
-  return Response.json(data, init)
+  return Response.json(data, withRoomMachineRouting(init))
 }
 
 export function jsonError(error: unknown): Response {
   const message = error instanceof Error ? error.message : '未知错误。'
   const status = error instanceof RoomNotFoundError ? 404 : error instanceof RuleError ? 400 : 500
-  return Response.json({ error: message }, { status })
+  return Response.json({ error: message }, withRoomMachineRouting({ status }))
 }

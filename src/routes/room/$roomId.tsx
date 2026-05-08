@@ -31,6 +31,23 @@ const AI_DIFFICULTY_OPTIONS = [
 const DEFAULT_AI_DIFFICULTY_INDEX = AI_DIFFICULTY_OPTIONS.findIndex((option) => option.id === 'standard')
 const ALL_PLAYER_IDS = ['p1', 'p2', 'p3', 'p4'] as const satisfies readonly PlayerId[]
 const ROOM_TOAST_TIMEOUT_MS = 1800
+const ROOM_MACHINE_HEADER = 'X-Splendor-Room-Machine'
+const ROOM_MACHINE_PARAM = 'roomMachine'
+
+function readRoomMachineFromLocation(): string {
+  if (typeof window === 'undefined') return ''
+  return new URLSearchParams(window.location.search).get(ROOM_MACHINE_PARAM) ?? ''
+}
+
+function withRoomMachine(path: string, machineId: string): string {
+  if (!machineId) return path
+  const separator = path.includes('?') ? '&' : '?'
+  return `${path}${separator}${ROOM_MACHINE_PARAM}=${encodeURIComponent(machineId)}`
+}
+
+function roomPath(roomId: string, machineId: string | null): string {
+  return appPath(withRoomMachine(`/room/${roomId}`, machineId ?? ''))
+}
 
 function roomToastError(error: string): string {
   const normalized = error.trim()
@@ -76,6 +93,7 @@ function Room() {
   const [boardFocusOpen, setBoardFocusOpen] = useState(false)
   const [isMobileBoardLayout, setIsMobileBoardLayout] = useState(false)
   const seqRef = useRef(0)
+  const roomMachineRef = useRef(readRoomMachineFromLocation())
   const stateRef = useRef<any>(undefined)
   const boardFocusOpenRef = useRef(false)
   const isMobileBoardLayoutRef = useRef(false)
@@ -154,6 +172,25 @@ function Room() {
   const [introAnimation, setIntroAnimation] = useState<IntroAnimation>()
   const [classicIntroBankCounts, setClassicIntroBankCounts] = useState<Record<TokenType, number>>()
 
+  function roomApiPath(path: string): string {
+    return appPath(withRoomMachine(path, roomMachineRef.current))
+  }
+
+  function rememberRoomMachine(machineId: string | null): void {
+    if (!machineId || roomMachineRef.current || typeof window === 'undefined') return
+    roomMachineRef.current = machineId
+    const url = new URL(window.location.href)
+    url.searchParams.set(ROOM_MACHINE_PARAM, machineId)
+    window.history.replaceState(null, '', url)
+  }
+
+  function currentRoomLink(): string {
+    if (!roomMachineRef.current || typeof window === 'undefined') return location.href
+    const url = new URL(window.location.href)
+    url.searchParams.set(ROOM_MACHINE_PARAM, roomMachineRef.current)
+    return url.href
+  }
+
   useEffect(() => {
     setTutorialEnabled(localStorage.getItem(TUTORIAL_ENABLED_STORAGE_KEY) === 'true')
   }, [])
@@ -218,11 +255,12 @@ function Room() {
       setError('')
       setBusy(true)
       const storedSecret = localStorage.getItem(`splendor:${roomId}:secret`) ?? undefined
-      const response = await fetch(appPath(`/api/rooms/${roomId}/join`), {
+      const response = await fetch(roomApiPath(`/api/rooms/${roomId}/join`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerSecret: storedSecret }),
       })
+      rememberRoomMachine(response.headers.get(ROOM_MACHINE_HEADER))
       const data = await response.json()
       if (!response.ok) throw new Error(data.error ?? '加入房间失败')
       if (closed) return
@@ -262,7 +300,7 @@ function Room() {
       const data = await response.json()
       if (!response.ok) throw new Error(data.error ?? '创建房间失败')
       localStorage.setItem(`splendor:${data.roomId}:secret`, data.playerSecret)
-      location.href = appPath(`/room/${data.roomId}`)
+      location.href = roomPath(data.roomId, response.headers.get(ROOM_MACHINE_HEADER))
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建房间失败')
       setBusy(false)
@@ -277,7 +315,7 @@ function Room() {
       const difficulty = AI_DIFFICULTY_OPTIONS[aiDifficultyIndex]?.id ?? 'standard'
       const secondDifficulty = AI_DIFFICULTY_OPTIONS[secondAiDifficultyIndex]?.id ?? 'standard'
       const classicAiOpponent = stateRef.current ? isSplendorRoomState(stateRef.current) : false
-      const response = await fetch(appPath(`/api/rooms/${roomId}/join`), {
+      const response = await fetch(roomApiPath(`/api/rooms/${roomId}/join`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerSecret: secret, aiOpponent: true, difficulty, secondAi: classicAiOpponent ? false : secondAiEnabled, secondDifficulty }),
@@ -301,7 +339,7 @@ function Room() {
     setAiBusy(true)
     try {
       const difficulty = AI_DIFFICULTY_OPTIONS[secondAiDifficultyIndex]?.id ?? 'standard'
-      const response = await fetch(appPath(`/api/rooms/${roomId}/join`), {
+      const response = await fetch(roomApiPath(`/api/rooms/${roomId}/join`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerSecret: secret, setHostAi: true, difficulty }),
@@ -335,7 +373,7 @@ function Room() {
     setError('')
     setAiBusy(true)
     try {
-      const response = await fetch(appPath(`/api/rooms/${roomId}/join`), {
+      const response = await fetch(roomApiPath(`/api/rooms/${roomId}/join`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerSecret: secret, updateAiDifficulty: true, targetPlayerId, difficulty }),
@@ -355,7 +393,7 @@ function Room() {
     setError('')
     setAiBusy(true)
     try {
-      const response = await fetch(appPath(`/api/rooms/${roomId}/join`), {
+      const response = await fetch(roomApiPath(`/api/rooms/${roomId}/join`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerSecret: secret, removeAi: true, targetPlayerId }),
@@ -376,7 +414,7 @@ function Room() {
     setError('')
     setNameBusy(true)
     try {
-      const response = await fetch(appPath(`/api/rooms/${roomId}/join`), {
+      const response = await fetch(roomApiPath(`/api/rooms/${roomId}/join`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerSecret: secret, confirmSeat: true, playerName }),
@@ -397,7 +435,7 @@ function Room() {
     setError('')
     setNameBusy(true)
     try {
-      const response = await fetch(appPath(`/api/rooms/${roomId}/join`), {
+      const response = await fetch(roomApiPath(`/api/rooms/${roomId}/join`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerSecret: secret, moveSeat: true, targetPlayerId }),
@@ -418,7 +456,7 @@ function Room() {
     setError('')
     setRestartBusy(true)
     try {
-      const response = await fetch(appPath(`/api/rooms/${roomId}/join`), {
+      const response = await fetch(roomApiPath(`/api/rooms/${roomId}/join`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ playerSecret: secret, restart: true }),
@@ -595,7 +633,8 @@ function Room() {
 
     async function refreshSnapshot() {
       const params = new URLSearchParams({ playerSecret: secret })
-      const response = await fetch(appPath(`/api/rooms/${roomId}/snapshot?${params}`))
+      const response = await fetch(roomApiPath(`/api/rooms/${roomId}/snapshot?${params}`))
+      rememberRoomMachine(response.headers.get(ROOM_MACHINE_HEADER))
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error ?? '同步房间失败')
       if (stopped) return
@@ -608,7 +647,7 @@ function Room() {
         if (stopped) return
         stream?.close()
         const params = new URLSearchParams({ after: String(seqRef.current), playerSecret: secret })
-        stream = new EventSource(appPath(`/api/rooms/${roomId}/events?${params}`))
+        stream = new EventSource(roomApiPath(`/api/rooms/${roomId}/events?${params}`))
         stream.addEventListener('open', () => {
           void refreshSnapshot().catch((err) => {
             setError(err instanceof Error ? err.message : '同步房间失败')
@@ -1062,7 +1101,7 @@ function Room() {
   async function submit(action: any, options?: { deferStateMs?: number; privilegeCarry?: PrivilegeCarry }) {
     setError('')
     if (options?.deferStateMs) markPendingDeferredSubmit(options.deferStateMs)
-    const response = await fetch(appPath(`/api/rooms/${roomId}/actions`), {
+    const response = await fetch(roomApiPath(`/api/rooms/${roomId}/actions`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerSecret: secret, action }),
@@ -1359,7 +1398,7 @@ function Room() {
     const key = JSON.stringify(intent)
     if (key === lastIntentKeyRef.current) return
     lastIntentKeyRef.current = key
-    void fetch(appPath(`/api/rooms/${roomId}/intents`), {
+    void fetch(roomApiPath(`/api/rooms/${roomId}/intents`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerSecret: secret, intent }),
@@ -1654,7 +1693,7 @@ function Room() {
   }
 
   async function copyRoomLink() {
-    await navigator.clipboard.writeText(location.href)
+    await navigator.clipboard.writeText(currentRoomLink())
     setCopiedLink(true)
     window.setTimeout(() => setCopiedLink(false), 1200)
   }
