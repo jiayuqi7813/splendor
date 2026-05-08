@@ -45,7 +45,20 @@ export interface CardDefinition {
   bonusColors?: GemType[]
   evolvesFrom?: string
   evolutionCost?: Cost
-  atlas: 'tier1' | 'tier2' | 'tier3' | 'royal'
+  atlas:
+    | 'tier1'
+    | 'tier2'
+    | 'tier3'
+    | 'royal'
+    | 'classic-tier1'
+    | 'classic-tier2'
+    | 'classic-tier3'
+    | 'classic-noble'
+    | 'pokemon-stage1'
+    | 'pokemon-stage2'
+    | 'pokemon-stage3'
+    | 'pokemon-rare'
+    | 'pokemon-legendary'
   x: number
   y: number
 }

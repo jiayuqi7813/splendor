@@ -1877,6 +1877,8 @@ button:not(:disabled):active {
 .classicCard {
   aspect-ratio: var(--classic-card-ratio, 0.7142857);
   background: #151716;
+  display: grid;
+  place-items: center;
 }
 
 .classicCard img {
@@ -1886,7 +1888,18 @@ button:not(:disabled):active {
   object-fit: contain;
 }
 
+.classicCardAtlasImage {
+  width: 100%;
+  max-height: 100%;
+  margin: auto;
+  background-repeat: no-repeat;
+}
+
 .classicCardHorizontal img {
+  transform: rotate(90deg);
+}
+
+.classicCardHorizontal .classicCardAtlasImage {
   transform: rotate(90deg);
 }
 

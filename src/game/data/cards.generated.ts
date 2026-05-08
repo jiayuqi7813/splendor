@@ -1646,10 +1646,19 @@ export const CARD_DEFINITIONS = [
 ] as const satisfies readonly CardDefinition[]
 
 export const CARD_ATLASES = {
-  tier1: { url: assetPath('cards-tier1.jpg'), columns: 10, rows: 4 },
-  tier2: { url: assetPath('cards-tier2.jpg'), columns: 10, rows: 3 },
-  tier3: { url: assetPath('cards-tier3.jpg'), columns: 10, rows: 2 },
-  royal: { url: assetPath('cards-royal.png'), columns: 10, rows: 2 },
+  tier1: { url: assetPath('cards-tier1.webp'), columns: 10, rows: 4 },
+  tier2: { url: assetPath('cards-tier2.webp'), columns: 10, rows: 3 },
+  tier3: { url: assetPath('cards-tier3.webp'), columns: 10, rows: 2 },
+  royal: { url: assetPath('cards-royal.webp'), columns: 10, rows: 2 },
+  'classic-tier1': { url: assetPath('splendor-base/cards-tier1.webp'), columns: 10, rows: 4, cellWidth: 250, cellHeight: 350 },
+  'classic-tier2': { url: assetPath('splendor-base/cards-tier2.webp'), columns: 10, rows: 3, cellWidth: 250, cellHeight: 350 },
+  'classic-tier3': { url: assetPath('splendor-base/cards-tier3.webp'), columns: 10, rows: 2, cellWidth: 250, cellHeight: 350 },
+  'classic-noble': { url: assetPath('splendor-base/nobles.webp'), columns: 5, rows: 2, cellWidth: 251, cellHeight: 250 },
+  'pokemon-stage1': { url: assetPath('pokemon-splendor/cards-stage1.webp'), columns: 10, rows: 4, cellWidth: 360, cellHeight: 480 },
+  'pokemon-stage2': { url: assetPath('pokemon-splendor/cards-stage2.webp'), columns: 10, rows: 3, cellWidth: 360, cellHeight: 480 },
+  'pokemon-stage3': { url: assetPath('pokemon-splendor/cards-stage3.webp'), columns: 10, rows: 2, cellWidth: 360, cellHeight: 480 },
+  'pokemon-rare': { url: assetPath('pokemon-splendor/cards-rare.webp'), columns: 5, rows: 1, cellWidth: 360, cellHeight: 480 },
+  'pokemon-legendary': { url: assetPath('pokemon-splendor/cards-legendary.webp'), columns: 5, rows: 1, cellWidth: 360, cellHeight: 480 },
 } as const
 
 export const SOURCE_MANIFEST_COUNT = 42

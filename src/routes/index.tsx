@@ -42,7 +42,7 @@ function Home() {
   }
 
   return (
-    <main className="home homeCoverBackground" style={{ '--home-cover-image': `url(${appPath('/assets/home/splendor-box-cover.png')})` } as CSSProperties}>
+    <main className="home homeCoverBackground" style={{ '--home-cover-image': `url(${appPath('/assets/home/splendor-box-cover.webp')})` } as CSSProperties}>
       <section className="homePanel">
         <div className="brandMark">
           <Gem size={30} />

@@ -14,24 +14,40 @@ export const Route = createFileRoute('/api/rooms/$roomId/events')({
         const encoder = new TextEncoder()
         let cleanup: (() => void) | undefined
         let closed = false
+        let heartbeat: ReturnType<typeof setInterval> | undefined
         function closeStream() {
           if (closed) return
           closed = true
+          if (heartbeat) {
+            clearInterval(heartbeat)
+            heartbeat = undefined
+          }
           cleanup?.()
           roomStore.disconnect(params.roomId, playerSecret)
         }
         const stream = new ReadableStream<Uint8Array>({
           start(controller) {
+            const sendChunk = (chunk: string) => {
+              if (closed) return
+              try {
+                controller.enqueue(encoder.encode(chunk))
+              } catch {
+                closeStream()
+              }
+            }
             const send = (event: PublicRoomEvent) => {
-              controller.enqueue(encoder.encode(`id: ${event.seq}\nevent: room\ndata: ${JSON.stringify(event)}\n\n`))
+              sendChunk(`id: ${event.seq}\nevent: room\ndata: ${JSON.stringify(event)}\n\n`)
             }
             cleanup = roomStore.subscribe(params.roomId, after, send, playerSecret)
-            const heartbeat = setInterval(() => controller.enqueue(encoder.encode(': heartbeat\n\n')), 15000)
+            heartbeat = setInterval(() => sendChunk(': heartbeat\n\n'), 15000)
             request.signal.addEventListener('abort', () => {
-              clearInterval(heartbeat)
               closeStream()
-              controller.close()
-            })
+              try {
+                controller.close()
+              } catch {
+                // The stream may already be closed by the runtime on abort.
+              }
+            }, { once: true })
           },
           cancel() {
             closeStream()

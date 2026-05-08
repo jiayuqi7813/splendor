@@ -864,7 +864,7 @@ function Room() {
         scheduleDeferredState(update.seq, update.state, classicDiscardAnimation.duration)
         return
       }
-      const skipClassicTakeAnimation = update.action?.type === 'takeClassicBankTokens' ? consumeClassicDraftCommitted(update.action.playerId) : false
+      const skipClassicTakeAnimation = update.action?.type === 'takeClassicBankTokens' ? isClassicDraftCommitted(update.action.playerId) : false
       const classicTakeAnimation =
         isClassicShellGame(currentState) && update.action?.type === 'takeClassicBankTokens' && !skipClassicTakeAnimation
           ? createClassicBankTakeTransitionAnimation(currentState, update.state, update.action)
@@ -1694,17 +1694,18 @@ function Room() {
     classicCommittedDraftPlayersRef.current.add(playerId)
     window.clearTimeout(classicCommittedDraftTimersRef.current[playerId])
     classicCommittedDraftTimersRef.current[playerId] = window.setTimeout(() => {
-      classicCommittedDraftPlayersRef.current.delete(playerId)
-      classicCommittedDraftTimersRef.current[playerId] = undefined
+      clearClassicDraftCommitted(playerId)
     }, 3500)
   }
 
-  function consumeClassicDraftCommitted(playerId: PlayerId): boolean {
-    if (!classicCommittedDraftPlayersRef.current.has(playerId)) return false
+  function clearClassicDraftCommitted(playerId: PlayerId) {
     classicCommittedDraftPlayersRef.current.delete(playerId)
     window.clearTimeout(classicCommittedDraftTimersRef.current[playerId])
     classicCommittedDraftTimersRef.current[playerId] = undefined
-    return true
+  }
+
+  function isClassicDraftCommitted(playerId: PlayerId): boolean {
+    return classicCommittedDraftPlayersRef.current.has(playerId)
   }
 
   function setRemoteClassicTokenDrafts(next: Partial<Record<PlayerId, ClassicTokenDraft>>) {
@@ -1752,6 +1753,7 @@ function Room() {
             hoverSlotIndex: event.intent.hoverSlotIndex,
           }
         : undefined
+      if (nextDraft?.tokenTypes.length) clearClassicDraftCommitted(event.playerId)
       setRemoteClassicTokenDrafts({ ...remoteClassicTokenDraftsRef.current, [event.playerId]: nextDraft })
       if (nextDraft && nextDraft.tokenTypes.length > (previous?.tokenTypes.length ?? 0)) {
         const draftIndex = nextDraft.tokenTypes.length - 1
@@ -2418,6 +2420,7 @@ function Room() {
 
   function beginClassicBankTokenCarry(event: ReactPointerEvent<HTMLElement>, tokenType: GemType) {
     if (!state || !playerId || !canTakeClassicDraftToken(state, playerId, classicTokenDraftRef.current, tokenType) || isInteractionLocked()) return
+    clearClassicDraftCommitted(playerId)
     event.preventDefault()
     event.currentTarget.setPointerCapture(event.pointerId)
     const target = event.currentTarget.querySelector<HTMLElement>('.splendorStackedToken:last-of-type, .tokenImage') ?? event.currentTarget
@@ -2751,6 +2754,7 @@ function Room() {
 
   function takeClassicDraftToken(tokenType: GemType, carry?: ClassicTokenCarry) {
     if (!state || !playerId || !canTakeClassicDraftToken(state, playerId, classicTokenDraftRef.current, tokenType)) return
+    clearClassicDraftCommitted(playerId)
     const currentDraft = classicTokenDraftRef.current
     const nextDraft: ClassicTokenDraft = currentDraft
       ? { playerId, tokenTypes: [...currentDraft.tokenTypes, tokenType], initialCounts: currentDraft.initialCounts }
@@ -3265,7 +3269,7 @@ function Room() {
         : []
     const classicDraftViews: Partial<Record<PlayerId, ClassicTokenDraftView>> = {}
     for (const id of ALL_PLAYER_IDS) {
-      const remoteDraft = remoteClassicTokenDrafts[id]
+      const remoteDraft = isClassicDraftCommitted(id) ? undefined : remoteClassicTokenDrafts[id]
       if (remoteDraft) {
         classicDraftViews[id] = {
           tokenTypes: remoteDraft.tokenTypes,
@@ -3276,18 +3280,19 @@ function Room() {
         }
       }
     }
-    if (classicTokenDraft && isPlayerId(playerId)) {
+    const localClassicTokenDraft = classicTokenDraft && isPlayerId(playerId) && !isClassicDraftCommitted(playerId) ? classicTokenDraft : undefined
+    if (localClassicTokenDraft && isPlayerId(playerId)) {
       classicDraftViews[playerId] = {
-        tokenTypes: classicTokenDraft.tokenTypes,
-        confirmable: isClassicDraftConfirmable(classicTokenDraft),
+        tokenTypes: localClassicTokenDraft.tokenTypes,
+        confirmable: isClassicDraftConfirmable(localClassicTokenDraft),
         controllable: true,
-        hoverTokenType: classicTokenDraft.hoverTokenType,
-        hoverSlotIndex: classicTokenDraft.hoverSlotIndex,
+        hoverTokenType: localClassicTokenDraft.hoverTokenType,
+        hoverSlotIndex: localClassicTokenDraft.hoverSlotIndex,
       }
     }
     const bankDraftTokenTypes = [
-      ...(classicTokenDraft?.tokenTypes ?? []),
-      ...ALL_PLAYER_IDS.flatMap((id) => remoteClassicTokenDrafts[id]?.tokenTypes ?? []),
+      ...(localClassicTokenDraft?.tokenTypes ?? []),
+      ...ALL_PLAYER_IDS.flatMap((id) => (isClassicDraftCommitted(id) ? [] : remoteClassicTokenDrafts[id]?.tokenTypes ?? [])),
       ...classicBankMotionTokenTypes,
     ]
     const aiSeatControls =
@@ -3350,7 +3355,7 @@ function Room() {
           revealingReserveIndices={Object.fromEntries(state.playerOrder.map((id) => [id, revealingReserveIndicesFor(id)])) as Partial<Record<PlayerId, number[]>>}
           hiddenReserveIndices={classicHiddenReserveIndices}
           bankDraftTokenTypes={bankDraftTokenTypes}
-          disabledBankTokenTypes={disabledClassicBankTokenTypes(state, playerId, classicTokenDraft)}
+          disabledBankTokenTypes={disabledClassicBankTokenTypes(state, playerId, localClassicTokenDraft)}
           hiddenBankTokenType={classicTokenCarry?.mode === 'bank' ? classicTokenCarry.tokenType : remoteClassicTokenAnchor?.tokenType ?? (tokenCarry?.classic || remoteGoldAnchor?.classic ? 'gold' : undefined)}
           introBankCounts={state.status === 'waiting' || pendingIntroSeq !== undefined || introAnimation ? (classicIntroBankCounts ?? emptyRouteBankCounts()) : undefined}
           hiddenTokenSlotKeys={[...spendingTokenSlotKeys, ...classicDraftMotionSlotKeys]}
@@ -3435,7 +3440,7 @@ function Room() {
   return (
       <main
         className={`gameShell ${isMyTurn ? 'myTurn' : 'notMyTurn'} ${isViewerTurn ? 'viewerTurn' : ''} ${introLayout ? 'introLayout' : ''} ${introAnimating ? 'introAnimating' : ''} ${boardFocusOpen ? 'boardFocusOpen' : ''}`}
-        style={{ '--table-surface-image': `url(${assetPath('duel-splendor/tabletops/birch-boardgame-table.png')})` } as CSSProperties}
+        style={{ '--table-surface-image': `url(${assetPath('duel-splendor/tabletops/birch-boardgame-table.webp')})` } as CSSProperties}
       >
       {state.winner && (
         <div className="winBanner">
@@ -6850,7 +6855,7 @@ function GemBagPanel({
         </button>
       )}
       <div className="gemBagShell" data-gem-bag-target>
-        <img className="gemBagIcon" src={assetPath('gem-bag.png')} alt="" draggable={false} />
+        <img className="gemBagIcon" src={assetPath('gem-bag.webp')} alt="" draggable={false} />
         <strong>{total}</strong>
       </div>
       {canOpenBoardFocus && (
@@ -6865,7 +6870,7 @@ function GemBagPanel({
             data-privilege-supply-index={index}
             key={index}
           >
-            <img src={assetPath('privilege.png')} alt="" draggable={false} />
+            <img src={assetPath('privilege.webp')} alt="" draggable={false} />
           </span>
         ))}
       </div>
@@ -6875,9 +6880,9 @@ function GemBagPanel({
 
 function BoardPrivilegeHints({ activeKind }: { activeKind?: PrivilegeHintKind }) {
   const hints: Array<{ kind: PrivilegeHintKind; src: string; label: string }> = [
-    { kind: 'pearls', src: assetPath('privilege-hints/privilege-hint-pearls.png'), label: '拿取两个珍珠时，对手获得特权卷轴' },
-    { kind: 'replenish', src: assetPath('privilege-hints/privilege-hint-replenish.png'), label: '补充棋盘时，对手获得特权卷轴' },
-    { kind: 'sameColor', src: assetPath('privilege-hints/privilege-hint-same-color.png'), label: '拿取三个同色 token 时，对手获得特权卷轴' },
+    { kind: 'pearls', src: assetPath('privilege-hints/privilege-hint-pearls.webp'), label: '拿取两个珍珠时，对手获得特权卷轴' },
+    { kind: 'replenish', src: assetPath('privilege-hints/privilege-hint-replenish.webp'), label: '补充棋盘时，对手获得特权卷轴' },
+    { kind: 'sameColor', src: assetPath('privilege-hints/privilege-hint-same-color.webp'), label: '拿取三个同色 token 时，对手获得特权卷轴' },
   ]
   return (
     <div className="boardPrivilegeHints" aria-label="特权卷轴规则提示">
@@ -7012,7 +7017,7 @@ function FloatingPrivilegeCarry({ carry }: { carry: PrivilegeCarry }) {
       }
       aria-hidden="true"
     >
-      <img src={assetPath('privilege.png')} alt="" draggable={false} />
+      <img src={assetPath('privilege.webp')} alt="" draggable={false} />
     </div>
   )
 }
@@ -7140,7 +7145,7 @@ function FlyingPrivilegeScroll({ flight }: { flight: FlyingPrivilege }) {
       }
       aria-hidden="true"
     >
-      <img src={assetPath('privilege.png')} alt="" draggable={false} />
+      <img src={assetPath('privilege.webp')} alt="" draggable={false} />
     </div>
   )
 }
@@ -7350,7 +7355,7 @@ function RemotePrivilegeScroll({ anchor }: { anchor: RemotePrivilegeAnchor }) {
       }
       aria-hidden="true"
     >
-      <img src={assetPath('privilege.png')} alt="" draggable={false} />
+      <img src={assetPath('privilege.webp')} alt="" draggable={false} />
     </div>
   )
 }
@@ -7419,7 +7424,7 @@ function DeckStack({
 }
 
 function deckBackImageStyle(tier: 1 | 2 | 3 | 'royal'): CSSProperties {
-  const filename = tier === 'royal' ? 'card-back-royal.png' : `card-back-tier${tier}.png`
+  const filename = tier === 'royal' ? 'card-back-royal.webp' : `card-back-tier${tier}.webp`
   return { '--deck-back-image': `url(${assetPath(filename)})` } as CSSProperties
 }
 
