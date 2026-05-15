@@ -78,6 +78,24 @@ function givePrintedCost(state: GameState, playerId: PlayerId, cardId: number) {
   }
 }
 
+function preparePokemonEvolutionState(state: GameState) {
+  const baseCardId = 30001
+  const targetCardId = 30002
+  state.players.p1.purchased = [{ cardId: baseCardId }]
+  state.market[1][0] = targetCardId
+  const cost = getCard(baseCardId).evolutionCost ?? getCard(baseCardId).cost
+  const bonusCardByGem: Record<GemType, number> = { diamond: 30021, sapphire: 30012, emerald: 30035, ruby: 30028, onyx: 30001 }
+  for (const gem of ['ruby', 'sapphire', 'onyx', 'diamond', 'emerald'] as const) {
+    for (let index = 0; index < cost[gem]; index += 1) state.players.p1.purchased.push({ cardId: bonusCardByGem[gem] })
+  }
+  return {
+    baseCardId,
+    targetCardId,
+    purchasedBefore: state.players.p1.purchased.map((card) => ({ ...card })),
+    evolutionPileBefore: [...(state.pokemonSpecial?.evolutionPile ?? [])],
+  }
+}
+
 function takeClassicTurn(state: GameState, playerId: PlayerId): GameState {
   return applyAction(state, { type: 'takeClassicBankTokens', playerId, tokenTypes: ['ruby', 'sapphire', 'emerald'] })
 }
@@ -1139,6 +1157,18 @@ describe('rules engine', () => {
     expect(afterEnd.turnActions).toEqual({})
   })
 
+  it('can commit a Pokemon ball draft through the end-turn action', () => {
+    const state = pokemonPlayingState(2)
+
+    const next = applyAction(state, { type: 'endTurn', playerId: 'p1', tokenTypes: ['diamond', 'sapphire', 'emerald'] })
+
+    expect(next.currentPlayer).toBe('p2')
+    expect(next.players.p1.tokens.diamond).toBe(1)
+    expect(next.players.p1.tokens.sapphire).toBe(1)
+    expect(next.players.p1.tokens.emerald).toBe(1)
+    expect(next.turnActions).toEqual({})
+  })
+
   it('buys Pokemon rare and legendary cards with fixed master ball costs and refills the face-up slot', () => {
     const state = pokemonPlayingState(2)
     const rareCardId = state.pokemonSpecial!.rareFaceUp!
@@ -1180,6 +1210,43 @@ describe('rules engine', () => {
     expect(next.turnActions?.mandatoryDone).toBe(true)
   })
 
+  it('can undo a Pokemon reservation before ending the turn', () => {
+    const state = pokemonPlayingState(2)
+    state.market[1][0] = 30001
+    state.decks[1] = [30002, ...state.decks[1].filter((cardId) => cardId !== 30002)]
+    const goldBefore = state.bag.filter((token) => token.type === 'gold').length + state.board.filter((cell) => cell.token?.type === 'gold').length
+
+    const reserved = applyAction(state, { type: 'reserveCard', playerId: 'p1', source: { type: 'market', tier: 1, index: 0 }, goldCellId: 'bank:gold' })
+    const undone = applyAction(reserved, { type: 'undoPokemonAction', playerId: 'p1' })
+
+    expect(undone.players.p1.reserve).not.toContain(30001)
+    expect(undone.players.p1.tokens.gold).toBe(0)
+    expect(undone.market[1][0]).toBe(30001)
+    expect(undone.decks[1][0]).toBe(30002)
+    expect(undone.bag.filter((token) => token.type === 'gold').length + undone.board.filter((cell) => cell.token?.type === 'gold').length).toBe(goldBefore)
+    expect(undone.turnActions?.mandatoryDone).toBe(false)
+  })
+
+  it('can undo a Pokemon purchase and refund the spent tokens', () => {
+    const state = pokemonPlayingState(2)
+    state.market[1][0] = 30001
+    state.decks[1] = [30002, ...state.decks[1].filter((cardId) => cardId !== 30002)]
+    const card = getCard(30001)
+    for (const token of ['ruby', 'sapphire', 'onyx', 'diamond', 'emerald', 'pearl'] as const) {
+      if (card.cost[token] > 0) giveToken(state, 'p1', token, card.cost[token])
+    }
+    const tokensBefore = { ...state.players.p1.tokens }
+
+    const purchased = applyAction(state, { type: 'purchaseCard', playerId: 'p1', source: { type: 'market', tier: 1, index: 0 } })
+    const undone = applyAction(purchased, { type: 'undoPokemonAction', playerId: 'p1' })
+
+    expect(undone.players.p1.purchased.some((card) => card.cardId === 30001)).toBe(false)
+    expect(undone.players.p1.tokens).toEqual(tokensBefore)
+    expect(undone.market[1][0]).toBe(30001)
+    expect(undone.decks[1][0]).toBe(30002)
+    expect(undone.turnActions?.mandatoryDone).toBe(false)
+  })
+
   it('evolves one Pokemon after the mandatory action and waits for manual end turn', () => {
     const state = pokemonPlayingState(2)
     const baseCardId = 30001
@@ -1198,6 +1265,66 @@ describe('rules engine', () => {
     expect(next.players.p1.purchased.some((card) => card.cardId === targetCardId)).toBe(true)
     expect(next.players.p1.tucked).toContain(baseCardId)
     expect(next.pokemonSpecial?.evolutionPile).toContain(baseCardId)
+    expect(next.turnActions?.evolved).toBe(true)
+    expect(next.currentPlayer).toBe('p1')
+  })
+
+  it('can undo a Pokemon evolution before ending the turn', () => {
+    const state = pokemonPlayingState(2)
+    const { targetCardId, purchasedBefore, evolutionPileBefore } = preparePokemonEvolutionState(state)
+    state.turnActions = { mandatoryDone: true }
+
+    const evolved = applyAction(state, { type: 'evolvePokemon', playerId: 'p1', source: { type: 'market', tier: 1, index: 0 } })
+    const replacementCardId = evolved.market[1][0]
+    const undone = applyAction(evolved, { type: 'undoPokemonEvolution', playerId: 'p1' })
+
+    expect(undone.players.p1.purchased).toEqual(purchasedBefore)
+    expect(undone.players.p1.tucked ?? []).toEqual([])
+    expect(undone.pokemonSpecial?.evolutionPile).toEqual(evolutionPileBefore)
+    expect(undone.market[1][0]).toBe(targetCardId)
+    if (replacementCardId) expect(undone.decks[1][0]).toBe(replacementCardId)
+    expect(undone.turnActions?.mandatoryDone).toBe(true)
+    expect(undone.turnActions?.evolved).toBe(false)
+    expect(undone.turnActions?.pokemonEvolution).toBeUndefined()
+  })
+
+  it('undoing a Pokemon mandatory action also rolls back a draft evolution', () => {
+    const state = pokemonPlayingState(2)
+    const { targetCardId, purchasedBefore } = preparePokemonEvolutionState(state)
+    const tokensBefore = { ...state.players.p1.tokens }
+
+    const taken = applyAction(state, { type: 'takeClassicBankTokens', playerId: 'p1', tokenTypes: ['diamond', 'sapphire', 'emerald'] })
+    const evolved = applyAction(taken, { type: 'evolvePokemon', playerId: 'p1', source: { type: 'market', tier: 1, index: 0 } })
+    const undone = applyAction(evolved, { type: 'undoPokemonAction', playerId: 'p1' })
+
+    expect(undone.players.p1.purchased).toEqual(purchasedBefore)
+    expect(undone.players.p1.tucked ?? []).toEqual([])
+    expect(undone.players.p1.tokens).toEqual(tokensBefore)
+    expect(undone.market[1][0]).toBe(targetCardId)
+    expect(undone.turnActions?.mandatoryDone).toBe(false)
+    expect(undone.turnActions?.evolved).toBe(false)
+    expect(undone.turnActions?.pokemonAction).toBeUndefined()
+    expect(undone.turnActions?.pokemonEvolution).toBeUndefined()
+  })
+
+  it('can commit a Pokemon ball draft before a free evolution', () => {
+    const state = pokemonPlayingState(2)
+    const baseCardId = 30001
+    const targetCardId = 30002
+    state.players.p1.purchased = [{ cardId: baseCardId }]
+    state.market[1][0] = targetCardId
+    const cost = getCard(baseCardId).evolutionCost ?? getCard(baseCardId).cost
+    const bonusCardByGem: Record<GemType, number> = { diamond: 30021, sapphire: 30012, emerald: 30035, ruby: 30028, onyx: 30001 }
+    for (const gem of ['ruby', 'sapphire', 'onyx', 'diamond', 'emerald'] as const) {
+      for (let index = 0; index < cost[gem]; index += 1) state.players.p1.purchased.push({ cardId: bonusCardByGem[gem] })
+    }
+
+    const next = applyAction(state, { type: 'evolvePokemon', playerId: 'p1', source: { type: 'market', tier: 1, index: 0 }, tokenTypes: ['diamond', 'sapphire', 'emerald'] })
+
+    expect(next.players.p1.purchased.some((card) => card.cardId === targetCardId)).toBe(true)
+    expect(next.players.p1.tokens.diamond).toBe(1)
+    expect(next.turnActions?.pokemonAction?.type).toBe('takeTokens')
+    expect(next.turnActions?.mandatoryDone).toBe(true)
     expect(next.turnActions?.evolved).toBe(true)
     expect(next.currentPlayer).toBe('p1')
   })

@@ -423,6 +423,14 @@ function takeGoldForReserve(state: GameState, playerId: PlayerId, goldCellId: st
   return token
 }
 
+function goldSourceForReserve(state: GameState, goldCellId: string): { type: 'board'; cellId: string } | { type: 'bag' } {
+  const requestedCell = state.board.find((cell) => cell.id === goldCellId)
+  if (requestedCell?.token?.type === 'gold') return { type: 'board', cellId: requestedCell.id }
+  const boardGold = state.board.find((cell) => cell.token?.type === 'gold')
+  if (boardGold) return { type: 'board', cellId: boardGold.id }
+  return { type: 'bag' }
+}
+
 function bankTokenCount(state: GameState, tokenType: TokenType): number {
   return state.bag.filter((token) => token.type === tokenType).length + state.board.filter((cell) => cell.token?.type === tokenType).length
 }
@@ -468,6 +476,37 @@ function removeTokenFromPlayerById(state: GameState, playerId: PlayerId, tokenId
   player.tokenSlots.splice(slotIndex, 1)
   player.tokens[tokenType] -= 1
   return token
+}
+
+function removeTokenFromBagById(state: GameState, token: Token): Token {
+  const index = state.bag.findIndex((item) => item.id === token.id)
+  assertRule(index >= 0, '银行 token 状态不一致。')
+  const [removed] = state.bag.splice(index, 1)
+  assertRule(removed.type === token.type, '银行 token 状态不一致。')
+  return removed
+}
+
+function playerHasToken(state: GameState, playerId: PlayerId, tokenId: string): boolean {
+  ensureTokenSlots(state.players[playerId])
+  return state.players[playerId].tokenSlots.some((token) => token.id === tokenId)
+}
+
+function returnTokenToClassicBank(state: GameState, token: Token, source?: { type: 'board'; cellId: string } | { type: 'bag' }): void {
+  if (source?.type === 'board') {
+    const cell = getCell(state, source.cellId)
+    if (!cell.token) {
+      cell.token = token
+      return
+    }
+  }
+  state.bag.push(token)
+}
+
+function restoreDiscardedTokens(state: GameState, playerId: PlayerId, tokens: Token[] | undefined, excludedTokenIds = new Set<string>()): void {
+  for (const token of tokens ?? []) {
+    if (excludedTokenIds.has(token.id)) continue
+    addTokenToPlayer(state, playerId, removeTokenFromBagById(state, token))
+  }
 }
 
 function ensureTokenSlots(player: GameState['players'][PlayerId]): void {
@@ -536,6 +575,42 @@ function removeSourceCard(state: GameState, playerId: PlayerId, source: CardSour
   const cardId = state.decks[source.tier].shift()
   assertRule(cardId, '牌库已空。')
   return cardId
+}
+
+function replacementCardForUndo(state: GameState, source: CardSource): number | null | undefined {
+  if (source.type === 'market') return state.market[source.tier][source.index]
+  if (source.type === 'pokemonSpecial') {
+    return source.deck === 'rare' ? state.pokemonSpecial?.rareFaceUp ?? null : state.pokemonSpecial?.legendaryFaceUp ?? null
+  }
+  return undefined
+}
+
+function restoreSourceCardForUndo(state: GameState, playerId: PlayerId, source: CardSource, cardId: number, replacementCardId: number | null | undefined): void {
+  if (source.type === 'market') {
+    assertRule(state.market[source.tier][source.index] === (replacementCardId ?? null), '牌面已变化，不能撤回这次行动。')
+    state.market[source.tier][source.index] = cardId
+    if (replacementCardId) state.decks[source.tier].unshift(replacementCardId)
+    return
+  }
+  if (source.type === 'deck') {
+    state.decks[source.tier].unshift(cardId)
+    return
+  }
+  if (source.type === 'reserve') {
+    const reserve = state.players[playerId].reserve
+    reserve.splice(Math.min(source.index, reserve.length), 0, cardId)
+    return
+  }
+  assertRule(state.gameType === 'pokemon' && state.pokemonSpecial, '当前没有宝可梦特殊牌。')
+  if (source.deck === 'rare') {
+    assertRule(state.pokemonSpecial.rareFaceUp === (replacementCardId ?? null), '特殊牌牌面已变化，不能撤回这次行动。')
+    state.pokemonSpecial.rareFaceUp = cardId
+    if (replacementCardId) state.pokemonSpecial.rareDeck.unshift(replacementCardId)
+    return
+  }
+  assertRule(state.pokemonSpecial.legendaryFaceUp === (replacementCardId ?? null), '特殊牌牌面已变化，不能撤回这次行动。')
+  state.pokemonSpecial.legendaryFaceUp = cardId
+  if (replacementCardId) state.pokemonSpecial.legendaryDeck.unshift(replacementCardId)
 }
 
 function addPurchasedCard(state: GameState, playerId: PlayerId, cardId: number, wildColor?: GemType, baseResume?: TurnResume): TurnResume {
@@ -729,6 +804,13 @@ function takeClassicBankTokensAction(state: GameState, action: Extract<GameActio
     assertRule((beforeCounts.get(tokenType) ?? 0) >= requested, '银行 token 不足。')
   }
   const tokens = action.tokenTypes.map((tokenType) => takeTokenFromClassicBank(state, action.playerId, tokenType))
+  if (state.gameType === 'pokemon') {
+    turnActions(state).pokemonAction = {
+      type: 'takeTokens',
+      tokenTypes: [...action.tokenTypes],
+      tokenIds: tokens.map((token) => token.id),
+    }
+  }
   state.log.unshift(`${state.players[action.playerId].name} 拿取了 ${tokens.map((token) => TOKEN_LABELS[token.type]).join('、')}。`)
   finishMandatoryAction(state, action.playerId, { extraTurn: false })
 }
@@ -739,9 +821,23 @@ function reserveCardAction(state: GameState, action: Extract<GameAction, { type:
   const player = state.players[action.playerId]
   assertRule(player.reserve.length < 3, '最多只能保留 3 张牌。')
   assertRule(!(state.gameType === 'pokemon' && action.source.type === 'pokemonSpecial'), '神话和传说宝可梦不能保留。')
+  const goldSource = goldSourceForReserve(state, action.goldCellId)
   const cardId = removeSourceCard(state, action.playerId, action.source)
-  takeGoldForReserve(state, action.playerId, action.goldCellId)
+  const replacementCardId = replacementCardForUndo(state, action.source)
+  const goldToken = takeGoldForReserve(state, action.playerId, action.goldCellId)
+  const reserveIndex = player.reserve.length
   player.reserve.push(cardId)
+  if (state.gameType === 'pokemon') {
+    turnActions(state).pokemonAction = {
+      type: 'reserve',
+      cardId,
+      source: action.source,
+      reserveIndex,
+      goldToken,
+      goldSource,
+      replacementCardId,
+    }
+  }
   state.log.unshift(`${player.name} 保留了 1 张牌并拿取黄金。`)
   finishMandatoryAction(state, action.playerId, { extraTurn: false })
 }
@@ -753,11 +849,29 @@ function purchaseCardAction(state: GameState, action: Extract<GameAction, { type
   const cardId = findSourceCard(state, action.playerId, action.source)
   const payment = computePayment(state, action.playerId, cardId)
   assertRule(payment, 'token 不足，无法购买这张牌。')
+  const paymentTokens: Token[] = []
   for (const token of TOKEN_TYPES) {
-    for (let paid = 0; paid < (payment[token] ?? 0); paid += 1) state.bag.push(removeTokenFromPlayer(state, action.playerId, token))
+    for (let paid = 0; paid < (payment[token] ?? 0); paid += 1) {
+      const paidToken = removeTokenFromPlayer(state, action.playerId, token)
+      paymentTokens.push(paidToken)
+      state.bag.push(paidToken)
+    }
   }
   const removedCardId = removeSourceCard(state, action.playerId, action.source)
+  const replacementCardId = replacementCardForUndo(state, action.source)
+  const purchaseIndex = player.purchased.length
   const resume = addPurchasedCard(state, action.playerId, removedCardId, action.wildColor)
+  if (state.gameType === 'pokemon') {
+    turnActions(state).pokemonAction = {
+      type: 'purchase',
+      cardId: removedCardId,
+      source: action.source,
+      purchaseIndex,
+      wildColor: action.wildColor,
+      paymentTokens,
+      replacementCardId,
+    }
+  }
   state.log.unshift(`${player.name} 购买了 ${getCard(removedCardId).points} 分牌。`)
   finishMandatoryAction(state, action.playerId, resume)
 }
@@ -782,6 +896,10 @@ function canEvolvePokemon(state: GameState, playerId: PlayerId, targetCardId: nu
 function evolvePokemonAction(state: GameState, action: Extract<GameAction, { type: 'evolvePokemon' }>): void {
   requireTurn(state, action.playerId)
   assertRule(state.gameType === 'pokemon', '当前玩法没有进化机制。')
+  if (!turnActions(state).mandatoryDone && action.tokenTypes?.length) {
+    takeClassicBankTokensAction(state, { type: 'takeClassicBankTokens', playerId: action.playerId, tokenTypes: action.tokenTypes })
+    assertRule(!state.pending, 'token 超过上限，请先完成本回合行动并弃掉多余 token 后再进化。')
+  }
   assertRule(turnActions(state).mandatoryDone, '完成本回合既定行动后才能进化。')
   assertRule(!turnActions(state).evolved, '每回合只能进化 1 张宝可梦。')
   assertRule(action.source.type !== 'deck' && action.source.type !== 'pokemonSpecial', '只能进化场上或预留区的普通宝可梦。')
@@ -794,17 +912,123 @@ function evolvePokemonAction(state: GameState, action: Extract<GameAction, { typ
   const [base] = player.purchased.splice(baseIndex, 1)
   assertRule(base, '没有可进化的前置宝可梦。')
   player.tucked ??= []
+  const tuckedIndex = player.tucked.length
+  const evolutionPileIndex = state.pokemonSpecial?.evolutionPile.length
   player.tucked.push(base.cardId)
   state.pokemonSpecial?.evolutionPile.push(base.cardId)
   const removedCardId = removeSourceCard(state, action.playerId, action.source)
+  const replacementCardId = replacementCardForUndo(state, action.source)
   player.purchased.push({ cardId: removedCardId })
-  turnActions(state).evolved = true
+  const actions = turnActions(state)
+  actions.evolved = true
+  actions.pokemonEvolution = {
+    targetCardId: removedCardId,
+    source: action.source,
+    baseCard: { ...base },
+    baseIndex,
+    tuckedIndex,
+    evolutionPileIndex,
+    replacementCardId,
+  }
   state.log.unshift(`${player.name} 将 ${getCard(base.cardId).name ?? '宝可梦'} 进化为 ${target.name ?? '宝可梦'}。`)
+}
+
+function indexByPreferred<T>(items: T[], preferredIndex: number | undefined, predicate: (item: T) => boolean): number {
+  if (preferredIndex !== undefined && preferredIndex >= 0 && preferredIndex < items.length && predicate(items[preferredIndex])) return preferredIndex
+  return items.findIndex(predicate)
+}
+
+function undoPokemonEvolutionState(state: GameState, playerId: PlayerId): void {
+  const actions = turnActions(state)
+  const evolution = actions.pokemonEvolution
+  assertRule(actions.evolved && evolution, '当前没有可撤回的进化。')
+  const player = state.players[playerId]
+  const targetIndex = player.purchased.findIndex((purchased) => purchased.cardId === evolution.targetCardId)
+  assertRule(targetIndex >= 0, '进化后的宝可梦已经变化，不能撤回这次进化。')
+  const tucked = player.tucked ?? []
+  const tuckedIndex = indexByPreferred(tucked, evolution.tuckedIndex, (cardId) => cardId === evolution.baseCard.cardId)
+  assertRule(tuckedIndex >= 0, '进化堆叠状态已经变化，不能撤回这次进化。')
+  const evolutionPile = state.pokemonSpecial?.evolutionPile
+  const evolutionPileIndex = evolutionPile ? indexByPreferred(evolutionPile, evolution.evolutionPileIndex, (cardId) => cardId === evolution.baseCard.cardId) : -1
+  if (evolutionPile) assertRule(evolutionPileIndex >= 0, '进化弃牌堆已经变化，不能撤回这次进化。')
+
+  player.purchased.splice(targetIndex, 1)
+  restoreSourceCardForUndo(state, playerId, evolution.source, evolution.targetCardId, evolution.replacementCardId)
+  tucked.splice(tuckedIndex, 1)
+  if (evolutionPile && evolutionPileIndex >= 0) evolutionPile.splice(evolutionPileIndex, 1)
+  player.purchased.splice(Math.min(evolution.baseIndex, player.purchased.length), 0, { ...evolution.baseCard })
+  actions.evolved = false
+  actions.pokemonEvolution = undefined
+}
+
+function undoPokemonEvolutionAction(state: GameState, action: Extract<GameAction, { type: 'undoPokemonEvolution' }>): void {
+  requireTurn(state, action.playerId)
+  assertRule(state.gameType === 'pokemon', '当前玩法没有进化机制。')
+  undoPokemonEvolutionState(state, action.playerId)
+  state.log.unshift(`${state.players[action.playerId].name} 撤回了本回合的进化。`)
+}
+
+function undoPokemonAction(state: GameState, action: Extract<GameAction, { type: 'undoPokemonAction' }>): void {
+  requireTurn(state, action.playerId)
+  assertRule(state.gameType === 'pokemon', '当前玩法没有可撤回行动。')
+  const actions = turnActions(state)
+  assertRule(actions.mandatoryDone, '本回合还没有可撤回的行动。')
+  const pokemonAction = actions.pokemonAction
+  assertRule(pokemonAction, '当前行动不能撤回。')
+  const player = state.players[action.playerId]
+  if (actions.pokemonEvolution) undoPokemonEvolutionState(state, action.playerId)
+
+  if (pokemonAction.type === 'takeTokens') {
+    const tokenIds = new Set(pokemonAction.tokenIds)
+    for (const tokenId of pokemonAction.tokenIds) {
+      if (!playerHasToken(state, action.playerId, tokenId)) continue
+      const token = state.players[action.playerId].tokenSlots.find((item) => item.id === tokenId)
+      assertRule(token, 'token 槽位状态不一致。')
+      returnTokenToClassicBank(state, removeTokenFromPlayerById(state, action.playerId, token.id, token.type))
+    }
+    restoreDiscardedTokens(state, action.playerId, pokemonAction.discardedTokens, tokenIds)
+    actions.mandatoryDone = false
+    actions.pokemonAction = undefined
+    state.log.unshift(`${player.name} 撤回了本回合拿取的精灵球。`)
+    return
+  }
+
+  if (pokemonAction.type === 'reserve') {
+    const reserveIndex = player.reserve.findIndex((cardId) => cardId === pokemonAction.cardId)
+    assertRule(reserveIndex >= 0, '预留牌已经变化，不能撤回这次行动。')
+    player.reserve.splice(reserveIndex, 1)
+    const excludedDiscardIds = new Set([pokemonAction.goldToken.id])
+    restoreDiscardedTokens(state, action.playerId, pokemonAction.discardedTokens, excludedDiscardIds)
+    if (playerHasToken(state, action.playerId, pokemonAction.goldToken.id)) {
+      const gold = removeTokenFromPlayerById(state, action.playerId, pokemonAction.goldToken.id, 'gold')
+      returnTokenToClassicBank(state, gold, pokemonAction.goldSource)
+    }
+    restoreSourceCardForUndo(state, action.playerId, pokemonAction.source, pokemonAction.cardId, pokemonAction.replacementCardId)
+    actions.mandatoryDone = false
+    actions.pokemonAction = undefined
+    state.log.unshift(`${player.name} 撤回了预留宝可梦。`)
+    return
+  }
+
+  const purchaseIndex = player.purchased.findIndex((purchased) => purchased.cardId === pokemonAction.cardId && purchased.wildColor === pokemonAction.wildColor)
+  assertRule(purchaseIndex >= 0, '购买牌已经变化，不能撤回这次行动。')
+  player.purchased.splice(purchaseIndex, 1)
+  restoreSourceCardForUndo(state, action.playerId, pokemonAction.source, pokemonAction.cardId, pokemonAction.replacementCardId)
+  for (const token of pokemonAction.paymentTokens) {
+    addTokenToPlayer(state, action.playerId, removeTokenFromBagById(state, token))
+  }
+  actions.mandatoryDone = false
+  actions.pokemonAction = undefined
+  state.log.unshift(`${player.name} 撤回了购买并拿回消费的宝石。`)
 }
 
 function endTurnAction(state: GameState, action: Extract<GameAction, { type: 'endTurn' }>): void {
   requireTurn(state, action.playerId)
   assertRule(state.gameType === 'pokemon', '只有宝可梦版需要主动结束回合。')
+  if (!turnActions(state).mandatoryDone && action.tokenTypes?.length) {
+    takeClassicBankTokensAction(state, { type: 'takeClassicBankTokens', playerId: action.playerId, tokenTypes: action.tokenTypes })
+    if (state.pending) return
+  }
   assertRule(turnActions(state).mandatoryDone, '本回合既定行动还没有完成。')
   advanceTurnAfterMandatoryAction(state, action.playerId, { extraTurn: false })
 }
@@ -850,6 +1074,8 @@ export function applyAction(input: GameState, action: GameAction): GameState {
   else if (action.type === 'reserveCard') reserveCardAction(state, action)
   else if (action.type === 'purchaseCard') purchaseCardAction(state, action)
   else if (action.type === 'evolvePokemon') evolvePokemonAction(state, action)
+  else if (action.type === 'undoPokemonAction') undoPokemonAction(state, action)
+  else if (action.type === 'undoPokemonEvolution') undoPokemonEvolutionAction(state, action)
   else if (action.type === 'endTurn') endTurnAction(state, action)
   else if (action.type === 'chooseRoyal') {
     const pending = state.pending
@@ -885,6 +1111,10 @@ export function applyAction(input: GameState, action: GameAction): GameState {
       ? removeTokenFromPlayerById(state, action.playerId, action.tokenId, action.tokenType)
       : removeTokenFromPlayer(state, action.playerId, action.tokenType)
     state.bag.push(token)
+    if (state.gameType === 'pokemon' && state.turnActions?.pokemonAction && pending.resume.continueTurn !== true) {
+      state.turnActions.pokemonAction.discardedTokens ??= []
+      state.turnActions.pokemonAction.discardedTokens.push(token)
+    }
     const nextCount = pending.count - 1
     state.pending = nextCount > 0 ? { ...pending, count: nextCount } : undefined
     if (!state.pending) finishMandatoryAction(state, action.playerId, pending.resume)

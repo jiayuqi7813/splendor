@@ -447,6 +447,34 @@ function Room() {
     return url.href
   }
 
+  async function writeInviteLinkToClipboard(link: string): Promise<boolean> {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(link)
+        return true
+      } catch {
+        // Fall back to a temporary text field for browsers or permissions that reject Clipboard API writes.
+      }
+    }
+    if (typeof document === 'undefined') return false
+    const field = document.createElement('textarea')
+    field.value = link
+    field.setAttribute('readonly', '')
+    field.style.position = 'fixed'
+    field.style.left = '-9999px'
+    field.style.top = '0'
+    document.body.append(field)
+    field.select()
+    field.setSelectionRange(0, link.length)
+    try {
+      return document.execCommand('copy')
+    } catch {
+      return false
+    } finally {
+      field.remove()
+    }
+  }
+
   function readNormalizedCursorPoint(clientX: number, clientY: number): RemoteCursorIntentPoint | undefined {
     const shellRect = cursorMapRect ?? resolveCursorMapRect()
     if (!shellRect || shellRect.width <= 0 || shellRect.height <= 0) return undefined
@@ -961,6 +989,10 @@ function Room() {
     const currentState = stateRef.current
     if (currentState && playerId && currentState.gameType === update.state.gameType && (currentState.gameType === 'duel' || isClassicShellGame(currentState))) {
       const transitionViewerId = update.action?.playerId === playerId ? undefined : playerId
+      const classicTakeAction = classicBankTakeActionFromStateAction(update.action)
+      const classicTakeWasCommitted = classicTakeAction ? isClassicDraftCommitted(classicTakeAction.playerId) : false
+      const classicTakeHadDraft = classicTakeAction ? settleCommittedClassicTokenDraft(classicTakeAction.playerId) : false
+      if (update.action?.type === 'undoPokemonAction') clearClassicDraftCommitted(update.action.playerId)
       if (shouldAnimateInitialStart(currentState, update.state)) {
         applyImmediateState(update.seq, update.state)
         queueIntroAnimation(update.seq)
@@ -992,10 +1024,10 @@ function Room() {
         scheduleDeferredState(update.seq, update.state, classicDiscardAnimation.duration)
         return
       }
-      const skipClassicTakeAnimation = update.action?.type === 'takeClassicBankTokens' ? isClassicDraftCommitted(update.action.playerId) : false
+      const skipClassicTakeAnimation = classicTakeAction ? classicTakeHadDraft || classicTakeWasCommitted : false
       const classicTakeAnimation =
-        isClassicShellGame(currentState) && update.action?.type === 'takeClassicBankTokens' && !skipClassicTakeAnimation
-          ? createClassicBankTakeTransitionAnimation(currentState, update.state, update.action)
+        isClassicShellGame(currentState) && classicTakeAction && !skipClassicTakeAnimation
+          ? createClassicBankTakeTransitionAnimation(currentState, update.state, classicTakeAction)
           : undefined
       if (classicTakeAnimation && startClassicBankTakeAnimation(classicTakeAnimation)) {
         scheduleDeferredState(update.seq, update.state, classicTakeAnimation.duration)
@@ -1432,6 +1464,7 @@ function Room() {
       commitAtMs,
       timer: window.setTimeout(() => {
         if (!deferredStateRef.current || deferredStateRef.current.seq !== nextSeq) return
+        reconcileClassicTokenDraftsForState(nextState)
         setSeq(nextSeq)
         committedSeqRef.current = nextSeq
         stateRef.current = nextState
@@ -1484,6 +1517,7 @@ function Room() {
   }
 
   function applyImmediateState(nextSeq: number, nextState: GameState) {
+    reconcileClassicTokenDraftsForState(nextState)
     setSeq(nextSeq)
     seqRef.current = Math.max(seqRef.current, nextSeq)
     committedSeqRef.current = nextSeq
@@ -1788,6 +1822,7 @@ function Room() {
       scheduleDeferredState(data.seq, data.state, privilegeGainAnimation?.duration ?? 0)
       return
     }
+    reconcileClassicTokenDraftsForState(data.state)
     setSeq(data.seq)
     stateRef.current = data.state
     setState(data.state)
@@ -1859,17 +1894,60 @@ function Room() {
     setRemoteClassicTokenDraftsState(next)
   }
 
+  function settleCommittedClassicTokenDraft(committedPlayerId: PlayerId): boolean {
+    const localDraft = classicTokenDraftRef.current?.playerId === committedPlayerId ? classicTokenDraftRef.current : undefined
+    const remoteDraft = remoteClassicTokenDraftsRef.current[committedPlayerId]
+    const hadTokenDraft = Boolean(localDraft?.tokenTypes.length || remoteDraft?.tokenTypes.length)
+    if (localDraft) setClassicTokenDraft(undefined)
+    if (remoteDraft !== undefined) {
+      setRemoteClassicTokenDrafts({ ...remoteClassicTokenDraftsRef.current, [committedPlayerId]: undefined })
+    }
+    if (remoteClassicTokenAnchorRef.current?.playerId === committedPlayerId) setRemoteClassicTokenAnchor(undefined)
+    markClassicDraftCommitted(committedPlayerId)
+    return hadTokenDraft
+  }
+
+  function canShowClassicTokenDraftForState(nextState: GameState | undefined, draftPlayerId: PlayerId): boolean {
+    if (!nextState || !isClassicShellGame(nextState)) return false
+    if (nextState.status !== 'playing' || nextState.currentPlayer !== draftPlayerId || nextState.pending || nextState.winner) return false
+    if (nextState.gameType === 'pokemon' && nextState.turnActions?.mandatoryDone) return false
+    return true
+  }
+
+  function reconcileClassicTokenDraftsForState(nextState: GameState) {
+    const localDraft = classicTokenDraftRef.current
+    if (localDraft && !canShowClassicTokenDraftForState(nextState, localDraft.playerId)) {
+      if (localDraft.tokenTypes.length > 0) markClassicDraftCommitted(localDraft.playerId)
+      setClassicTokenDraft(undefined)
+    }
+
+    let nextRemoteDrafts: Partial<Record<PlayerId, ClassicTokenDraft>> | undefined
+    for (const id of ALL_PLAYER_IDS) {
+      const draft = remoteClassicTokenDraftsRef.current[id]
+      if (!draft || canShowClassicTokenDraftForState(nextState, id)) continue
+      if (!nextRemoteDrafts) nextRemoteDrafts = { ...remoteClassicTokenDraftsRef.current }
+      nextRemoteDrafts[id] = undefined
+      if (draft.tokenTypes.length > 0) markClassicDraftCommitted(id)
+      if (remoteClassicTokenAnchorRef.current?.playerId === id) setRemoteClassicTokenAnchor(undefined)
+    }
+    if (nextRemoteDrafts) setRemoteClassicTokenDrafts(nextRemoteDrafts)
+  }
+
   function handleRoomIntent(event: Extract<PublicRoomEvent, { type: 'intent' }>) {
     const currentPlayerId = playerIdRef.current
     if (!currentPlayerId || event.playerId === currentPlayerId) return
+    const latestStateSeq = Math.max(committedSeqRef.current, deferredStateRef.current?.seq ?? 0)
+    if (event.seq <= latestStateSeq) return
     if (event.intent.type === 'cursorMove') {
       appendRemoteCursorIntent(event.playerId, event.intent)
       return
     }
     if (event.intent.type === 'classicTokenDraft') {
+      const hasHover = event.intent.hoverTokenType !== undefined && event.intent.hoverSlotIndex !== undefined
+      if (!event.intent.committed && (event.intent.tokenTypes.length > 0 || hasHover) && !canShowClassicTokenDraftForState(stateRef.current, event.playerId)) return
+      if (!event.intent.committed && event.intent.tokenTypes.length > 0 && isClassicDraftCommitted(event.playerId)) return
       const previous = remoteClassicTokenDraftsRef.current[event.playerId]
       const initialCounts = previous?.initialCounts ?? classicGemBankCounts(stateRef.current)
-      const hasHover = event.intent.hoverTokenType !== undefined && event.intent.hoverSlotIndex !== undefined
       const hoverOnlyClear = Boolean(event.intent.hoverOnly && event.intent.tokenTypes.length === 0 && !hasHover)
       const committedClear = Boolean(event.intent.committed && event.intent.tokenTypes.length === 0 && !hasHover)
       if (committedClear) {
@@ -2372,7 +2450,12 @@ function Room() {
   }
 
   async function copyRoomLink() {
-    await navigator.clipboard.writeText(currentRoomLink())
+    const copied = await writeInviteLinkToClipboard(currentRoomLink())
+    if (!copied) {
+      setError('复制邀请链接失败，请检查浏览器剪贴板权限后重试。')
+      return
+    }
+    setError('')
     setCopiedLink(true)
     window.setTimeout(() => setCopiedLink(false), 1200)
   }
@@ -2512,6 +2595,7 @@ function Room() {
       playerId,
       tokenId: token.id,
       tokenType: token.type,
+      variant: shellVariant(state),
       sourceIndex: index,
       targetIndex: index,
       x: rect.left,
@@ -2592,6 +2676,7 @@ function Room() {
     setActiveClassicTokenCarry({
       mode: 'bank',
       tokenType,
+      variant: shellVariant(state),
       x: rect.left,
       y: rect.top,
       originX: rect.left,
@@ -2617,6 +2702,7 @@ function Room() {
       mode: 'draft',
       tokenType,
       draftIndex,
+      variant: shellVariant(state),
       x: rect.left,
       y: rect.top,
       originX: rect.left,
@@ -2814,13 +2900,27 @@ function Room() {
     clearIntent()
     const dragDistance = Math.hypot(clientX - carry.startClientX, clientY - carry.startClientY)
     setActiveCardCarry(undefined)
-    if (carry.source.type === 'reserve' && dragDistance < 12) return
-    if (state?.gameType === 'pokemon' && state.turnActions?.mandatoryDone) {
+    if (carry.source.type === 'reserve' && dragDistance < 12) {
+      if (canUndoPokemonReserveByCard(state, playerId, carry.source)) undoPokemonAction()
+      return
+    }
+    const draftTokenTypes = pokemonDraftTokenTypesForCommit(state, playerId)
+    if (state?.gameType === 'pokemon' && (state.turnActions?.mandatoryDone || draftTokenTypes)) {
       if (pokemonEvolutionTargetForCarry(state, playerId, carry, clientX, clientY)) {
+        if (draftTokenTypes && state.players[playerId].tokenSlots.length + draftTokenTypes.length > 10) {
+          setError('token 超过上限，请先结束拿取并弃掉多余 token 后再进化。')
+          startCardReturnAnimation(carry)
+          return
+        }
         const evolutionAnimation = createLocalPokemonEvolutionAnimation(state, playerId, carry)
         if (evolutionAnimation) startPurchaseCardAnimation(evolutionAnimation)
+        if (draftTokenTypes) {
+          markClassicDraftCommitted(playerId)
+          setClassicTokenDraft(undefined)
+          classicTokenDraftIntent(undefined, { committed: true })
+        }
         void submit(
-          { type: 'evolvePokemon', playerId, source: carry.source },
+          { type: 'evolvePokemon', playerId, source: carry.source, tokenTypes: draftTokenTypes },
           evolutionAnimation ? { deferStateMs: evolutionAnimation.duration } : undefined,
         )
         return
@@ -2948,6 +3048,55 @@ function Room() {
     void submit({ type: 'takeClassicBankTokens', playerId, tokenTypes })
   }
 
+  function pokemonDraftTokenTypesForCommit(currentState: GameState | undefined, currentPlayerId: PlayerId | undefined): GemType[] | undefined {
+    if (!currentState || !currentPlayerId || currentState.gameType !== 'pokemon' || currentState.turnActions?.mandatoryDone) return undefined
+    const draft = classicTokenDraftRef.current?.playerId === currentPlayerId ? classicTokenDraftRef.current : undefined
+    return isClassicDraftConfirmable(draft) ? draft?.tokenTypes : undefined
+  }
+
+  function finishPokemonTurn() {
+    if (!playerId || !state || isInteractionLocked()) return
+    const draft = classicTokenDraftRef.current
+    const tokenTypes = state.gameType === 'pokemon' && !state.turnActions?.mandatoryDone && isClassicDraftConfirmable(draft)
+      ? draft?.tokenTypes
+      : undefined
+    if (tokenTypes?.length) {
+      markClassicDraftCommitted(playerId)
+      setClassicTokenDraft(undefined)
+      classicTokenDraftIntent(undefined, { committed: true })
+      void submit({ type: 'endTurn', playerId, tokenTypes })
+      return
+    }
+    if (draft) {
+      setClassicTokenDraft(undefined)
+      classicTokenDraftIntent(undefined)
+    }
+    void submit({ type: 'endTurn', playerId })
+  }
+
+  function undoPokemonAction() {
+    if (!playerId || !state || state.gameType !== 'pokemon' || isInteractionLocked()) return
+    void submit({ type: 'undoPokemonAction', playerId })
+  }
+
+  function undoPokemonEvolution() {
+    if (!playerId || !state || state.gameType !== 'pokemon' || isInteractionLocked()) return
+    void submit({ type: 'undoPokemonEvolution', playerId })
+  }
+
+  function refundPokemonPurchasedCard(cardId: number, purchaseIndex: number) {
+    if (!state || !playerId || state.gameType !== 'pokemon') return
+    if (state.players[playerId].purchased[purchaseIndex]?.cardId !== cardId) return
+    const evolution = state.turnActions?.pokemonEvolution
+    if (evolution?.targetCardId === cardId) {
+      undoPokemonEvolution()
+      return
+    }
+    const action = state.turnActions?.pokemonAction
+    if (action?.type !== 'purchase' || action.cardId !== cardId) return
+    undoPokemonAction()
+  }
+
   function cancelClassicTokenDraft() {
     const draft = classicTokenDraftRef.current
     if (!draft || !playerId) return
@@ -2963,7 +3112,7 @@ function Room() {
       return
     }
     const target = purchaseTargetForCarry(state, playerId, carry, clientX, clientY)
-    if (state.gameType === 'pokemon' && state.turnActions?.mandatoryDone) {
+    if (state.gameType === 'pokemon' && (state.turnActions?.mandatoryDone || pokemonDraftTokenTypesForCommit(state, playerId))) {
       setPurchaseTarget(undefined)
       setPurchasePreviewSlotKeys([])
       hoverCardIntent(carry.source)
@@ -2993,6 +3142,7 @@ function Room() {
     const cardAnimation = createLocalPurchaseCardAnimation(state, playerId, carry, target.gem)
     if (spendAnimation) startTokenSpendAnimation(spendAnimation)
     if (cardAnimation) startPurchaseCardAnimation(cardAnimation)
+    if (classicTokenDraftRef.current) cancelClassicTokenDraft()
     const deferStateMs = Math.max(spendAnimation?.duration ?? 0, cardAnimation?.duration ?? 0)
     void submit(
       { type: 'purchaseCard', playerId, source: carry.source, wildColor: cardNeedsWildChoice(carry.cardId) ? target.gem : undefined },
@@ -3454,6 +3604,35 @@ function Room() {
       ...ALL_PLAYER_IDS.flatMap((id) => (isClassicDraftCommitted(id) ? [] : remoteClassicTokenDrafts[id]?.tokenTypes ?? [])),
       ...classicBankMotionTokenTypes,
     ]
+    const pokemonActionPlayerId = state.gameType === 'pokemon' && isPlayerId(state.currentPlayer) ? state.currentPlayer : undefined
+    const pokemonAction = pokemonActionPlayerId ? state.turnActions?.pokemonAction : undefined
+    const refundableTokenIds =
+      pokemonAction?.type === 'reserve'
+        ? [pokemonAction.goldToken.id]
+        : pokemonAction?.type === 'takeTokens'
+          ? pokemonAction.tokenIds
+          : []
+    const refundableReserveCardIndex = pokemonAction?.type === 'reserve' && pokemonActionPlayerId
+      ? state.players[pokemonActionPlayerId].reserve.findIndex((cardId) => cardId === pokemonAction.cardId)
+      : undefined
+    const refundableReserveSlotKey = refundableReserveCardIndex !== undefined && refundableReserveCardIndex >= 0 && pokemonActionPlayerId ? `${pokemonActionPlayerId}:reserve:${refundableReserveCardIndex}` : undefined
+    const refundablePurchaseIndex = pokemonAction?.type === 'purchase' && pokemonActionPlayerId
+      ? state.players[pokemonActionPlayerId].purchased.findIndex((card) => card.cardId === pokemonAction.cardId && card.wildColor === pokemonAction.wildColor)
+      : undefined
+    const refundablePurchasedCardKeys: string[] = refundablePurchaseIndex !== undefined && refundablePurchaseIndex >= 0 && pokemonActionPlayerId ? [purchasedCardKey(pokemonActionPlayerId, refundablePurchaseIndex)] : []
+    const pokemonEvolution = pokemonActionPlayerId ? state.turnActions?.pokemonEvolution : undefined
+    const refundableEvolutionPurchaseIndex = pokemonEvolution && pokemonActionPlayerId
+      ? state.players[pokemonActionPlayerId].purchased.findIndex((card) => card.cardId === pokemonEvolution.targetCardId)
+      : undefined
+    if (refundableEvolutionPurchaseIndex !== undefined && refundableEvolutionPurchaseIndex >= 0 && pokemonActionPlayerId) {
+      const key = purchasedCardKey(pokemonActionPlayerId, refundableEvolutionPurchaseIndex)
+      if (!refundablePurchasedCardKeys.includes(key)) refundablePurchasedCardKeys.push(key)
+    }
+    const pokemonCanEndTurn =
+      state.gameType === 'pokemon'
+      && isMyTurn
+      && !state.pending
+      && (Boolean(state.turnActions?.mandatoryDone) || isClassicDraftConfirmable(localClassicTokenDraft))
     const aiSeatControls =
       state.status === 'waiting' && isHost
         ? Object.fromEntries(
@@ -3501,6 +3680,7 @@ function Room() {
           onAction={(action) => void submit(action)}
           aiBusy={aiBusy}
           interactionLocked={interactionLocked}
+          canEndTurnOverride={pokemonCanEndTurn}
           remoteHoverCardSourceKey={remoteHoverCardSourceKey}
           goldTargetCardSourceKey={goldTargetCardSourceKey}
           reservingCardSourceKeys={reservingCardSources}
@@ -3520,15 +3700,20 @@ function Room() {
           hiddenTokenSlotKeys={[...spendingTokenSlotKeys, ...classicDraftMotionSlotKeys]}
           highlightedTokenSlotKeys={[...purchasePreviewSlotKeys, ...remotePurchasePreviewSlotKeys]}
           hiddenPurchasedCardKeys={movingPurchasedCardKeys}
+          refundableTokenIds={refundableTokenIds}
+          refundableReserveSlotKey={refundableReserveSlotKey}
+          refundablePurchasedCardKeys={refundablePurchasedCardKeys}
           onGoldPointerDown={(event, cellId) => beginGoldCarry(event, { id: cellId, token: { id: cellId, type: 'gold' } })}
           onBankTokenPointerDown={beginClassicBankTokenCarry}
           onBankTokenPointerEnter={classicHoverBankTokenIntent}
           onBankTokenPointerLeave={() => classicHoverBankTokenIntent(undefined)}
           onDraftTokenPointerDown={beginClassicDraftTokenReturn}
           onDiscardToken={discardClassicTokenWithAnimation}
+          onRefundPokemonAction={undoPokemonAction}
+          onRefundPurchasedCard={refundPokemonPurchasedCard}
           onConfirmTokenDraft={confirmClassicTokenDraft}
           onCancelTokenDraft={cancelClassicTokenDraft}
-          onEndTurn={() => void submit({ type: 'endTurn', playerId })}
+          onEndTurn={finishPokemonTurn}
           onCardPointerEnter={hoverCardIntent}
           onCardPointerLeave={() => hoverCardIntent(undefined)}
           onCardPointerDown={beginCardCarry}
@@ -5523,6 +5708,12 @@ function sourceKey(source: CardSource): string {
   return `reserve:${source.index}`
 }
 
+function canUndoPokemonReserveByCard(state: GameState | undefined, playerId: PlayerId | undefined, source: CardSource): boolean {
+  if (!state || !playerId || state.gameType !== 'pokemon' || source.type !== 'reserve') return false
+  const action = state.turnActions?.pokemonAction
+  return action?.type === 'reserve' && state.players[playerId].reserve[source.index] === action.cardId
+}
+
 function cardPeekAtPoint(clientX: number, clientY: number): CardPeek | undefined {
   const target = document.elementFromPoint(clientX, clientY)?.closest<HTMLElement>('[data-card-peek-id]')
   if (!target) return undefined
@@ -5558,6 +5749,13 @@ function CardPeekOverlay({ peek }: { peek?: CardPeek }) {
 function sourceMotionKey(source: CardSource, playerId?: PlayerId): string {
   if (source.type === 'reserve' && playerId) return `${playerId}:reserve:${source.index}`
   return sourceKey(source)
+}
+
+function classicBankTakeActionFromStateAction(action: AnyGameAction | undefined): { playerId: PlayerId; tokenTypes: GemType[] } | undefined {
+  if (action?.type === 'takeClassicBankTokens') return { playerId: action.playerId, tokenTypes: action.tokenTypes }
+  if (action?.type === 'endTurn' && Array.isArray(action.tokenTypes) && action.tokenTypes.length > 0) return { playerId: action.playerId, tokenTypes: action.tokenTypes }
+  if (action?.type === 'evolvePokemon' && Array.isArray(action.tokenTypes) && action.tokenTypes.length > 0) return { playerId: action.playerId, tokenTypes: action.tokenTypes }
+  return undefined
 }
 
 function purchasedCardKey(playerId: PlayerId, index: number): string {
@@ -5915,6 +6113,7 @@ function isClassicDraftConfirmable(draft: ClassicTokenDraft | undefined): boolea
 
 function canTakeClassicDraftToken(state: GameState, playerId: PlayerId, draft: ClassicTokenDraft | undefined, tokenType: GemType): boolean {
   if (!isClassicShellGame(state) || state.status !== 'playing' || state.currentPlayer !== playerId || state.pending || state.winner) return false
+  if (state.gameType === 'pokemon' && state.turnActions?.mandatoryDone) return false
   const currentDraft = draft?.playerId === playerId ? draft : undefined
   const initialCounts = currentDraft?.initialCounts ?? classicGemBankCounts(state)
   const availableNow = classicGemBankCounts(state)[tokenType] - classicDraftCount(currentDraft, tokenType)
@@ -6168,7 +6367,7 @@ function tokenSpendFlights(state: GameState, playerId: PlayerId, slots: PaymentS
   }
 }
 
-function createClassicBankTakeTransitionAnimation(before: GameState, after: GameState, action: Extract<GameAction, { type: 'takeClassicBankTokens' }>): ClassicBankTakeAnimation | undefined {
+function createClassicBankTakeTransitionAnimation(before: GameState, after: GameState, action: { playerId: PlayerId; tokenTypes: GemType[] }): ClassicBankTakeAnimation | undefined {
   if (!isClassicShellGame(before) || !isClassicShellGame(after)) return undefined
   const beforeIds = new Set(before.players[action.playerId].tokenSlots.map((token) => token.id))
   const addedTokens = after.players[action.playerId].tokenSlots
@@ -7194,6 +7393,15 @@ function FloatingGoldToken({ carry }: { carry: TokenCarry }) {
 }
 
 function FloatingTokenSlotCarry({ carry }: { carry: TokenSlotCarry }) {
+  const token = carry.variant ? (
+    <span className="splendorFloatingToken">
+      <ClassicTokenImage color={classicColorForRouteToken(carry.tokenType)} variant={carry.variant} />
+    </span>
+  ) : (
+    <span className="token">
+      <TokenImage token={carry.tokenType} />
+    </span>
+  )
   return (
     <div
       className="floatingTokenCarry floatingTokenSlotCarry"
@@ -7207,9 +7415,7 @@ function FloatingTokenSlotCarry({ carry }: { carry: TokenSlotCarry }) {
       }
       aria-hidden="true"
     >
-      <span className="token">
-        <TokenImage token={carry.tokenType} />
-      </span>
+      {token}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { jsonError, replayToRoomMachine, roomStore, RoomNotFoundError, withRoomMachineRouting } from './roomStore'
+import { jsonBodyObject, jsonError, replayToRoomMachine, roomStore, RoomNotFoundError, withRoomMachineRouting } from './roomStore'
 import { legalActions } from '@/game/ai'
 import type { BoardCell, PlayerId } from '@/game/types'
 
@@ -32,6 +32,20 @@ function startTwoHumanRoom() {
 }
 
 describe('room store', () => {
+  it('normalizes malformed JSON request bodies for API handlers', async () => {
+    await expect(jsonBodyObject(new Request('http://test.local', { method: 'POST', body: 'null' }))).resolves.toEqual({})
+    await expect(jsonBodyObject(new Request('http://test.local', { method: 'POST', body: '[' }))).resolves.toEqual({})
+    await expect(jsonBodyObject(new Request('http://test.local', { method: 'POST', body: '{"gameType":"classic"}' }))).resolves.toEqual({ gameType: 'classic' })
+  })
+
+  it('creates requested game variants', () => {
+    expect(roomStore.createRoom().state.gameType).toBe('duel')
+    expect(roomStore.createRoom({ gameType: 'classic' }).state.gameType).toBe('classic')
+    const pokemon = roomStore.createRoom({ gameType: 'pokemon', pokemonSpecialSet: 'alternate' }).state
+    expect(pokemon.gameType).toBe('pokemon')
+    expect(pokemon.pokemonSpecial?.set).toBe('alternate')
+  })
+
   it('creates a room, confirms seats, and waits for the host to start', () => {
     const first = roomStore.createRoom()
     expect(first.playerId).toBe('p1')

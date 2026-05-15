@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { jsonError, jsonOk, replayToRoomMachine, roomStore } from '@/server/roomStore'
+import { jsonBodyObject, jsonError, jsonOk, replayToRoomMachine, roomStore } from '@/server/roomStore'
 
 export const Route = createFileRoute('/api/rooms')({
   server: {
@@ -8,7 +8,7 @@ export const Route = createFileRoute('/api/rooms')({
         const replay = replayToRoomMachine(request)
         if (replay) return replay
         try {
-          const body = await request.json().catch(() => ({}))
+          const body = await jsonBodyObject(request)
           return jsonOk(roomStore.createRoom({ gameType: body.gameType, playerCount: body.playerCount, pokemonSpecialSet: body.pokemonSpecialSet }))
         } catch (error) {
           return jsonError(error)

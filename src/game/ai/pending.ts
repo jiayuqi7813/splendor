@@ -69,6 +69,8 @@ export function summarizeAction(action: GameAction): string {
   if (action.type === 'reserveCard') return `reserveCard ${action.source.type} gold=${action.goldCellId}`
   if (action.type === 'purchaseCard') return `purchaseCard ${action.source.type}${action.wildColor ? ` wildColor=${action.wildColor}` : ''}`
   if (action.type === 'evolvePokemon') return `evolvePokemon ${action.source.type}`
+  if (action.type === 'undoPokemonAction') return 'undoPokemonAction'
+  if (action.type === 'undoPokemonEvolution') return 'undoPokemonEvolution'
   if (action.type === 'endTurn') return 'endTurn'
   if (action.type === 'chooseRoyal') return `chooseRoyal ${action.cardId}`
   if (action.type === 'takeBoardToken') return `takeBoardToken ${action.cellId}`

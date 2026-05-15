@@ -52,25 +52,25 @@ function Home() {
         <h1>Splendor</h1>
         <p>创建房间，把链接发给对手。当前支持《璀璨宝石》《璀璨宝石：宝可梦》和《璀璨宝石：对决》。</p>
         <div className="homeGamePicker" role="radiogroup" aria-label="选择游戏">
-          <button className={gameType === 'classic' ? 'selectedGameType' : ''} type="button" onClick={() => setGameType('classic')}>
+          <button className={gameType === 'classic' ? 'selectedGameType' : ''} type="button" role="radio" aria-checked={gameType === 'classic'} onClick={() => setGameType('classic')}>
             <UsersRound size={17} />
             璀璨宝石
           </button>
-          <button className={gameType === 'pokemon' ? 'selectedGameType' : ''} type="button" onClick={() => setGameType('pokemon')}>
+          <button className={gameType === 'pokemon' ? 'selectedGameType' : ''} type="button" role="radio" aria-checked={gameType === 'pokemon'} onClick={() => setGameType('pokemon')}>
             <Sparkles size={17} />
             宝可梦
           </button>
-          <button className={gameType === 'duel' ? 'selectedGameType' : ''} type="button" onClick={() => setGameType('duel')}>
+          <button className={gameType === 'duel' ? 'selectedGameType' : ''} type="button" role="radio" aria-checked={gameType === 'duel'} onClick={() => setGameType('duel')}>
             <Gem size={17} />
             对决
           </button>
         </div>
         {gameType === 'pokemon' && (
           <div className="homeGamePicker compactGamePicker" role="radiogroup" aria-label="选择宝可梦特殊牌组">
-            <button className={pokemonSpecialSet === 'primary' ? 'selectedGameType' : ''} type="button" onClick={() => setPokemonSpecialSet('primary')}>
+            <button className={pokemonSpecialSet === 'primary' ? 'selectedGameType' : ''} type="button" role="radio" aria-checked={pokemonSpecialSet === 'primary'} onClick={() => setPokemonSpecialSet('primary')}>
               套组 A
             </button>
-            <button className={pokemonSpecialSet === 'alternate' ? 'selectedGameType' : ''} type="button" onClick={() => setPokemonSpecialSet('alternate')}>
+            <button className={pokemonSpecialSet === 'alternate' ? 'selectedGameType' : ''} type="button" role="radio" aria-checked={pokemonSpecialSet === 'alternate'} onClick={() => setPokemonSpecialSet('alternate')}>
               套组 B
             </button>
           </div>

@@ -2761,6 +2761,32 @@ button:not(:disabled):active {
     0 8px 14px rgba(0, 0, 0, 0.22);
 }
 
+.splendorSeat > .playerPanel .tokenSlot.splendorRefundableTokenSlot,
+.splendorOverflowTokenButton.splendorRefundableTokenSlot {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.12)),
+    rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.72);
+  box-shadow:
+    inset 0 0 13px rgba(255, 255, 255, 0.22),
+    0 0 0 1px rgba(255, 239, 190, 0.18),
+    0 7px 12px rgba(0, 0, 0, 0.18);
+}
+
+.splendorSeat > .playerPanel .tokenSlot.splendorRefundableTokenControl,
+.splendorOverflowTokenButton.splendorRefundableTokenControl {
+  cursor: pointer;
+}
+
+.splendorSeat > .playerPanel .tokenSlot.splendorRefundableTokenSlot:hover,
+.splendorOverflowTokenButton.splendorRefundableTokenSlot:hover {
+  border-color: rgba(255, 238, 170, 0.9);
+  box-shadow:
+    inset 0 0 13px rgba(255, 238, 170, 0.18),
+    0 0 0 2px rgba(255, 255, 255, 0.22),
+    0 8px 14px rgba(0, 0, 0, 0.22);
+}
+
 .splendorSeat > .playerPanel .tokenSlot.splendorDiscardableTokenSlot svg {
   position: absolute;
   right: -3px;
@@ -3657,6 +3683,29 @@ button:not(:disabled):active {
 
 .purchasedCardItem.purchasedCardMotionHidden {
   opacity: 0;
+}
+
+.purchasedCardItem.splendorRefundablePurchasedCard,
+.splendorReserveCardItem.splendorRefundableReserveCard {
+  cursor: pointer;
+}
+
+.purchasedCardItem.splendorDraftCard,
+.splendorReserveCardItem.splendorDraftCard {
+  filter: saturate(1.08) brightness(1.04);
+}
+
+.purchasedCardItem.splendorDraftCard::after,
+.splendorReserveCardItem.splendorDraftCard::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 6px;
+  pointer-events: none;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  box-shadow:
+    0 0 0 1px rgba(255, 238, 170, 0.22),
+    0 0 18px rgba(255, 255, 255, 0.28);
 }
 
 .eligiblePurchaseColumn {

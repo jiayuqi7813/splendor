@@ -118,6 +118,46 @@ export interface TurnActions {
   replenished?: boolean
   mandatoryDone?: boolean
   evolved?: boolean
+  pokemonAction?: PokemonTurnAction
+  pokemonEvolution?: PokemonEvolutionTurnAction
+}
+
+export type PokemonTurnAction =
+  | {
+      type: 'takeTokens'
+      tokenTypes: GemType[]
+      tokenIds: string[]
+      discardedTokens?: Token[]
+    }
+  | {
+      type: 'reserve'
+      cardId: number
+      source: CardSource
+      reserveIndex: number
+      goldToken: Token
+      goldSource: { type: 'board'; cellId: string } | { type: 'bag' }
+      replacementCardId?: number | null
+      discardedTokens?: Token[]
+    }
+  | {
+      type: 'purchase'
+      cardId: number
+      source: CardSource
+      purchaseIndex: number
+      wildColor?: GemType
+      paymentTokens: Token[]
+      replacementCardId?: number | null
+      discardedTokens?: Token[]
+    }
+
+export interface PokemonEvolutionTurnAction {
+  targetCardId: number
+  source: CardSource
+  baseCard: PurchasedCard
+  baseIndex: number
+  tuckedIndex: number
+  evolutionPileIndex?: number
+  replacementCardId?: number | null
 }
 
 export interface GameState {
@@ -174,8 +214,10 @@ export type GameAction =
   | { type: 'takeClassicBankTokens'; playerId: PlayerId; tokenTypes: GemType[] }
   | { type: 'reserveCard'; playerId: PlayerId; source: CardSource; goldCellId: string }
   | { type: 'purchaseCard'; playerId: PlayerId; source: CardSource; wildColor?: GemType }
-  | { type: 'evolvePokemon'; playerId: PlayerId; source: CardSource }
-  | { type: 'endTurn'; playerId: PlayerId }
+  | { type: 'evolvePokemon'; playerId: PlayerId; source: CardSource; tokenTypes?: GemType[] }
+  | { type: 'undoPokemonAction'; playerId: PlayerId }
+  | { type: 'undoPokemonEvolution'; playerId: PlayerId }
+  | { type: 'endTurn'; playerId: PlayerId; tokenTypes?: GemType[] }
   | { type: 'chooseRoyal'; playerId: PlayerId; cardId: number }
   | { type: 'takeBoardToken'; playerId: PlayerId; cellId: string }
   | { type: 'stealToken'; playerId: PlayerId; tokenType: Exclude<TokenType, 'gold'>; tokenId?: string }

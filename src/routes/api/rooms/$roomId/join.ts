@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { jsonError, jsonOk, replayToRoomMachine, roomStore } from '@/server/roomStore'
+import { jsonBodyObject, jsonError, jsonOk, replayToRoomMachine, roomStore } from '@/server/roomStore'
 
 export const Route = createFileRoute('/api/rooms/$roomId/join')({
   server: {
@@ -8,15 +8,16 @@ export const Route = createFileRoute('/api/rooms/$roomId/join')({
         const replay = replayToRoomMachine(request)
         if (replay) return replay
         try {
-          const body = await request.json().catch(() => ({}))
-          if (body.restart) return jsonOk(roomStore.restartRoom(params.roomId, body.playerSecret))
-          if (body.moveSeat) return jsonOk(roomStore.moveSeat(params.roomId, body.playerSecret, body.targetPlayerId))
-          if (body.setHostAi) return jsonOk(roomStore.setHostAi(params.roomId, body.playerSecret, body.difficulty))
-          if (body.updateAiDifficulty) return jsonOk(roomStore.updateAiDifficulty(params.roomId, body.playerSecret, body.targetPlayerId, body.difficulty))
-          if (body.removeAi) return jsonOk(roomStore.removeAiPlayer(params.roomId, body.playerSecret, body.targetPlayerId))
-          if (body.aiOpponent) return jsonOk(roomStore.addAiOpponent(params.roomId, body.playerSecret, body.difficulty, Boolean(body.secondAi), body.secondDifficulty))
-          if (body.confirmSeat) return jsonOk(roomStore.confirmSeat(params.roomId, body.playerSecret, body.playerName))
-          return jsonOk(roomStore.joinRoom(params.roomId, body.playerSecret))
+          const body = await jsonBodyObject(request)
+          const playerSecret = typeof body.playerSecret === 'string' ? body.playerSecret : undefined
+          if (body.restart === true) return jsonOk(roomStore.restartRoom(params.roomId, playerSecret ?? ''))
+          if (body.moveSeat === true) return jsonOk(roomStore.moveSeat(params.roomId, playerSecret ?? '', body.targetPlayerId))
+          if (body.setHostAi === true) return jsonOk(roomStore.setHostAi(params.roomId, playerSecret ?? '', body.difficulty))
+          if (body.updateAiDifficulty === true) return jsonOk(roomStore.updateAiDifficulty(params.roomId, playerSecret ?? '', body.targetPlayerId, body.difficulty))
+          if (body.removeAi === true) return jsonOk(roomStore.removeAiPlayer(params.roomId, playerSecret ?? '', body.targetPlayerId))
+          if (body.aiOpponent === true) return jsonOk(roomStore.addAiOpponent(params.roomId, playerSecret ?? '', body.difficulty, body.secondAi === true, body.secondDifficulty))
+          if (body.confirmSeat === true) return jsonOk(roomStore.confirmSeat(params.roomId, playerSecret ?? '', body.playerName))
+          return jsonOk(roomStore.joinRoom(params.roomId, playerSecret))
         } catch (error) {
           return jsonError(error)
         }

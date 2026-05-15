@@ -908,7 +908,7 @@ function aiDelayAfterAction(action: AnyGameAction | null): number {
   if (action.type === 'reserveCard') return 1800
   if (action.type === 'takeTokens' || action.type === 'takeClassicBankTokens' || action.type === 'takeGems') return 1500
   if (action.type === 'replenishBoard' || action.type === 'usePrivilege' || action.type === 'takeBoardToken' || action.type === 'stealToken') return 1500
-  if (action.type === 'evolvePokemon' || action.type === 'chooseNoble') return AI_FAST_PENDING_DELAY_MS
+  if (action.type === 'evolvePokemon' || action.type === 'undoPokemonAction' || action.type === 'undoPokemonEvolution' || action.type === 'chooseNoble') return AI_FAST_PENDING_DELAY_MS
   if (action.type === 'endTurn') return AI_FAST_PENDING_DELAY_MS
   return AI_ACTION_DELAY_MS
 }
@@ -958,6 +958,12 @@ export const roomStore = (roomStoreGlobal.__gemDuelArenaRoomStore ??= new RoomSt
 
 export function jsonOk(data: unknown, init?: ResponseInit): Response {
   return Response.json(data, withRoomMachineRouting(init))
+}
+
+export async function jsonBodyObject(request: Request): Promise<Record<string, unknown>> {
+  const body = await request.json().catch(() => ({}))
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return {}
+  return body as Record<string, unknown>
 }
 
 export function jsonError(error: unknown): Response {
